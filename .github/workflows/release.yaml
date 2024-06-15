@@ -236,10 +236,10 @@ jobs:
       run: |
         if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
-          export RELEASE_MSG="https://github.com/${{ github.repository }}/releases/tag/v${TEMPLATE_VERSION}"
+          export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/v${TEMPLATE_VERSION})"
         else
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
-          export RELEASE_MSG="https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION}"
+          export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
         fi
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
