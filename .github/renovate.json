@@ -4,7 +4,8 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "(^|/).+\\.ya?ml$"
+        "(^|/).+\\.ya?ml$",
+        "(^|/)Dockerfile$"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-\/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
@@ -17,6 +18,11 @@
     "group:linters"
   ],
   "internalChecksFilter": "strict",
+  "npm": {
+    "fileMatch": [
+      "images/(.+/)*npm-packages\\.json$"
+    ]
+  },
   "packageRules": [
     {
       "groupName": "github-action dependencies",
@@ -126,13 +132,126 @@
       "minimumReleaseAge": "30 days"
     },
     {
+      "automerge": true,
+      "groupName": "galaxy-collection non-major dependencies",
+      "groupSlug": "galaxy-collection-non-major-deps",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days"
+    },
+    {
+      "groupName": "galaxy-collection major dependencies",
+      "groupSlug": "galaxy-collection-deps",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "automerge": true,
+      "description": "stability required dependencies: patch versions",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core",
+        "fluxcd/flux2",
+        "hashicorp/terraform",
+        "hashicorp/packer",
+        "kubernetes/kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "stability required dependencies: minor versions",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core",
+        "fluxcd/flux2",
+        "hashicorp/terraform",
+        "hashicorp/packer",
+        "kubernetes/kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "description": "stability required dependencies: major versions",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core",
+        "fluxcd/flux2",
+        "hashicorp/terraform",
+        "hashicorp/packer",
+        "kubernetes/kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "180 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "allowedVersions": "<24",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-lint",
+        "molecule",
+        "molecule-plugins"
+      ]
+    },
+    {
       "description": "slow down the update of packages with daily releases",
       "matchDepNames": [
-        "renovate"
+        "renovate",
+        "snyk/cli"
       ],
       "minimumReleaseAge": "7 days",
       "schedule": [
         "before 10am on Wednesday"
+      ]
+    },
+    {
+      "allowedVersions": "<2.32.0",
+      "description": "see: https://github.com/ansible-collections/community.docker/issues/860",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "requests"
       ]
     }
   ],

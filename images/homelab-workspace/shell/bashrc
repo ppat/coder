@@ -1,0 +1,31 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc) for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# load system environment variables
+set -o allexport; source /etc/environment; set +o allexport
+
+# load user environment variables
+set -o allexport; source $HOME/.env; set +o allexport
+
+# add injected coder CLI to the PATH
+CODER_CLI_LOCATION=$(dirname $(find /tmp/coder* -name coder -type f -executable))
+if [[ ! -z "${CODER_CLI_LOCATION}" ]]; then
+  export PATH="${PATH}:${CODER_CLI_LOCATION}"
+fi
+
+# source bash shell defaults
+. /etc/bashrc.defaults
+. /etc/bash_aliases.defaults
+. /etc/bash_completion.defaults
+
+# source bash shell personalizations
+PERSONALIZED_BASH_CONFIGURATIONS="$(find ${HOME} -mindepth 1 -maxdepth 1 -type f -name '.bash*' -not -name .bashrc -not -name .bash_history -not -name .bash_logout)"
+for file in ${PERSONALIZED_BASH_CONFIGURATIONS}; do
+  . ${file}
+done
