@@ -161,6 +161,48 @@
     },
     {
       "automerge": true,
+      "groupName": "terraform-provider patch dependencies",
+      "groupSlug": "terraform-provider-patch-deps",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days"
+    },
+    {
+      "groupName": "terraform-provider minor dependencies",
+      "groupSlug": "terraform-provider-minor-deps",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "groupName": "terraform-provider major dependencies",
+      "groupSlug": "terraform-provider-deps",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "90 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "automerge": true,
       "description": "stability required dependencies: patch versions",
       "matchDatasources": [
         "github-releases",
