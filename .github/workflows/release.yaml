@@ -247,7 +247,7 @@ jobs:
           --directory ${TEMPLATE_DIR} \
           --var workspace_image=${WORKSPACE_IMAGE} \
           --name ${TEMPLATE_VERSION} \
-          --message ${RELEASE_MSG}
+          --message ${RELEASE_MSG} \
           --yes \
           ${TEMPLATE_NAME}
         set +x
