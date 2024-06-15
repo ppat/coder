@@ -111,4 +111,3 @@ jobs:
         recursive: true
         failure-threshold: warning
         config: .hadolint.yaml
-        verbose: true
