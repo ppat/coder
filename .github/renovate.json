@@ -287,6 +287,22 @@
       ]
     },
     {
+      "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "270 days",
+      "schedule": [
+        "before 10am on Wednesday"
+      ]
+    },
+    {
       "allowedVersions": "<2.32.0",
       "description": "see: https://github.com/ansible-collections/community.docker/issues/860",
       "matchDatasources": [
