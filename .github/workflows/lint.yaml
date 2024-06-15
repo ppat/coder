@@ -1,4 +1,5 @@
 ---
+# yamllint disable rule:line-length
 name: Lint all
 
 # yamllint disable-line rule:truthy
