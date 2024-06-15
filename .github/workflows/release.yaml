@@ -236,16 +236,18 @@ jobs:
       run: |
         if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
+          export RELEASE_MSG="${{ github.repository }}/releases/tag/v${TEMPLATE_VERSION}"
         else
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
+          export RELEASE_MSG="${{ github.repository }}/commit/${TEMPLATE_VERSION}"
         fi
-        echo "TEMPLATE_NAME=${TEMPLATE_NAME}" >> $GITHUB_ENV
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
         coder template push \
           --directory ${TEMPLATE_DIR} \
           --var workspace_image=${WORKSPACE_IMAGE} \
           --name ${TEMPLATE_VERSION} \
+          --message ${RELEASE_MSG}
           --yes \
           ${TEMPLATE_NAME}
         set +x
