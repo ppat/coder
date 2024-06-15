@@ -235,9 +235,9 @@ jobs:
       # yamllint disable-line rule:indentation
       run: |
         if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
-          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
-        else
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
+        else
+          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
         fi
         echo "TEMPLATE_NAME=${TEMPLATE_NAME}" >> $GITHUB_ENV
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
