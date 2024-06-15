@@ -100,6 +100,7 @@ RUN wget  --progress=dot:giga https://github.com/upx/upx/releases/download/v${UP
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
 # install docker-engine
+# hadolint ignore=SC1091
 RUN \
     # ----------------------------------------------------------------------------------------------------
     # prep apt source for docker
@@ -240,7 +241,7 @@ RUN mkdir -p /opt/fnm && \
 
 # NodeJS based tooling
 COPY packages/npm-packages.json /tmp/npm-packages.json
-# hadolint ignore=DL3016
+# hadolint ignore=DL3016,SC2086
 RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
     ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
     npm config set update-notifier false && \
@@ -274,9 +275,9 @@ RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin
 COPY packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
-# hadolint ignore=DL3013
+# hadolint ignore=DL3013,SC2086
 RUN mkdir ${PIPX_HOME} && \
-    for t in $(cat /tmp/pipx-package-requirements.txt| grep -v '^#'); do pipx install ${t}; done && \
+    for t in $(grep -v '^#' /tmp/pipx-package-requirements.txt); do pipx install ${t}; done && \
     chown -R root:coder ${PIPX_HOME} && \
     chmod -R g+rw ${PIPX_HOME} && \
     find /usr -name __pycache__ -exec rm -rf {} + && \
