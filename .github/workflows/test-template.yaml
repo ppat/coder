@@ -81,9 +81,8 @@ jobs:
         export CODER_URL="http://127.0.0.1:${AVAILABLE_PORT}"
         echo "CODER_URL=${CODER_URL}" >> $GITHUB_ENV
 
-        set -x
         docker compose up --detach --force-recreate --always-recreate-deps --build
-        set +x
+        echo "Show docker compose status..."
         docker compose ps
         while ! nc -z -v -w 1 127.0.0.1 ${AVAILABLE_PORT}; do
           echo "Waiting for coder port to be ready... sleeping 5s!"
@@ -108,7 +107,8 @@ jobs:
         curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
         echo
         echo "Creating Coder admin user..."
-        coder login --first-user-username=test-user --first-user-email=${{ secrets.CODER_EMAIL }} --first-user-password=${{ secrets.CODER_PASSWORD }} --first-user-trial=false ${CODER_URL}
+        password=$(openssl rand -base64 16 | tr -d "=+/" | cut -c1-12)
+        coder login --first-user-username=test-user --first-user-email=test-user@example.com --first-user-password=${password} --first-user-trial=false ${CODER_URL}
         echo "Confirming that admin user was created..."
         curl -fsSL ${CODER_URL}/api/v2/users/first
         echo
