@@ -1,0 +1,207 @@
+---
+name: "test template"
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    paths:
+    - 'docker-compose.yaml'
+    - 'templates/**'
+    - '.github/workflows/test-template.yaml'
+  workflow_dispatch:
+    inputs:
+      verbosity:
+        description: 'Log Verbosity'
+        required: true
+        default: 1
+        type: choice
+        options:
+        - '0'
+        - '1'
+        - '2'
+        - '3'
+        - '4'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  default_verbosity: 0
+  template_path: templates/docker/homelab-workspace
+
+jobs:
+  test-template:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install sysbox
+      run: |
+        # see: https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-package.md#installing-sysbox
+        wget --progress=dot:giga https://downloads.nestybox.com/sysbox/releases/v${SYSBOX_VERSION}/sysbox-ce_${SYSBOX_VERSION}-0.linux_amd64.deb -O /tmp/sysbox.deb
+        sudo apt-get install jq
+        sudo apt-get install /tmp/sysbox.deb
+        rm /tmp/sysbox.deb
+
+        sudo systemctl restart containerd
+        sudo systemctl restart docker
+        sudo systemctl restart sysbox
+        sudo systemctl restart containerd
+        sudo systemctl restart docker
+
+        sudo systemctl status sysbox
+      env:
+        # renovate: datasource=github-releases depName=nestybox/sysbox
+        SYSBOX_VERSION: "0.6.4"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3
+      with:
+        driver-opts: network=host
+
+    - name: Build image for testing template
+      uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      with:
+        context: ./images/simple-workspace
+        load: true
+        push: false
+        tags: simple-workspace:latest
+        allow: network.host
+        network: host
+
+    - name: Start local coder instance
+      # yamllint disable-line rule:indentation
+      run: |
+        echo "Launching Coder..."
+        export AVAILABLE_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
+        export DOCKER_GROUP=$(grep docker /etc/group | cut -d':' -f3)
+        export CODER_URL="http://127.0.0.1:${AVAILABLE_PORT}"
+        echo "CODER_URL=${CODER_URL}" >> $GITHUB_ENV
+
+        set -x
+        docker compose up --detach --force-recreate --always-recreate-deps --build
+        set +x
+        docker compose ps
+        while ! nc -z -v -w 1 127.0.0.1 ${AVAILABLE_PORT}; do
+          echo "Waiting for coder port to be ready... sleeping 5s!"
+          sleep 5
+          docker compose ps
+        done
+        echo "Coder port is up..."
+        echo
+        while ! curl -fsSL ${CODER_URL} > /dev/null; do
+          echo "Waiting for coder service to be ready... sleep 5s!"
+          sleep 5
+        done
+        echo "Coder service is accepting connections..."
+        echo
+
+    - name: Login to coder
+      # yamllint disable-line rule:indentation
+      run: |
+        echo "Determining coder version..."
+        export CODER_VERSION=$(curl -fsSL ${CODER_URL}/api/v2/buildinfo | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
+        echo "Installing coder CLI..."
+        curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
+        echo
+        echo "Creating Coder admin user..."
+        coder login --first-user-username=test-user --first-user-email=${{ secrets.CODER_EMAIL }} --first-user-password=${{ secrets.CODER_PASSWORD }} --first-user-trial=false ${CODER_URL}
+        echo "Confirming that admin user was created..."
+        curl -fsSL ${CODER_URL}/api/v2/users/first
+        echo
+
+    - name: Test - publish template
+      id: publish-template
+      env:
+        TEMPLATE_DIR: ${{ env.template_path }}
+      # yamllint disable-line rule:indentation
+      run: |
+        export TEMPLATE_NAME="test-$(date --utc +%Y%m%d-%H%M%SZ)"
+        echo "TEMPLATE_NAME=${TEMPLATE_NAME}" >> $GITHUB_ENV
+        echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
+        coder template push --directory ${TEMPLATE_DIR} --var workspace_image=simple-workspace:latest --yes ${TEMPLATE_NAME}
+
+        echo
+        echo "Confirming template has been published..."
+        coder templates list --output json > /tmp/templates.json
+        export SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'${TEMPLATE_NAME}'")')
+        if [[ -z $SELECTED_TEMPLATE ]]; then
+          echo "Could not find any template published as $TEMPLATE_NAME."
+          exit 1
+        fi
+        echo "Template has been published successfully."
+
+    - name: Test - create workspace
+      id: create-workspace
+      run: |
+        export WORKSPACE_NAME="${TEMPLATE_NAME}"
+        echo "WORKSPACE_NAME=${WORKSPACE_NAME}" >> $GITHUB_ENV
+        echo "Create workspace as ${WORKSPACE_NAME}..."
+        set -x
+        coder create --template "${TEMPLATE_NAME}" --yes ${WORKSPACE_NAME}
+
+    - name: Test - check workspace health
+      id: check-worskpace-health
+      env:
+        verbosity: ${{ (github.event.inputs.verbosity || env.default_verbosity) }}
+      # yamllint disable-line rule:indentation
+      run: |
+        echo "Confirming that workspace is present in some state..."
+        coder list --output json > /tmp/workspaces.json
+        export SELECTED_WORKSPACE=$(cat /tmp/workspaces.json | jq -r '.[] | select(.name == "'${WORKSPACE_NAME}'")')
+        if [[ -z $SELECTED_WORKSPACE ]]; then
+          echo "Could not find any workspace published as ${WORKSPACE_NAME} in any state."
+          exit 1
+        elif [[ $verbosity -gt 0 ]]; then
+          echo ${SELECTED_WORKSPACE} | jq -r
+        fi
+        echo "Workspace creation has started."
+        echo
+        echo "Waiting for coder agent to be ready..."
+        timeout 30s coder ping ${WORKSPACE_NAME} --num 3 --timeout 2s --wait 5s
+        echo
+        echo "Check if created workspace is healthy"
+        if coder show ${WORKSPACE_NAME} | grep main | grep '✔ healthy' > /dev/null; then
+          echo "Created workspace is healthy."
+          coder show ${WORKSPACE_NAME}
+          echo
+        else
+          echo "Created workspace is in an unhealthy state."
+          exit 1
+        fi
+
+    - name: Test - connect to created workspace
+      id: check-workspace-connect
+      run: |
+        echo "Connecting to workspace..."
+        coder config-ssh --yes
+        set -x
+        ssh coder.${WORKSPACE_NAME} ls -al /
+
+    - name: Debug - workspace creation
+      if: ${{ failure() && (steps.create-workspace.conclusion == 'failure' || steps.check-worskpace-health.conclusion == 'failure') }}
+      run: |
+        echo Container status:
+        docker ps
+        echo
+        echo Container logs:
+        docker logs -n 100 ${WORKSPACE_NAME}
+        echo
+        echo Workspace status
+        coder show ${WORKSPACE_NAME}
+
+    - name: Clean up - workspace
+      if: ${{ (success() || failure()) && contains(fromJSON('["success", "failure"]'), steps.create-workspace.conclusion) }}
+      run: |
+        echo "Deleting workspace ${WORKSPACE_NAME}..."
+        coder delete --yes "${WORKSPACE_NAME}"
+
+    - name: Clean up - template
+      if: ${{ (success() || failure()) && contains(fromJSON('["success", "failure"]'), steps.publish-template.conclusion) }}
+      run: |
+        echo "Deleting template ${TEMPLATE_NAME}..."
+        coder templates delete --yes ${TEMPLATE_NAME}
+        echo

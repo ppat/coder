@@ -88,6 +88,15 @@ jobs:
     - name: shellcheck
       run: pre-commit run --all-files shellcheck
 
+    - name: terraform-fmt
+      run: pre-commit run --all-files terraform-fmt
+
+    - name: terraform-validate
+      run: pre-commit run --all-files terraform-validate
+
+    - name: tflint
+      run: pre-commit run --all-files tflint
+
     - name: yamllint
       run: yamllint -c .yamllint --strict --format github .
 

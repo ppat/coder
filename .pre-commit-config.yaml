@@ -38,3 +38,11 @@ repos:
   - id: hadolint
     args:
     - --failure-threshold=warning
+- repo: https://github.com/gruntwork-io/pre-commit
+  rev: v0.1.23
+  hooks:
+  - id: terraform-fmt
+  - id: terraform-validate
+  - id: tflint
+    args:
+    - "--config=__GIT_ROOT__/.tflint.hcl"
