@@ -60,6 +60,7 @@ jobs:
 
     - name: Tailscale Debug
       if: ${{ (github.event.inputs.verbosity || env.default_verbosity) >= 1 }}
+      shell: bash
       run: |
         sudo -E tailscale netcheck --verbose 2>&1 | sed -f .output-filter
         echo
@@ -117,9 +118,6 @@ jobs:
         test_user: tester
       shell: bash
       run: |
-        set -eo pipefail
-        set -x
-
         echo "Show available images..."
         docker images
         echo
