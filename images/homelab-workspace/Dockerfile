@@ -92,7 +92,7 @@ RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
 # fetch and use upx to compress larger executables as this is already a large image
 # this will be utilized in subsequent child images at each stage
 # renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="4.0.2"
+ARG UPX_VERSION="4.2.4"
 WORKDIR /tmp
 RUN wget  --progress=dot:giga https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz -O /tmp/upx.tar.xz && \
     xz -d /tmp/upx.tar.xz && \
@@ -340,7 +340,7 @@ RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/l
 
 # helm
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="3.15.1"
+ARG HELM_VERSION="3.15.2"
 RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzv --strip-components 1 -C /tmp && \
     install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
     upx /usr/local/sbin/helm && \
