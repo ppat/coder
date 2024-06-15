@@ -153,7 +153,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
         cache-from: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
-        cache-to: ${{ github.event_name == 'workflow_dispatch' && join(['type=registry',format('ref=${0}:{1}',env.image_cache_name,env.default_branch),'image-manifest=true','oci-mediatypes=true','mode=max','compression=zstd'], ',') || 'type=inline' }}
+        cache-to: ${{ github.event_name == 'workflow_dispatch' && 'type=registry,ref=' + env.image_cache_name + ':' + env.default_branch + 'image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd' || 'type=inline' }}
         build-args: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
