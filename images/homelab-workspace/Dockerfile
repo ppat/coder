@@ -239,20 +239,6 @@ RUN mkdir -p /opt/fnm && \
     # ----------------------------------------------------------------------------------------------------
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
-# NodeJS based tooling
-COPY packages/npm-packages.json /tmp/npm-packages.json
-# hadolint ignore=DL3016,SC2086
-RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    npm config set update-notifier false && \
-    npm config set fund false && \
-    npm config set loglevel error && \
-    for i in $(cat /tmp/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT} && \
-    # ----------------------------------------------------------------------------------------------------
-    rm -rf /var/log/* /tmp/* /var/tmp/*
-
 # Golang (as per official instructions from https://go.dev/doc/install)
 # renovate: datasource=golang-version depName=golang
 ARG GOLANG_VERSION="1.22.4"
@@ -270,46 +256,6 @@ RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.
     echo "GOROOT=\"${GOROOT}\"" >> /etc/environment && \
     # ----------------------------------------------------------------------------------------------------
     rm -rf /var/log/* /tmp/* /var/tmp/*
-
-# python build and lint tools: (poetry, etc)
-ENV PIPX_HOME=/opt/pipx
-ENV PIPX_BIN_DIR=/usr/local/bin
-COPY packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
-# hadolint ignore=DL3013,SC2086
-RUN mkdir ${PIPX_HOME} && \
-    for t in $(grep -v '^#' /tmp/pipx-package-requirements.txt); do pipx install ${t}; done && \
-    chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME} && \
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    find /opt -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
-
-# ansible dependencies, related apps and collections
-ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
-COPY packages/ansible-* /tmp/
-COPY packages/requirements.yaml /tmp/ansible-galaxy.yaml
-# hadolint ignore=SC2046
-RUN \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible related apps
-    pipx inject ansible-core --include-apps $(grep -v '^#' /tmp/ansible-dependent-app-requirements.txt) && \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible dependent packages
-    pipx inject ansible-core $(grep -v '^#' /tmp/ansible-dependency-requirements.txt) && \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible collections
-    mkdir -p /opt/ansible/collections && \
-    ansible-galaxy collection install -p /opt/ansible/collections -r /tmp/ansible-galaxy.yaml && \
-    # ----------------------------------------------------------------------------------------------------
-    chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME} && \
-    chown -R root:coder /opt/ansible && \
-    find /opt/ansible -type d -exec chmod g+rwx {} + && \
-    echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment && \
-    # ----------------------------------------------------------------------------------------------------
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    find /opt -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
 
 # tfenv + terraform
 # renovate: datasource=github-releases depName=tfutils/tfenv
@@ -376,6 +322,60 @@ COPY packages/github-releases.yaml /tmp/github-releases.yaml
 COPY packages/install-from-github-release.sh /tmp/install-from-github-release.sh
 ARG FETCH_GH_TOKEN
 RUN /bin/bash /tmp/install-from-github-release.sh /tmp/github-releases.yaml
+
+# python build and lint tools: (poetry, etc)
+ENV PIPX_HOME=/opt/pipx
+ENV PIPX_BIN_DIR=/usr/local/bin
+COPY packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
+# hadolint ignore=DL3013,SC2086
+RUN mkdir ${PIPX_HOME} && \
+    for t in $(grep -v '^#' /tmp/pipx-package-requirements.txt); do pipx install ${t}; done && \
+    chown -R root:coder ${PIPX_HOME} && \
+    chmod -R g+rw ${PIPX_HOME} && \
+    find /usr -name __pycache__ -exec rm -rf {} + && \
+    find /opt -name __pycache__ -exec rm -rf {} + && \
+    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
+
+# ansible dependencies, related apps and collections
+ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
+COPY packages/ansible-* /tmp/
+COPY packages/requirements.yaml /tmp/ansible-galaxy.yaml
+# hadolint ignore=SC2046
+RUN \
+    # ----------------------------------------------------------------------------------------------------
+    # ansible related apps
+    pipx inject ansible-core --include-apps $(grep -v '^#' /tmp/ansible-dependent-app-requirements.txt) && \
+    # ----------------------------------------------------------------------------------------------------
+    # ansible dependent packages
+    pipx inject ansible-core $(grep -v '^#' /tmp/ansible-dependency-requirements.txt) && \
+    # ----------------------------------------------------------------------------------------------------
+    # ansible collections
+    mkdir -p /opt/ansible/collections && \
+    ansible-galaxy collection install -p /opt/ansible/collections -r /tmp/ansible-galaxy.yaml && \
+    # ----------------------------------------------------------------------------------------------------
+    chown -R root:coder ${PIPX_HOME} && \
+    chmod -R g+rw ${PIPX_HOME} && \
+    chown -R root:coder /opt/ansible && \
+    find /opt/ansible -type d -exec chmod g+rwx {} + && \
+    echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment && \
+    # ----------------------------------------------------------------------------------------------------
+    find /usr -name __pycache__ -exec rm -rf {} + && \
+    find /opt -name __pycache__ -exec rm -rf {} + && \
+    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
+
+# NodeJS based tooling
+COPY packages/npm-packages.json /tmp/npm-packages.json
+# hadolint ignore=DL3016,SC2086
+RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
+    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
+    npm config set update-notifier false && \
+    npm config set fund false && \
+    npm config set loglevel error && \
+    for i in $(cat /tmp/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
+    chown -R root:coder ${FNM_ROOT} && \
+    chmod -R g+rw ${FNM_ROOT} && \
+    # ----------------------------------------------------------------------------------------------------
+    rm -rf /var/log/* /tmp/* /var/tmp/*
 
 # shell initialization scripts
 COPY shell/bash_aliases.defaults /etc/bash_aliases.defaults
