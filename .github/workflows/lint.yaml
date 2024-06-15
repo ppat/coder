@@ -103,3 +103,10 @@ jobs:
 
     - name: validate-renovate-config
       run: npx --yes --package renovate -- renovate-config-validator
+
+    - name: hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: "Dockerfile"
+        recursive: true
+        failure-threshold: warning

@@ -1,0 +1,9 @@
+ansible-core==2.15.6
+black==24.4.2
+commitizen==3.27.0
+cookiecutter==2.6.0
+flake8==7.0.0
+ipython==8.25.0
+poetry==1.8.3
+pre-commit==3.7.1
+yamllint==1.35.1

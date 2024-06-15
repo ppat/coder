@@ -1,0 +1,25 @@
+# kubectl
+source <(kubectl completion bash)
+alias k=kubectl
+complete -o default -F __start_kubectl k
+
+# helm
+source <(helm completion bash)
+
+# kustomize
+source <(kustomize completion bash)
+
+# terraform
+complete -C /opt/tfenv/versions/$(ls /opt/tfenv/versions | sort -rn | head -1)/terraform terraform
+
+# yq
+source <(yq shell-completion bash)
+
+# poetry
+source <(poetry completions bash)
+
+# pip
+source <(pip completion --bash)
+
+# flux
+source <(flux completion bash)
