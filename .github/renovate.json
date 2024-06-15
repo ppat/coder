@@ -1,0 +1,149 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "(^|/).+\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-\/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    }
+  ],
+  "extends": [
+    "config:best-practices",
+    "group:linters"
+  ],
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    {
+      "groupName": "github-action dependencies",
+      "groupSlug": "github-actions-deps",
+      "matchFileNames": [
+        ".github/workflows/**"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "automerge": true,
+      "groupName": "github-release non-major dependencies",
+      "groupSlug": "github-release-non-major-deps",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days"
+    },
+    {
+      "groupName": "github-release major dependencies",
+      "groupSlug": "github-release-deps",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "automerge": true,
+      "groupName": "npm non-major dependencies",
+      "groupSlug": "npm-deps-non-major",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days"
+    },
+    {
+      "groupName": "npm major dependencies",
+      "groupSlug": "npm-deps",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "automerge": true,
+      "groupName": "python non-major dependencies",
+      "groupSlug": "pypi-deps-non-major",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days"
+    },
+    {
+      "groupName": "python major dependencies",
+      "groupSlug": "pypi-deps",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
+    },
+    {
+      "groupName": "pre-commit dependencies",
+      "groupSlug": "pre-commit-deps",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "minimumReleaseAge": "30 days"
+    },
+    {
+      "description": "slow down the update of packages with daily releases",
+      "matchDepNames": [
+        "renovate"
+      ],
+      "minimumReleaseAge": "7 days",
+      "schedule": [
+        "before 10am on Wednesday"
+      ]
+    }
+  ],
+  "prConcurrentLimit": 20,
+  "prHourlyLimit": 10,
+  "pre-commit": {
+    "enabled": true
+  },
+  "rebaseWhen": "behind-base-branch",
+  "semanticCommits": "enabled",
+  "separateMajorMinor": true,
+  "separateMultipleMajor": false,
+  "timezone": "US/Eastern"
+}
