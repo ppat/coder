@@ -38,6 +38,7 @@ jobs:
     timeout-minutes: 10
     # if: github.event.pull_request.merged == true
     outputs:
+      released_sha: ${{ steps.release_sha.outputs.sha }}
       released_version: ${{ steps.release_version.outputs.version }}
     steps:
     - name: Check out
@@ -58,6 +59,12 @@ jobs:
       run: npx semantic-release
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
+
+    - name: Output released sha
+      id: release_sha
+      shell: bash
+      run: |
+        echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
     - name: Output released version
       id: release_version
@@ -130,9 +137,10 @@ jobs:
           org.opencontainers.image.title=Coder-Workspace
           org.opencontainers.image.description=Coder workspace image
         tags: |
-          type=semver,pattern={{version}},value=${{ needs.create-release.outputs.released_version }}
-          type=semver,pattern={{major}}.{{minor}},value=${{ needs.create-release.outputs.released_version }}
-          type=semver,pattern={{major}},value=${{ needs.create-release.outputs.released_version }}
+          type=semver,pattern={{version}},value=${{ needs.create-release.outputs.released_version }},enable=${{ needs.create-release.outputs.released_version != '0.0.0' }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ needs.create-release.outputs.released_version }},enable=${{ needs.create-release.outputs.released_version != '0.0.0' }}
+          type=semver,pattern={{major}},value=${{ needs.create-release.outputs.released_version }},enable=${{ needs.create-release.outputs.released_version != '0.0.0' }}
+          type=raw,value=${{ needs.create-release.outputs.released_sha }},enable=${{ needs.create-release.outputs.released_version == '0.0.0' }}
 
     - name: Build and publish image
       uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
@@ -144,7 +152,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
         cache-from: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
-        cache-to: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd
+        cache-to: type=registry,ref=${{ env.image_cache_name }}:${{ github.event_name == "workflow_dispatch" && env.default_branch || github.head_ref }},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd
         build-args: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
@@ -220,19 +228,13 @@ jobs:
       id: publish-template
       env:
         TEMPLATE_DIR: ${{ env.template_path }}
-        TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version }}"
-        WORKSPACE_IMAGE: "${{ env.image_name }}:${{ needs.create-release.outputs.released_version }}"
+        TEMPLATE_SUFFIX: "${{ needs.create-release.outputs.released_version != '0.0.0' && '' || '-test' }}"
+        TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version != '0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
+        WORKSPACE_IMAGE: "${{ env.image_name }}:${{ needs.create-release.outputs.released_version != '0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
       shell: bash
       # yamllint disable-line rule:indentation
       run: |
-        if [[ "${TEMPLATE_VERSION}" != "0.0.0" ]]; then
-          # standard release
-          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
-        else
-          # release workflow is being tested, so publish template with test suffix
-          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
-          export TEMPLATE_VERSION=$(git rev-parse --short HEAD)
-        fi
+        export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)${TEMPLATE_SUFFIX}"
         echo "TEMPLATE_NAME=${TEMPLATE_NAME}" >> $GITHUB_ENV
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
