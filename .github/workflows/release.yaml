@@ -229,13 +229,16 @@ jobs:
       id: publish-template
       env:
         TEMPLATE_DIR: ${{ env.template_path }}
-        TEMPLATE_SUFFIX: "${{ needs.create-release.outputs.released_version != '0.0.0' && '' || '-test' }}"
         TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version != '0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
         WORKSPACE_IMAGE: "${{ env.image_name }}:${{ needs.create-release.outputs.released_version != '0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
       shell: bash
       # yamllint disable-line rule:indentation
       run: |
-        export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)${TEMPLATE_SUFFIX}"
+        if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
+          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
+        else
+          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
+        fi
         echo "TEMPLATE_NAME=${TEMPLATE_NAME}" >> $GITHUB_ENV
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
