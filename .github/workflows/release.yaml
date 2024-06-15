@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
     - '.github/workflows/release.yaml'
+    - '.releaserc.json'
+    - 'package.json'
   workflow_dispatch:
     inputs:
       verbosity:
