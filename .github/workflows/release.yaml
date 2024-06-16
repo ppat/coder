@@ -110,7 +110,7 @@ jobs:
         oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
         tags: tag:github-action-ci-runner
         # renovate: datasource=github-releases depName=tailscale/tailscale
-        version: "1.66.4"
+        version: "1.68.1"
 
     - name: Tailscale Debug
       if: ${{ (github.event.inputs.verbosity || env.default_verbosity) >= 1 }}
@@ -180,7 +180,7 @@ jobs:
         oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
         tags: tag:github-action-ci-runner
         # renovate: datasource=github-releases depName=tailscale/tailscale
-        version: "1.66.4"
+        version: "1.68.1"
 
     - name: Tailscale Debug
       if: ${{ (github.event.inputs.verbosity || env.default_verbosity) >= 1 }}
