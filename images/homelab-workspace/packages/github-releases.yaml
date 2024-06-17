@@ -26,7 +26,7 @@
 - name: k9s
   repo: https://github.com/derailed/k9s
   # renovate: datasource=github-releases depName=derailed/k9s
-  tag: "v0.32.4"
+  tag: "v0.32.5"
   asset_regex: k9s_Linux_amd64.tar.gz
 - name: krew
   repo: https://github.com/kubernetes-sigs/krew

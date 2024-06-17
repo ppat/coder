@@ -303,7 +303,7 @@ RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_V
 
 # yq
 # renovate: datasource=github-releases depName=mikefarah/yq
-ARG YQ_VERSION="4.44.1"
+ARG YQ_VERSION="4.44.2"
 RUN wget --progress=dot:giga -c https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64.tar.gz -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/yq_linux_amd64 /usr/local/sbin/yq && \
     upx /usr/local/sbin/yq && \
