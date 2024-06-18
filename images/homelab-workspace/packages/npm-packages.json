@@ -1,9 +1,9 @@
 {
   "devDependencies": {
     "@bitwarden/cli": "2024.6.0",
-    "@commitlint/cli": "18.6.1",
-    "@commitlint/config-conventional": "18.6.3",
-    "semantic-release": "22.0.12",
+    "@commitlint/cli": "19.3.0",
+    "@commitlint/config-conventional": "19.2.2",
+    "semantic-release": "23.1.1",
     "prettier": "3.3.2",
     "renovate": "37.399.6"
   }
