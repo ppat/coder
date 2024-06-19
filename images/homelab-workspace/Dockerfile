@@ -276,7 +276,7 @@ RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.
 
 # kubectl version=latest(intersect(stable-channel(https://github.com/k3s-io/k3s/releases), https://github.com/kubernetes/kubernetes/releases))
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="1.30.1"
+ARG KUBECTL_VERSION="1.30.2"
 RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -O /tmp/kubectl && \
     wget --progress=dot:giga https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256 -O /tmp/kubectl.sha256 && \
     echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check && \
