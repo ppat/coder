@@ -23,7 +23,7 @@ jobs:
         RUNNER_ARCH: ${{ runner.arch }}
 
     - name: Checkout
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       with:
         fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
         node-version: 20
 
     - name: Setup tflint
-      uses: terraform-linters/setup-tflint@v4
+      uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4
 
     - name: Install python requirements
       run: python -m pip install -r requirements.txt
@@ -118,7 +118,7 @@ jobs:
       run: npx --yes --package renovate -- renovate-config-validator
 
     - name: hadolint
-      uses: hadolint/hadolint-action@v3.1.0
+      uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
       with:
         dockerfile: "Dockerfile"
         recursive: true

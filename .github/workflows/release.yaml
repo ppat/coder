@@ -45,7 +45,7 @@ jobs:
       released_version: ${{ steps.release_version.outputs.version }}
     steps:
     - name: Check out
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       with:
         token: "${{ secrets.GH_RELEASES_TOKEN }}"
         fetch-depth: 0
@@ -93,7 +93,7 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: Checkout
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3
@@ -171,7 +171,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: Checkout
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
     - name: Tailscale Connect
       uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
