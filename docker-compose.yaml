@@ -2,7 +2,7 @@
 version: "3.9"
 services:
   coder:
-    image: ghcr.io/coder/coder:v2.12.1@sha256:74a84fe33fb99540f8fc9b038f8a72cff66d0561ce9866de5ea2ab9e8bca3a2d
+    image: ghcr.io/coder/coder:v2.12.2@sha256:f173a6ad2c19b43380db066c797298d08b6b7249dbad45fdc9ccc8b58751f73f
     ports:
     - "${AVAILABLE_PORT:-8080}:8080"
     environment:
