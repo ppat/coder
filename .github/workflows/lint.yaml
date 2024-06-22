@@ -16,16 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - name: Set package architecture based on runner architecture
-      run: |
-        [[ "$RUNNER_ARCH" == "ARM64" ]] && echo "PKG_ARCH=arm64" || echo "PKG_ARCH=amd64" >> $GITHUB_ENV
-      env:
-        RUNNER_ARCH: ${{ runner.arch }}
-
     - name: Checkout
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       with:
-        fetch-depth: 0
+        fetch-depth: 1
 
     - name: Set up python
       uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5
@@ -38,7 +32,9 @@ jobs:
     - name: Set up node
       uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4
       with:
-        node-version: 20
+        node-version-file: '.node-version'
+        cache: 'npm'
+        cache-dependency-path: 'package-lock.json'
 
     - name: Setup tflint
       uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4
@@ -52,15 +48,16 @@ jobs:
     - name: Install pre-commit hooks
       run: pre-commit install --install-hooks --hook-type pre-commit
 
-    - name: Install actionlint
-      run: |
-        wget --progress=dot:giga -c https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${PKG_ARCH}.tar.gz -O /tmp/actionlint.tar.gz
-        tar -xzvf /tmp/actionlint.tar.gz -C /tmp
-        sudo install -o root -g root -m 0755 /tmp/actionlint /usr/local/sbin/actionlint
-      working-directory: /tmp
-      env:
-        # renovate: datasource=github-releases depName=rhysd/actionlint
-        ACTIONLINT_VERSION: "1.7.1"
+    - name: Determine if any files in these groups have changed
+      id: changed-files-yaml
+      uses: tj-actions/changed-files@d6babd6899969df1a11d14c368283ea4436bca78 # v44
+      with:
+        files_yaml: |
+          actions:
+          - .github/workflows/**
+          - .shellcheckrc
+          renovate:
+          - .github/renovate.json
 
     - name: check-added-large-files
       run: pre-commit run --all-files check-added-large-files
@@ -101,11 +98,29 @@ jobs:
     - name: tflint
       run: pre-commit run --all-files tflint
 
+    - name: hadolint
+      uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+      with:
+        dockerfile: "Dockerfile"
+        recursive: true
+        failure-threshold: warning
+        config: .hadolint.yaml
+
     - name: yamllint
       run: yamllint -c .yamllint --strict --format github .
 
     - name: actionlint
-      run: actionlint -shellcheck "shellcheck -c .shellcheckrc"
+      if: steps.changed-files-yaml.outputs.actions_any_changed == 'true'
+      shell: bash
+      run: |
+        [[ "$RUNNER_ARCH" == "ARM64" ]] && export PKG_ARCH=arm64 || export PKG_ARCH=amd64
+        wget --progress=dot:giga -c https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${PKG_ARCH}.tar.gz -O /tmp/actionlint.tar.gz
+        tar -xzvf /tmp/actionlint.tar.gz -C /tmp
+        sudo install -o root -g root -m 0755 /tmp/actionlint /usr/local/sbin/actionlint
+        actionlint -shellcheck "shellcheck -c .shellcheckrc"
+      env:
+        # renovate: datasource=github-releases depName=rhysd/actionlint
+        ACTIONLINT_VERSION: "1.7.1"
 
     - name: commitlint
       if: github.event_name == 'pull_request'
@@ -115,12 +130,8 @@ jobs:
       run: npx semantic-release --dry-run
 
     - name: validate-renovate-config
-      run: npx --yes --package renovate -- renovate-config-validator
-
-    - name: hadolint
-      uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
-      with:
-        dockerfile: "Dockerfile"
-        recursive: true
-        failure-threshold: warning
-        config: .hadolint.yaml
+      if: steps.changed-files-yaml.outputs.renovate_any_changed == 'true'
+      shell: bash
+      run: |
+        npm install -g renovate
+        npx --yes --package renovate -- renovate-config-validator
