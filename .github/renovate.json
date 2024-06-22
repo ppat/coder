@@ -281,7 +281,7 @@
         "renovate",
         "snyk/cli"
       ],
-      "minimumReleaseAge": "7 days",
+      "minimumReleaseAge": "14 days",
       "schedule": [
         "before 10am on Wednesday"
       ]
