@@ -220,7 +220,7 @@ RUN sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
 
 # NodeJS/NPM/NPX: install latest LTS version
 # renovate: datasource=node depName=node versioning=node
-ARG NODE_VERSION="20.14.0"
+ARG NODE_VERSION="20.15.0"
 ENV FNM_ROOT=/opt/fnm
 ENV PATH="$PATH:${FNM_ROOT}"
 RUN mkdir -p /opt/fnm && \
