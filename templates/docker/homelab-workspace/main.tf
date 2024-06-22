@@ -88,10 +88,6 @@ resource "coder_agent" "main" {
     interval     = 60
     timeout      = 1
   }
-
-  env = {
-    DEBUG = 0
-  }
 }
 
 resource "docker_volume" "test_home_volume" {
