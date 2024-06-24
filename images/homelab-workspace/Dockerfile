@@ -377,6 +377,9 @@ RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})"
     # ----------------------------------------------------------------------------------------------------
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
+# minio-cli
+RUN curl -s -q https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/sbin/mc
+
 # shell initialization scripts
 COPY shell/bash_aliases.defaults /etc/bash_aliases.defaults
 COPY shell/bash_completion.defaults /etc/bash_completion.defaults
