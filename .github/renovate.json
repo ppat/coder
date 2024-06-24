@@ -33,7 +33,7 @@
       "matchManagers": [
         "github-actions"
       ],
-      "minimumReleaseAge": "30 days",
+      "minimumReleaseAge": "90 days",
       "schedule": [
         "before 10am on Tuesday",
         "before 10am on Thursday"
@@ -78,7 +78,11 @@
         "minor",
         "patch"
       ],
-      "minimumReleaseAge": "1 days"
+      "minimumReleaseAge": "30 days",
+      "schedule": [
+        "before 10am on Tuesday",
+        "before 10am on Thursday"
+      ]
     },
     {
       "groupName": "npm major dependencies",
@@ -89,7 +93,7 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "30 days",
+      "minimumReleaseAge": "90 days",
       "schedule": [
         "before 10am on Tuesday",
         "before 10am on Thursday"
@@ -213,7 +217,8 @@
         "fluxcd/flux2",
         "hashicorp/terraform",
         "hashicorp/packer",
-        "kubernetes/kubernetes"
+        "kubernetes/kubernetes",
+        "kubernetes-sigs/kustomize"
       ],
       "matchUpdateTypes": [
         "patch"
@@ -231,12 +236,13 @@
         "fluxcd/flux2",
         "hashicorp/terraform",
         "hashicorp/packer",
-        "kubernetes/kubernetes"
+        "kubernetes/kubernetes",
+        "kubernetes-sigs/kustomize"
       ],
       "matchUpdateTypes": [
         "minor"
       ],
-      "minimumReleaseAge": "30 days",
+      "minimumReleaseAge": "60 days",
       "schedule": [
         "before 10am on Tuesday",
         "before 10am on Thursday"
@@ -253,7 +259,8 @@
         "fluxcd/flux2",
         "hashicorp/terraform",
         "hashicorp/packer",
-        "kubernetes/kubernetes"
+        "kubernetes/kubernetes",
+        "kubernetes-sigs/kustomize"
       ],
       "matchUpdateTypes": [
         "major"
@@ -278,10 +285,9 @@
     {
       "description": "slow down the update of packages with daily releases",
       "matchDepNames": [
-        "renovate",
         "snyk/cli"
       ],
-      "minimumReleaseAge": "14 days",
+      "minimumReleaseAge": "30 days",
       "schedule": [
         "before 10am on Wednesday"
       ]
@@ -301,16 +307,6 @@
       "schedule": [
         "before 10am on Wednesday"
       ]
-    },
-    {
-      "allowedVersions": "<2.32.0",
-      "description": "see: https://github.com/ansible-collections/community.docker/issues/860",
-      "matchDatasources": [
-        "pypi"
-      ],
-      "matchPackageNames": [
-        "requests"
-      ]
     }
   ],
   "prConcurrentLimit": 20,
@@ -320,6 +316,8 @@
   },
   "rebaseWhen": "behind-base-branch",
   "semanticCommits": "enabled",
+  "semanticCommitScope": "deps",
+  "semanticCommitType": "chore",
   "separateMajorMinor": true,
   "separateMultipleMajor": false,
   "timezone": "US/Eastern"
