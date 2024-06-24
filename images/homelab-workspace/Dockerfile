@@ -279,6 +279,7 @@ RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARG
     go install golang.org/x/lint/golint@latest && \
     go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest && \
     unset GOPATH && \
+    mkdir /env && \
     echo "GOROOT=$GOROOT" > /env/golang.env && \
     echo "$GOROOT/bin" > /env/golang.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
@@ -302,6 +303,7 @@ RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.
     upx /opt/tfenv/versions/${TERRAFORM_VERSION}/terraform && \
     chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
+    mkdir /env && \
     echo "/opt/tfenv/bin" > /env/terraform.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 

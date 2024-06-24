@@ -65,12 +65,17 @@ install_binary() {
   sudo install -o $OWNER -g $GROUP -m $MODE $source $dest 2>&1 | pr -t -o 4
 }
 
+render_value() {
+  local field_content="$1"
+  set -o allexport
+  echo $field_content
+  set +o allexport
+}
 install_release() {
   local package_name="$1"
   local release_yaml="$2"
 
   # read package configuration from yaml
-  set -o allexport
   local repo="$(yq -e '.[] | select(.name == "'$package_name'") | .repo' $release_yaml)"
   local tag="$(yq -e '.[] | select(.name == "'$package_name'") | .tag' $release_yaml)"
   local asset_regex="$(yq -e '.[] | select(.name == "'$package_name'") | .asset_regex' $release_yaml)"
@@ -78,7 +83,6 @@ install_release() {
   local upx_pack="$(yq -e '.[] | select(.name == "'$package_name'") | .upx_pack' $release_yaml 2> /dev/null)"
   local unarchive_opts="$(yq -e '.[] | select(.name == "'$package_name'") | .unarchive_opts' $release_yaml 2> /dev/null)"
   local download_dir=$(mktemp -d)
-  set +o allexport
 
   local fetch_params=""
   if [[ ! -z "$RELEASES_TOKEN" ]]; then
@@ -87,16 +91,15 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
+  local asset_regex_actual="$(render_value $asset_regex)"
   set -x
-  set -o allexport
-  fetch --repo=$repo --tag=$tag --release-asset=$asset_regex $fetch_params $download_dir 2>&1 | pr -t -o 4
-  set +o allexport
+  fetch --repo=$repo --tag=$tag --release-asset=${asset_regex_actual} $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
 
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*"${asset_regex} 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  local asset_filename=$(find $download_dir -regex ".*"${asset_regex_actual} 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
   unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
 
   echo "Installing..."
