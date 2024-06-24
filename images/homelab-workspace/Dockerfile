@@ -142,7 +142,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       docker-ce-rootless-extras \
       docker-buildx-plugin \
       docker-compose-plugin \
-      docker-scan-plugin \
     && \
     # compress really large files (this will shave about 216MB off the size of final image)
     upx \
@@ -157,7 +156,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       /usr/bin/runc \
       /usr/libexec/docker/cli-plugins/docker-buildx  \
       /usr/libexec/docker/cli-plugins/docker-compose \
-      /usr/libexec/docker/cli-plugins/docker-scan \
     && \
     find /usr -name __pycache__ -exec rm -rf {} + && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
