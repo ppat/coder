@@ -34,9 +34,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       bash \
       curl \
       git \
+      jq \
       sudo \
       unzip \
       wget \
+      xz-utils \
+      zip \
       && \
     # minimum requirements for homelab workspace environment
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
@@ -176,7 +179,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       iotop \
       iputils-ping \
       iputils-tracepath \
-      jq \
       jsonnet \
       ldap-utils \
       less \
@@ -206,11 +208,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       traceroute \
       tmux \
       tzdata \
-      upx-ucl \
       vim \
       watch \
-      xz-utils \
-      zip \
       zsh \
       zstd \
     && \
@@ -245,8 +244,8 @@ RUN mkdir -p /opt/fnm && \
     chmod -R g+rw ${FNM_ROOT} && \
     chmod 755 ${FNM_ROOT}/fnm && \
     mkdir /env && \
-    echo "FNM_ROOT=\"${FNM_ROOT}\"" > /env/fnm.env && \
-    echo ${FNM_ROOT} > /env/fnm.path && \
+    echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
+    echo "$FNM_ROOT" > /env/fnm.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
 # NodeJS based tooling
@@ -280,7 +279,7 @@ RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARG
     go install golang.org/x/lint/golint@latest && \
     go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest && \
     unset GOPATH && \
-    echo "GOROOT=\"${GOROOT}\"" > /env/golang.env && \
+    echo "GOROOT=$GOROOT" > /env/golang.env && \
     echo "$GOROOT/bin" > /env/golang.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
@@ -438,13 +437,13 @@ COPY --from=sdk-terraform /env/* /env/
 RUN \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
-    for path_file in $(ls /env/*.path); do export PATH="$(cat $path_file):${PATH}"; done && \
+    for path_file in $(ls /env/*.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
     mv /etc/environment /tmp/env.tmp && \
     grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
-    echo "PATH=\"${PATH}\"" >> /etc/environment && \
+    echo 'PATH="'${PATH}'"' >> /etc/environment && \
     # ----------------------------------------------------------------------------------------------------
     # add all environment values from /env/*.env files to /etc/environment
-    for env_file in $(ls /env/*.env); do cat $env_file >> /etc/environment; done && \
+    for env_file in $(ls /env/*.env | sort); do cat $env_file >> /etc/environment; done && \
     rm -rf /env /tmp/* /var/log/* /var/tmp/*
 
 # minio-cli
