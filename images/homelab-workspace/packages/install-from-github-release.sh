@@ -89,7 +89,7 @@ install_release() {
   fi
   set -x
   set -o allexport
-  fetch --repo=${repo} --tag=${tag} --release-asset=${asset_regex} $fetch_params $download_dir 2>&1 | pr -t -o 4
+  fetch --repo=$repo --tag=$tag --release-asset=$asset_regex $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +o allexport
   set +x
 
@@ -107,7 +107,7 @@ install_release() {
       set -o allexport
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
-      install_binary ${source} ${dest} $upx_pack | pr -t -o 4
+      install_binary $source $dest $upx_pack | pr -t -o 4
       set +o allexport
     done
   fi
