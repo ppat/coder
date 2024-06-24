@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac as base
+FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac AS base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -69,7 +69,7 @@ RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment
 
 # fetch and use upx to compress larger executables as this is already a large image
-# this will be utilized in subsequent child images at each stage
+# this will be utilized in subsequent stages
 # renovate: datasource=github-releases depName=upx/upx
 ARG UPX_VERSION="4.2.4"
 WORKDIR /tmp
@@ -78,9 +78,17 @@ RUN wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${U
     tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx" && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
+# yq
+# renovate: datasource=github-releases depName=mikefarah/yq
+ARG YQ_VERSION="4.44.2"
+RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
+    upx /usr/local/sbin/yq && \
+    rm -rf /tmp/* /var/log/* /var/tmp/*
+
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as system-base
+FROM --platform=$TARGETPLATFORM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -224,7 +232,7 @@ RUN systemctl enable docker
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as sdk-nodejs
+FROM --platform=$TARGETPLATFORM base AS sdk-nodejs
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -263,7 +271,7 @@ RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})"
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as sdk-golang
+FROM --platform=$TARGETPLATFORM base AS sdk-golang
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -286,7 +294,7 @@ RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARG
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as sdk-terraform
+FROM --platform=$TARGETPLATFORM base AS sdk-terraform
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -309,7 +317,7 @@ RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as binary-downloads
+FROM --platform=$TARGETPLATFORM base AS binary-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -349,18 +357,10 @@ RUN curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base as github-release-downloads
+FROM --platform=$TARGETPLATFORM base AS github-release-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
-
-# yq
-# renovate: datasource=github-releases depName=mikefarah/yq
-ARG YQ_VERSION="4.44.2"
-RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
-    upx /usr/local/sbin/yq && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
@@ -372,8 +372,8 @@ RUN wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/
 
 # install apps from github releases
 RUN mkdir /data /scripts
-COPY packages/github-releases.yaml /data/github-releases.yaml
-COPY --chown=root:root --chmod=755 packages/install-from-github-release.sh /scripts/install-from-github-release.sh
+COPY --link --chown=root:root --chmod=644 packages/github-releases.yaml /data/github-releases.yaml
+COPY --link --chown=root:root --chmod=755 packages/install-from-github-release.sh /scripts/install-from-github-release.sh
 # hadolint ignore=SC2155
 RUN --mount=type=secret,id=FETCH_GH_TOKEN \
     export FETCH_GH_TOKEN="$(cat /run/secrets/FETCH_GH_TOKEN)" && \
@@ -450,12 +450,6 @@ RUN \
     # add all environment values from /env/*.env files to /etc/environment
     for env_file in $(ls /env/*.env | sort); do cat $env_file >> /etc/environment; done && \
     rm -rf /env /tmp/* /var/log/* /var/tmp/*
-
-# minio-cli
-RUN curl -s -q https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc && \
-    install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
-    upx /usr/local/sbin/mc && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # shell initialization scripts
 COPY --link --chown=root:root --chmod=644 shell/bash_aliases.defaults /etc/bash_aliases.defaults
