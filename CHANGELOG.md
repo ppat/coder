@@ -2,6 +2,23 @@
 
 
 
+## [1.1.0](https://github.com/ppat/coder/compare/v1.0.1...v1.1.0) (2024-06-24)
+
+### ✨ Features
+
+* add minio-cli to coder image ([#39](https://github.com/ppat/coder/issues/39)) ([73e138b](https://github.com/ppat/coder/commit/73e138b8d499b1c5e3e328a994237b92b0a355e7))
+* multi-arch builds for coder workspace images ([#40](https://github.com/ppat/coder/issues/40)) ([4c0ef3f](https://github.com/ppat/coder/commit/4c0ef3f329c2b0dafca432d8ca27abf434fc58be))
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix workspace image build for arm64 ([#41](https://github.com/ppat/coder/issues/41)) ([492c303](https://github.com/ppat/coder/commit/492c3033272437faaaa40ef40372a77083e619e9))
+
+### 📌 Dependencies
+
+* **deps:** pin dependencies ([#37](https://github.com/ppat/coder/issues/37)) ([a7b112c](https://github.com/ppat/coder/commit/a7b112c246ac62b5089ad068100d41a7dfa52aaf))
+* **deps:** update ghcr.io/coder/coder docker tag to v2.12.2 ([#30](https://github.com/ppat/coder/issues/30)) ([aeb4fb7](https://github.com/ppat/coder/commit/aeb4fb772a7a21f75bbe11a2a5d203297c8486dc))
+* **deps:** update github-action dependencies (major) ([#38](https://github.com/ppat/coder/issues/38)) ([9b89b84](https://github.com/ppat/coder/commit/9b89b844eb8226fe14a322103e110df290da4507))
+
 ## [1.0.1](https://github.com/ppat/coder/compare/v1.0.0...v1.0.1) (2024-06-22)
 
 ### 🐛 Enhancements + Bug Fixes
