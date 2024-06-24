@@ -65,7 +65,7 @@ install_binary() {
   sudo install -o $OWNER -g $GROUP -m $MODE $source $dest 2>&1 | pr -t -o 4
 }
 
-get_value() {
+render_variable() {
   local var_content="$1"
   echo "${var_content}"
 }
@@ -90,7 +90,7 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
-  local asset_regex_actual="$(get_value "${asset_regex}")"
+  local asset_regex_actual="$(render_variable "${asset_regex}")"
   set -x
   fetch --repo="$repo" --tag="$tag" --release-asset="${asset_regex_actual}" $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
@@ -108,8 +108,8 @@ install_release() {
     for file_pair in $asset_files; do
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
-      local source_actual="$(get_value "${source}")"
-      local dest_actual="$(get_value "${dest}")"
+      local source_actual="$(render_variable "${source}")"
+      local dest_actual="$(render_variable "${dest}")"
       install_binary ${source_actual} ${dest_actual} $upx_pack | pr -t -o 4
     done
   fi
