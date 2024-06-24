@@ -66,11 +66,10 @@ install_binary() {
 }
 
 render_value() {
-  local field_content="$1"
-  set -o allexport
-  echo $field_content
-  set +o allexport
+  local value="$1"
+  eval "echo ${value}"
 }
+
 install_release() {
   local package_name="$1"
   local release_yaml="$2"
@@ -91,7 +90,7 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
-  echo "Rendering $$asset_regex"
+  echo "Rendering $asset_regex"
   local asset_regex_actual="$(render_value $asset_regex)"
   echo "Rendered: $asset_regex_actual"
   set -x
@@ -101,7 +100,7 @@ install_release() {
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*"${asset_regex_actual} 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  local asset_filename=$(find $download_dir -regex ".*${asset_regex_actual}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
   unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
 
   echo "Installing..."
@@ -109,11 +108,9 @@ install_release() {
     install_binary $package_name $package_name | pr -t -o 4
   else
     for file_pair in $asset_files; do
-      set -o allexport
-      local source="$(echo $file_pair | cut -d, -f1)"
-      local dest="$(echo $file_pair | cut -d, -f2)"
+      local source="$(render_value $(echo $file_pair | cut -d, -f1))"
+      local dest="$(render_value $(echo $file_pair | cut -d, -f2))"
       install_binary $source $dest $upx_pack | pr -t -o 4
-      set +o allexport
     done
   fi
 
