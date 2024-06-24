@@ -424,9 +424,9 @@ RUN --mount=type=cache,target=/var/cache/python,sharing=private \
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # copy sdks
-COPY --from=sdk-nodejs /opt/fnm /opt/
-COPY --from=sdk-golang /usr/local/go /usr/local/
-COPY --from=sdk-terraform /opt/tfenv /opt/
+COPY --from=sdk-nodejs /opt/fnm /opt/fnm
+COPY --from=sdk-golang /usr/local/go /usr/local/go
+COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
