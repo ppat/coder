@@ -122,11 +122,14 @@ main() {
     exit 1
   fi
   set -o allexport
-  export TARGETARCH_ALTERNATE="${TARGETARCH}"
   if [[ "${TARGETARCH}" == "amd64" ]]; then
-    export TARGETARCH_ALTERNATE="x86_64"
+    export TARGETARCH_ALTERNATE_BOTH="x86_64"
+    export TARGETARCH_ALTERNATE_X86_ONLY="x86_64"
+    export TARGETARCH_ALTERNATE_ARM_ONLY="${TARGETARCH}"
   elif [[ "${TARGETARCH}" == "arm64" ]]; then
-    export TARGETARCH_ALTERNATE="aarch64"
+    export TARGETARCH_ALTERNATE_BOTH="aarch64"
+    export TARGETARCH_ALTERNATE_X86_ONLY="${TARGETARCH}"
+    export TARGETARCH_ALTERNATE_ARM_ONLY="aarch64"
   fi
   set +o allexport
   echo "Target architecturen:"
