@@ -67,11 +67,7 @@ install_binary() {
 
 get_value() {
   local var_content="$1"
-  if ${!var_content}; then
-    echo "${!var_content}"
-  else
-    echo "${var_content}"
-  fi
+  echo "${var_content}"
 }
 
 install_release() {

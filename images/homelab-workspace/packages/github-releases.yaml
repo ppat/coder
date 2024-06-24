@@ -3,7 +3,7 @@
   repo: https://github.com/nektos/act
   # renovate: datasource=github-releases depName=nektos/act
   tag: "v0.2.63"
-  asset_regex: act_Linux_${TARGETARCH_ALTERNATE}.tar.gz
+  asset_regex: "act_Linux_${TARGETARCH_ALTERNATE}.tar.gz"
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
   # renovate: datasource=github-releases depName=rhysd/actionlint
