@@ -65,11 +65,6 @@ install_binary() {
   sudo install -o $OWNER -g $GROUP -m $MODE $source $dest 2>&1 | pr -t -o 4
 }
 
-render_variable() {
-  local var_content="$1"
-  echo "${var_content}"
-}
-
 install_release() {
   local package_name="$1"
   local release_yaml="$2"
@@ -90,15 +85,14 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
-  local asset_regex_actual="$(render_variable "${asset_regex}")"
   set -x
-  fetch --repo="$repo" --tag="$tag" --release-asset="${asset_regex_actual}" $fetch_params $download_dir 2>&1 | pr -t -o 4
+  fetch --repo=${repo} --tag=${tag} --release-asset=${asset_regex} $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
 
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*${asset_regex_actual}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  local asset_filename=$(find $download_dir -regex ".*"${asset_regex} 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
   unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
 
   echo "Installing..."
@@ -108,9 +102,7 @@ install_release() {
     for file_pair in $asset_files; do
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
-      local source_actual="$(render_variable "${source}")"
-      local dest_actual="$(render_variable "${dest}")"
-      install_binary ${source_actual} ${dest_actual} $upx_pack | pr -t -o 4
+      install_binary ${source} ${dest} $upx_pack | pr -t -o 4
     done
   fi
 
@@ -132,6 +124,7 @@ main() {
   elif [[ "${TARGETARCH}" == "arm64" ]]; then
     export TARGETARCH_ALTERNATE="aarch64"
   fi
+  set +o allexport
   echo "Target architecturen:"
   env | sort | grep "^TARGETARCH" | pr -t -o 4
   echo
@@ -143,7 +136,6 @@ main() {
     echo "$item: done"
     echo
   done
-  set +o allexport
 }
 
 main $RELEASES_FILE

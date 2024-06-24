@@ -369,8 +369,8 @@ RUN wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # install apps from github releases
-COPY --link packages/github-releases.yaml /tmp/github-releases.yaml
-COPY --link packages/install-from-github-release.sh /tmp/install-from-github-release.sh
+COPY packages/github-releases.yaml /tmp/github-releases.yaml
+COPY packages/install-from-github-release.sh /tmp/install-from-github-release.sh
 RUN --mount=type=secret,id=FETCH_GH_TOKEN cat /run/secrets/FETCH_GH_TOKEN
 RUN /bin/bash /tmp/install-from-github-release.sh /tmp/github-releases.yaml
 
