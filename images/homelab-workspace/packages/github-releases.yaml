@@ -3,7 +3,7 @@
   repo: https://github.com/nektos/act
   # renovate: datasource=github-releases depName=nektos/act
   tag: "v0.2.63"
-  asset_regex: "act_Linux_${TARGETARCH_ALTERNATE}.tar.gz"
+  asset_regex: "act_Linux_${TARGETARCH_ALTERNATE_X86_ONLY}.tar.gz"
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
   # renovate: datasource=github-releases depName=rhysd/actionlint
@@ -18,9 +18,9 @@
   repo: https://github.com/hadolint/hadolint
   # renovate: datasource=github-releases depName=hadolint/hadolint
   tag: "v2.12.0"
-  asset_regex: "hadolint-Linux-${TARGETARCH_ALTERNATE}"
+  asset_regex: "hadolint-Linux-${TARGETARCH_ALTERNATE_X86_ONLY}"
   asset_files:
-  - source: "hadolint-Linux-${TARGETARCH_ALTERNATE}"
+  - source: "hadolint-Linux-${TARGETARCH_ALTERNATE_X86_ONLY}"
     dest: hadolint
   upx_pack: skip
 - name: k9s
@@ -50,7 +50,7 @@
   repo: https://github.com/koalaman/shellcheck
   # renovate: datasource=github-releases depName=koalaman/shellcheck
   tag: "v0.10.0"
-  asset_regex: ".*.linux.${TARGETARCH_ALTERNATE}.tar.xz"
+  asset_regex: ".*.linux.${TARGETARCH_ALTERNATE_BOTH}.tar.xz"
   unarchive_opts: "--strip-components 1"
 - name: snyk
   repo: https://github.com/snyk/cli
@@ -60,11 +60,6 @@
   asset_files:
   - source: snyk-linux
     dest: snyk
-- name: starship
-  repo: https://github.com/starship/starship
-  # renovate: datasource=github-releases depName=starship/starship
-  tag: "v1.19.0"
-  asset_regex: starship-${TARGETARCH_ALTERNATE}-unknown-linux-gnu.tar.gz
 - name: tflint
   repo: https://github.com/terraform-linters/tflint
   # renovate: datasource=github-releases depName=terraform-linters/tflint
