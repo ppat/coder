@@ -3,54 +3,54 @@
   repo: https://github.com/nektos/act
   # renovate: datasource=github-releases depName=nektos/act
   tag: "v0.2.63"
-  asset_regex: act_Linux_x86_64.tar.gz
+  asset_regex: act_Linux_${TARGETARCH_ALTERNATE}.tar.gz
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
   # renovate: datasource=github-releases depName=rhysd/actionlint
   tag: "v1.7.1"
-  asset_regex: ".*_linux_amd64.tar.gz"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
 - name: flux
   repo: https://github.com/fluxcd/flux2
   # renovate: datasource=github-releases depName=fluxcd/flux2
   tag: "v2.3.0"
-  asset_regex: ".*_linux_amd64.tar.gz"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
 - name: hadolint
   repo: https://github.com/hadolint/hadolint
   # renovate: datasource=github-releases depName=hadolint/hadolint
   tag: "v2.12.0"
-  asset_regex: hadolint-Linux-x86_64
+  asset_regex: "hadolint-Linux-${TARGETARCH_ALTERNATE}"
   asset_files:
-  - source: hadolint-Linux-x86_64
+  - source: "hadolint-Linux-${TARGETARCH_ALTERNATE}"
     dest: hadolint
   upx_pack: skip
 - name: k9s
   repo: https://github.com/derailed/k9s
   # renovate: datasource=github-releases depName=derailed/k9s
   tag: "v0.32.5"
-  asset_regex: k9s_Linux_amd64.tar.gz
+  asset_regex: "k9s_Linux_${TARGETARCH}.tar.gz"
 - name: krew
   repo: https://github.com/kubernetes-sigs/krew
   # renovate: datasource=github-releases depName=kubernetes-sigs/krew
   tag: "v0.4.4"
-  asset_regex: krew-linux_amd64.tar.gz
+  asset_regex: krew-linux_${TARGETARCH}.tar.gz
   asset_files:
-  - source: krew-linux_amd64
+  - source: "krew-linux_${TARGETARCH}"
     dest: kubectl-krew
 - name: kubeconform
   repo: https://github.com/yannh/kubeconform
   # renovate: datasource=github-releases depName=yannh/kubeconform
   tag: "v0.6.6"
-  asset_regex: kubeconform-linux-amd64.tar.gz
+  asset_regex: "kubeconform-linux-${TARGETARCH}.tar.gz"
 - name: kustomize
   repo: https://github.com/kubernetes-sigs/kustomize
   # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize
   tag: "kustomize/v5.2.1"
-  asset_regex: ".*_linux_amd64.tar.gz"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
 - name: shellcheck
   repo: https://github.com/koalaman/shellcheck
   # renovate: datasource=github-releases depName=koalaman/shellcheck
   tag: "v0.10.0"
-  asset_regex: ".*.linux.x86_64.tar.xz"
+  asset_regex: ".*.linux.${TARGETARCH_ALTERNATE}.tar.xz"
   unarchive_opts: "--strip-components 1"
 - name: snyk
   repo: https://github.com/snyk/cli
@@ -64,17 +64,17 @@
   repo: https://github.com/starship/starship
   # renovate: datasource=github-releases depName=starship/starship
   tag: "v1.19.0"
-  asset_regex: starship-x86_64-unknown-linux-gnu.tar.gz
+  asset_regex: starship-${TARGETARCH_ALTERNATE}-unknown-linux-gnu.tar.gz
 - name: tflint
   repo: https://github.com/terraform-linters/tflint
   # renovate: datasource=github-releases depName=terraform-linters/tflint
   tag: "v0.51.1"
-  asset_regex: tflint_linux_amd64.zip
+  asset_regex: "tflint_linux_${TARGETARCH}.zip"
 - name: tfsec
   repo: https://github.com/aquasecurity/tfsec
   # renovate: datasource=github-releases depName=aquasecurity/tfsec
   tag: "v1.28.6"
-  asset_regex: ".*_linux_amd64.tar.gz"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
   asset_files:
   - source: tfsec
     dest: tfsec

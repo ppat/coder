@@ -48,6 +48,7 @@ jobs:
       with:
         buildkitd-flags: '--debug --allow-insecure-entitlement=network.host'
         driver-opts: network=host
+        platforms: linux/amd64,linux/arm64
 
     - name: Tailscale Connect
       uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
@@ -98,6 +99,7 @@ jobs:
       with:
         context: ./${{ env.image_path }}
         load: true
+        platforms: linux/amd64,linux/arm64
         pull: true
         push: false
         tags: ${{ steps.meta.outputs.tags }}
@@ -105,7 +107,7 @@ jobs:
         annotations: ${{ steps.meta.outputs.annotations }}
         cache-from: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
         cache-to: type=inline
-        build-args: |
+        secrets: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
         network: host

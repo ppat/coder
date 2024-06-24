@@ -1,6 +1,4 @@
-FROM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac
-
-# shell options to ensure RUN statements fail on error
+FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac as base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
@@ -25,7 +23,11 @@ RUN mkdir -p /var/cache/python && \
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment
 
 # minimum requirements for homelab workspace
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,sharing=locked \
+    --mount=type=cache,target=/var/cache/python,sharing=locked \
+    apt-get update && \
     # minimum requirements for coder agent (from https://github.com/coder/enterprise-images/blob/main/images/base/Dockerfile.ubuntu)
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
       bash \
@@ -50,8 +52,39 @@ RUN apt-get update && \
     # Install latest Git using their official PPA
     add-apt-repository ppa:git-core/ppa && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends git && \
-    # ----------------------------------------------------------------------------------------------------
-    # systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
+    rm -rf /tmp/* /var/log/* /var/tmp/*
+
+# generate locales (needed for many applications, specially python)
+RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
+    echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
+    locale-gen en_US.UTF-8
+# Make typing unicode characters in the terminal work.
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
+    echo 'LANG=en_US.UTF-8' >> /etc/environment
+
+# fetch and use upx to compress larger executables as this is already a large image
+# this will be utilized in subsequent child images at each stage
+# renovate: datasource=github-releases depName=upx/upx
+ARG UPX_VERSION="4.2.4"
+WORKDIR /tmp
+RUN wget  --progress=dot:giga https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz -O /tmp/upx.tar.xz && \
+    xz -d /tmp/upx.tar.xz && \
+    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 upx-${UPX_VERSION}-${TARGETARCH}_linux/upx && \
+    rm -rf /var/log/* /tmp/* /var/tmp/*
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as system-base
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
+    --mount=type=cache,target=/var/cache/debconf,sharing=private \
+    --mount=type=cache,target=/var/cache/python,sharing=private \
+    apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
       dbus \
       iptables \
@@ -71,38 +104,14 @@ RUN apt-get update && \
       systemd-modules-load.service \
       sys-kernel-debug.mount \
       sys-kernel-tracing.mount && \
-    # ----------------------------------------------------------------------------------------------------
-    apt-get autoremove -y && \
-    apt-get clean -y && \
-    apt-get autoremove -y && \
-    apt-get clean -y && \
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/debconf/* /var/cache/python/* /var/lib/apt/lists/* /var/log/* /var/tmp/*
-
-# generate locales (needed for many applications, specially python)
-RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
-    echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
-    locale-gen en_US.UTF-8
-# Make typing unicode characters in the terminal work.
-ENV LC_ALL=en_US.UTF-8
-ENV LANG=en_US.UTF-8
-RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
-    echo 'LANG=en_US.UTF-8' >> /etc/environment
-
-# fetch and use upx to compress larger executables as this is already a large image
-# this will be utilized in subsequent child images at each stage
-# renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="4.2.4"
-WORKDIR /tmp
-RUN wget  --progress=dot:giga https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz -O /tmp/upx.tar.xz && \
-    xz -d /tmp/upx.tar.xz && \
-    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 upx-${UPX_VERSION}-amd64_linux/upx && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # install docker-engine
 # hadolint ignore=SC1091
-RUN \
-    # ----------------------------------------------------------------------------------------------------
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
+    --mount=type=cache,target=/var/cache/debconf,sharing=private \
+    --mount=type=cache,target=/var/cache/python,sharing=private \
     # prep apt source for docker
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
@@ -111,7 +120,6 @@ RUN \
       "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
       "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
       tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    # ----------------------------------------------------------------------------------------------------
     # install docker
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes --no-install-recommends \
@@ -123,7 +131,6 @@ RUN \
       docker-compose-plugin \
       docker-scan-plugin \
     && \
-    # ----------------------------------------------------------------------------------------------------
     # compress really large files (this will shave about 216MB off the size of final image)
     upx \
       /usr/bin/containerd \
@@ -139,18 +146,15 @@ RUN \
       /usr/libexec/docker/cli-plugins/docker-compose \
       /usr/libexec/docker/cli-plugins/docker-scan \
     && \
-    # ----------------------------------------------------------------------------------------------------
-    apt-get autoremove -y && \
-    apt-get clean -y && \
     find /usr -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/debconf/* /var/cache/python/* /var/lib/apt/lists/* /var/log/* /var/tmp/*
-
-# enables docker starting with systemd
-RUN systemctl enable docker
-WORKDIR /tmp
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # system packages
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
+    --mount=type=cache,target=/var/cache/debconf,sharing=private \
+    --mount=type=cache,target=/var/cache/python,sharing=private \
+    apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       autoconf \
       bash-completion \
@@ -208,15 +212,20 @@ RUN apt-get update && \
       zsh \
       zstd \
     && \
-    # ----------------------------------------------------------------------------------------------------
-    apt-get autoremove -y && \
-    apt-get clean -y && \
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/debconf/* /var/cache/python/* /var/lib/apt/lists/* /var/log/* /var/tmp/*
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # unminimize
 RUN sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
     echo -e 'y\ny' | unminimize
+
+# enables docker starting with systemd
+RUN systemctl enable docker
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as sdk-nodejs
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # NodeJS/NPM/NPX: install latest LTS version
 # renovate: datasource=node depName=node versioning=node
@@ -232,30 +241,50 @@ RUN mkdir -p /opt/fnm && \
     chown -R root:coder ${FNM_ROOT} && \
     chmod -R g+rw ${FNM_ROOT} && \
     chmod 755 ${FNM_ROOT}/fnm && \
-    mv /etc/environment /tmp/env.tmp && \
-    grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
-    echo "PATH=\"${PATH}\"" >> /etc/environment && \
-    echo "FNM_ROOT=\"${FNM_ROOT}\"" >> /etc/environment && \
-    # ----------------------------------------------------------------------------------------------------
+    mkdir /env && \
+    echo "FNM_ROOT=\"${FNM_ROOT}\"" > /env/fnm.env && \
+    echo ${FNM_ROOT} > /env/fnm.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
+
+# NodeJS based tooling
+COPY packages/npm-packages.json /tmp/npm-packages.json
+# hadolint ignore=DL3016,SC2086
+RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
+    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
+    npm config set update-notifier false && \
+    npm config set fund false && \
+    npm config set loglevel error && \
+    for i in $(cat /tmp/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
+    chown -R root:coder ${FNM_ROOT} && \
+    chmod -R g+rw ${FNM_ROOT} && \
+    rm -rf /var/log/* /tmp/* /var/tmp/*
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as sdk-golang
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # Golang (as per official instructions from https://go.dev/doc/install)
 # renovate: datasource=golang-version depName=golang
 ARG GOLANG_VERSION="1.22.4"
 ENV GOROOT="/usr/local/go"
 ENV PATH="$PATH:$GOROOT/bin"
-RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" -O /tmp/golang.tar.gz && \
+RUN wget --progress=dot:giga https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz -O /tmp/golang.tar.gz && \
     tar -C /usr/local -xzf /tmp/golang.tar.gz && \
     export GOPATH="/usr/local/go" && \
     go install golang.org/x/lint/golint@latest && \
     go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest && \
     unset GOPATH && \
-    mv /etc/environment /tmp/env.tmp && \
-    grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
-    echo "PATH=\"${PATH}\"" >> /etc/environment && \
-    echo "GOROOT=\"${GOROOT}\"" >> /etc/environment && \
-    # ----------------------------------------------------------------------------------------------------
+    echo "GOROOT=\"${GOROOT}\"" > /env/golang.env && \
+    echo "$GOROOT/bin" > /env/golang.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as sdk-terraform
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # tfenv + terraform
 # renovate: datasource=github-releases depName=tfutils/tfenv
@@ -269,16 +298,20 @@ RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.
     upx /opt/tfenv/versions/${TERRAFORM_VERSION}/terraform && \
     chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
-    mv /etc/environment /tmp/env.tmp && \
-    grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
-    echo "PATH=\"${PATH}\"" >> /etc/environment && \
+    echo "/opt/tfenv/bin" > /env/terraform.path && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as binary-downloads
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # kubectl version=latest(intersect(stable-channel(https://github.com/k3s-io/k3s/releases), https://github.com/kubernetes/kubernetes/releases))
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION="1.30.2"
-RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl -O /tmp/kubectl && \
-    wget --progress=dot:giga https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256 -O /tmp/kubectl.sha256 && \
+RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl -O /tmp/kubectl && \
+    wget --progress=dot:giga https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256 -O /tmp/kubectl.sha256 && \
     echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check && \
     install -o root -g root -m 0755 /tmp/kubectl /usr/local/sbin/kubectl && \
     upx /usr/local/sbin/kubectl && \
@@ -287,7 +320,7 @@ RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/l
 # helm
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="3.15.2"
-RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzv --strip-components 1 -C /tmp && \
+RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz -O - | tar -xzv --strip-components 1 -C /tmp && \
     install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
     upx /usr/local/sbin/helm && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
@@ -295,7 +328,7 @@ RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-
 # packer
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION="1.10.3"
-RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -O /tmp/packer.zip && \
+RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip -O /tmp/packer.zip && \
     unzip /tmp/packer.zip && \
     install -o root -g root -m 0755 /tmp/packer /usr/local/sbin/packer && \
     upx /usr/local/sbin/packer && \
@@ -304,44 +337,63 @@ RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_V
 # yq
 # renovate: datasource=github-releases depName=mikefarah/yq
 ARG YQ_VERSION="4.44.2"
-RUN wget --progress=dot:giga -c https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64.tar.gz -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/yq_linux_amd64 /usr/local/sbin/yq && \
+RUN wget --progress=dot:giga -c https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
     upx /usr/local/sbin/yq && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
+
+# minio-cli
+RUN curl -s -q https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc -o /tmp/mc && \
+    install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
+    upx /usr/local/sbin/mc && \
+    rm -rf /tmp/* /var/log/* /var/tmp/*
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base as github-release-downloads
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
 ARG FETCH_VERSION="0.4.6"
-RUN wget --progress=dot:giga -c https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_amd64 -O /tmp/fetch_linux && \
+RUN wget --progress=dot:giga -c https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH} -O /tmp/fetch_linux && \
     install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
     upx /usr/local/sbin/fetch && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # install apps from github releases
-COPY packages/github-releases.yaml /tmp/github-releases.yaml
-COPY packages/install-from-github-release.sh /tmp/install-from-github-release.sh
-ARG FETCH_GH_TOKEN
+COPY --link packages/github-releases.yaml /tmp/github-releases.yaml
+COPY --link packages/install-from-github-release.sh /tmp/install-from-github-release.sh
+RUN --mount=type=secret,id=FETCH_GH_TOKEN cat /run/secrets/FETCH_GH_TOKEN
 RUN /bin/bash /tmp/install-from-github-release.sh /tmp/github-releases.yaml
+
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM system-base
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /tmp
 
 # python build and lint tools: (poetry, etc)
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin
-COPY packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
+COPY --link packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
 # hadolint ignore=DL3013,SC2086
-RUN mkdir ${PIPX_HOME} && \
+RUN --mount=type=cache,target=/var/cache/python,sharing=private \
+    --mount=type=cache,target=/root/.cache/pip,sharing=private \
+    mkdir ${PIPX_HOME} && \
     for t in $(grep -v '^#' /tmp/pipx-package-requirements.txt); do pipx install ${t}; done && \
     chown -R root:coder ${PIPX_HOME} && \
     chmod -R g+rw ${PIPX_HOME} && \
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    find /opt -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # ansible dependencies, related apps and collections
 ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
 COPY packages/ansible-* /tmp/
 COPY packages/requirements.yaml /tmp/ansible-galaxy.yaml
 # hadolint ignore=SC2046
-RUN \
+RUN --mount=type=cache,target=/var/cache/python,sharing=private \
+    --mount=type=cache,target=/root/.cache/pip,sharing=private \
     # ----------------------------------------------------------------------------------------------------
     # ansible related apps
     pipx inject ansible-core --include-apps $(grep -v '^#' /tmp/ansible-dependent-app-requirements.txt) && \
@@ -359,23 +411,33 @@ RUN \
     find /opt/ansible -type d -exec chmod g+rwx {} + && \
     echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment && \
     # ----------------------------------------------------------------------------------------------------
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    find /opt -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/cache/python/* /var/log/* /var/tmp/*
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
-# NodeJS based tooling
-COPY packages/npm-packages.json /tmp/npm-packages.json
-# hadolint ignore=DL3016,SC2086
-RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    npm config set update-notifier false && \
-    npm config set fund false && \
-    npm config set loglevel error && \
-    for i in $(cat /tmp/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT} && \
+# copy sdks
+COPY --from=sdk-nodejs /opt/fnm /opt/
+COPY --from=sdk-golang /usr/local/go /usr/local/
+COPY --from=sdk-terraform /opt/tfenv /opt/
+
+# copy binaries
+COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
+COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
+
+# copy environment variables
+RUN mkdir /env
+COPY --from=sdk-nodejs /env/* /env/
+COPY --from=sdk-golang /env/* /env/
+COPY --from=sdk-terraform /env/* /env/
+RUN \
     # ----------------------------------------------------------------------------------------------------
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    # join path segments from /env/*.path and add to PATH env var in /etc/environment
+    for path_file in $(ls /env/*.path); do export PATH="$(cat $path_file):${PATH}"; done && \
+    mv /etc/environment /tmp/env.tmp && \
+    grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
+    echo "PATH=\"${PATH}\"" >> /etc/environment && \
+    # ----------------------------------------------------------------------------------------------------
+    # add all environment values from /env/*.env files to /etc/environment
+    for env_file in $(ls /env/*.env); do cat $env_file >> /etc/environment; done && \
+    rm -rf /env /tmp/* /var/log/* /var/tmp/*
 
 # minio-cli
 RUN curl -s -q https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc && \
@@ -384,16 +446,14 @@ RUN curl -s -q https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc && 
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # shell initialization scripts
-COPY shell/bash_aliases.defaults /etc/bash_aliases.defaults
-COPY shell/bash_completion.defaults /etc/bash_completion.defaults
-COPY shell/bashrc.defaults /etc/bashrc.defaults
-COPY shell/bashrc /etc/skel/.bashrc
+COPY --link --chown=root:root --chmod=644 shell/bash_aliases.defaults /etc/bash_aliases.defaults
+COPY --link --chown=root:root --chmod=644 shell/bash_completion.defaults /etc/bash_completion.defaults
+COPY --link --chown=root:root --chmod=644 shell/bashrc.defaults /etc/bashrc.defaults
+COPY --link --chown=root:root --chmod=644 shell/bashrc /etc/skel/.bashrc
 
 # coder initialization scripts
 RUN mkdir -p /opt/coder/bin
-COPY coder/*.sh /opt/coder/bin/
-RUN chmod -R 755 /opt/coder/bin && \
-    chown -R root:root /opt/coder/bin/*
+COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
 
 # Add `coder` user (coder platform will connect the user in as this user)
 RUN useradd coder --no-create-home --shell /bin/bash -g coder --groups sudo,docker

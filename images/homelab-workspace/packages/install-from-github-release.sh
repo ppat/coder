@@ -85,7 +85,9 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
+  set -x
   fetch --repo="$repo" --tag="$tag" --release-asset="$asset_regex" $fetch_params $download_dir 2>&1 | pr -t -o 4
+  set +x
 
   pushd $download_dir > /dev/null
 
@@ -110,6 +112,22 @@ install_release() {
 
 main() {
   local release_yaml="$1"
+
+  if [[ -z "${TARGETARCH}" ]]; then
+    echo "Target architecture is unknown!"
+    exit 1
+  fi
+  set -o allexport
+  export TARGETARCH_ALTERNATE="${TARGETARCH}"
+  if [[ "${TARGETARCH}" == "amd64" ]]; then
+    export TARGETARCH_ALTERNATE="x86_64"
+  elif [[ "${TARGETARCH}" == "arm64" ]]; then
+    export TARGETARCH_ALTERNATE="aarch64"
+  fi
+  set +o allexport
+  echo "Target architecturen:"
+  env | sort | grep "^TARGETARCH" | pr -t -o 4
+  echo
 
   # process each github-release
   for item in $(yq -e '.[].name' $release_yaml); do
