@@ -60,11 +60,6 @@
   asset_files:
   - source: snyk-linux
     dest: snyk
-- name: starship
-  repo: https://github.com/starship/starship
-  # renovate: datasource=github-releases depName=starship/starship
-  tag: "v1.19.0"
-  asset_regex: starship-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz
 - name: tflint
   repo: https://github.com/terraform-linters/tflint
   # renovate: datasource=github-releases depName=terraform-linters/tflint
