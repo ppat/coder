@@ -98,7 +98,7 @@ install_release() {
 
   echo "Unpacking archive..."
   local asset_filename=$(find $download_dir -regex ".*${asset_regex}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
-  unpack_archive $asset_filename $unarchive_opts | pr -t -o 4
+  unpack_archive "$asset_filename" "$unarchive_opts" | pr -t -o 4
 
   echo "Installing..."
   if [[ -z "$asset_files" || "$asset_files" == "null" ]]; then
@@ -107,7 +107,7 @@ install_release() {
     for file_pair in $asset_files; do
       local source="$(render_value $(echo $file_pair | cut -d, -f1))"
       local dest="$(render_value $(echo $file_pair | cut -d, -f2))"
-      install_binary $source $dest $upx_pack | pr -t -o 4
+      install_binary "$source" "$dest" "$upx_pack" | pr -t -o 4
     done
   fi
 
