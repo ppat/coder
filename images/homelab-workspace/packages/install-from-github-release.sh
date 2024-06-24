@@ -98,7 +98,7 @@ install_release() {
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*${!asset_regex}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  local asset_filename=$(find $download_dir -regex ".*${asset_regex_actual}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
   unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
 
   echo "Installing..."
@@ -132,7 +132,6 @@ main() {
   elif [[ "${TARGETARCH}" == "arm64" ]]; then
     export TARGETARCH_ALTERNATE="aarch64"
   fi
-  set +o allexport
   echo "Target architecturen:"
   env | sort | grep "^TARGETARCH" | pr -t -o 4
   echo
@@ -144,6 +143,7 @@ main() {
     echo "$item: done"
     echo
   done
+  set +o allexport
 }
 
 main $RELEASES_FILE
