@@ -77,10 +77,10 @@ install_release() {
   # read package configuration from yaml
   local repo="$(yq -e '.[] | select(.name == "'$package_name'") | .repo' $release_yaml)"
   local tag="$(yq -e '.[] | select(.name == "'$package_name'") | .tag' $release_yaml)"
-  local asset_regex="$(yq -e '.[] | select(.name == "'$package_name'") | .asset_regex' $release_yaml)"
+  local asset_regex="$(render_value $(yq -e '.[] | select(.name == "'$package_name'") | .asset_regex' $release_yaml))"
   local asset_files="$(yq -e '.[] | select(.name == "'$package_name'") | .asset_files | @csv' $release_yaml | tail -n +2)"
   local upx_pack="$(yq -e '.[] | select(.name == "'$package_name'") | .upx_pack' $release_yaml 2> /dev/null)"
-  local unarchive_opts="$(yq -e '.[] | select(.name == "'$package_name'") | .unarchive_opts' $release_yaml 2> /dev/null)"
+  local unarchive_opts="$(render_value $(yq -e '.[] | select(.name == "'$package_name'") | .unarchive_opts' $release_yaml 2> /dev/null))"
   local download_dir=$(mktemp -d)
 
   local fetch_params=""
@@ -90,18 +90,13 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
-  echo "Rendering $asset_regex"
-  local asset_regex_actual="$(render_value $asset_regex)"
-  echo "Rendered: $asset_regex_actual"
-  set -x
-  fetch --repo=$repo --tag=$tag --release-asset=${asset_regex_actual} $fetch_params $download_dir 2>&1 | pr -t -o 4
-  set +x
+  fetch --repo=$repo --tag=$tag --release-asset=$asset_regex $fetch_params $download_dir 2>&1 | pr -t -o 4
 
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*${asset_regex_actual}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
-  unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
+  local asset_filename=$(find $download_dir -regex ".*${asset_regex}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  unpack_archive $asset_filename $unarchive_opts | pr -t -o 4
 
   echo "Installing..."
   if [[ -z "$asset_files" || "$asset_files" == "null" ]]; then
