@@ -371,10 +371,13 @@ RUN wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # install apps from github releases
-COPY packages/github-releases.yaml /tmp/github-releases.yaml
-COPY packages/install-from-github-release.sh /tmp/install-from-github-release.sh
-RUN --mount=type=secret,id=FETCH_GH_TOKEN cat /run/secrets/FETCH_GH_TOKEN
-RUN /bin/bash /tmp/install-from-github-release.sh /tmp/github-releases.yaml
+RUN mkdir /data /scripts
+COPY packages/github-releases.yaml /data/github-releases.yaml
+COPY --chown=root:root --chmod=755 packages/install-from-github-release.sh /scripts/install-from-github-release.sh
+# hadolint ignore=SC2155
+RUN --mount=type=secret,id=FETCH_GH_TOKEN \
+    export FETCH_GH_TOKEN="$(cat /run/secrets/FETCH_GH_TOKEN)" && \
+    /scripts/install-from-github-release.sh /data/github-releases.yaml
 
 
 # ========================================================================================================

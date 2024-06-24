@@ -91,7 +91,9 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
+  echo "Rendering $$asset_regex"
   local asset_regex_actual="$(render_value $asset_regex)"
+  echo "Rendered: $asset_regex_actual"
   set -x
   fetch --repo=$repo --tag=$tag --release-asset=${asset_regex_actual} $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
