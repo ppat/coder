@@ -68,7 +68,8 @@ install_binary() {
 }
 
 render_value() {
-  local value="$1"
+  # shellcheck disable=SC2124
+  local value="$@"
   eval "echo ${value}"
 }
 
