@@ -1,5 +1,6 @@
 FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac as base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 
 # set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -69,15 +70,16 @@ RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
 # renovate: datasource=github-releases depName=upx/upx
 ARG UPX_VERSION="4.2.4"
 WORKDIR /tmp
-RUN wget  --progress=dot:giga https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz -O /tmp/upx.tar.xz && \
+RUN wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
     xz -d /tmp/upx.tar.xz && \
-    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 upx-${UPX_VERSION}-${TARGETARCH}_linux/upx && \
+    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx" && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 
 # systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
@@ -225,6 +227,7 @@ RUN systemctl enable docker
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as sdk-nodejs
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # NodeJS/NPM/NPX: install latest LTS version
@@ -263,6 +266,7 @@ RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})"
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as sdk-golang
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # Golang (as per official instructions from https://go.dev/doc/install)
@@ -270,7 +274,7 @@ WORKDIR /tmp
 ARG GOLANG_VERSION="1.22.4"
 ENV GOROOT="/usr/local/go"
 ENV PATH="$PATH:$GOROOT/bin"
-RUN wget --progress=dot:giga https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz -O /tmp/golang.tar.gz && \
+RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz" -O /tmp/golang.tar.gz && \
     tar -C /usr/local -xzf /tmp/golang.tar.gz && \
     export GOPATH="/usr/local/go" && \
     go install golang.org/x/lint/golint@latest && \
@@ -284,6 +288,7 @@ RUN wget --progress=dot:giga https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGE
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as sdk-terraform
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # tfenv + terraform
@@ -305,13 +310,14 @@ RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as binary-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # kubectl version=latest(intersect(stable-channel(https://github.com/k3s-io/k3s/releases), https://github.com/kubernetes/kubernetes/releases))
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION="1.30.2"
-RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl -O /tmp/kubectl && \
-    wget --progress=dot:giga https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256 -O /tmp/kubectl.sha256 && \
+RUN wget --progress=dot:giga "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" -O /tmp/kubectl && \
+    wget --progress=dot:giga "https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" -O /tmp/kubectl.sha256 && \
     echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check && \
     install -o root -g root -m 0755 /tmp/kubectl /usr/local/sbin/kubectl && \
     upx /usr/local/sbin/kubectl && \
@@ -320,7 +326,7 @@ RUN wget --progress=dot:giga https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/l
 # helm
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="3.15.2"
-RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz -O - | tar -xzv --strip-components 1 -C /tmp && \
+RUN wget --progress=dot:giga -c "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 1 -C /tmp && \
     install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
     upx /usr/local/sbin/helm && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
@@ -328,7 +334,7 @@ RUN wget --progress=dot:giga -c https://get.helm.sh/helm-v${HELM_VERSION}-linux-
 # packer
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION="1.10.3"
-RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip -O /tmp/packer.zip && \
+RUN wget --progress=dot:giga -c "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip" -O /tmp/packer.zip && \
     unzip /tmp/packer.zip && \
     install -o root -g root -m 0755 /tmp/packer /usr/local/sbin/packer && \
     upx /usr/local/sbin/packer && \
@@ -337,13 +343,13 @@ RUN wget --progress=dot:giga -c https://releases.hashicorp.com/packer/${PACKER_V
 # yq
 # renovate: datasource=github-releases depName=mikefarah/yq
 ARG YQ_VERSION="4.44.2"
-RUN wget --progress=dot:giga -c https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz -O - | tar -xzv -C /tmp && \
+RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
     upx /usr/local/sbin/yq && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # minio-cli
-RUN curl -s -q https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc -o /tmp/mc && \
+RUN curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
     install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
     upx /usr/local/sbin/mc && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
@@ -352,12 +358,13 @@ RUN curl -s -q https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc -o /tm
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base as github-release-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
 ARG FETCH_VERSION="0.4.6"
-RUN wget --progress=dot:giga -c https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH} -O /tmp/fetch_linux && \
+RUN wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
     install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
     upx /usr/local/sbin/fetch && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
@@ -372,6 +379,7 @@ RUN /bin/bash /tmp/install-from-github-release.sh /tmp/github-releases.yaml
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
 WORKDIR /tmp
 
 # python build and lint tools: (poetry, etc)
