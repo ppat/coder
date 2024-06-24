@@ -85,8 +85,9 @@ install_release() {
   else
     echo "Downloading (unauthenticated)..."
   fi
+  local asset_regex_actual="$(echo ${!asset_regex} || echo ${asset_regex})"
   set -x
-  fetch --repo="$repo" --tag="$tag" --release-asset="${!asset_regex}" $fetch_params $download_dir 2>&1 | pr -t -o 4
+  fetch --repo="$repo" --tag="$tag" --release-asset="${asset_regex_actual}" $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
 
   pushd $download_dir > /dev/null
@@ -102,7 +103,9 @@ install_release() {
     for file_pair in $asset_files; do
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
-      install_binary ${!source} ${!dest} $upx_pack | pr -t -o 4
+      local source_actual="$(echo ${!source} || echo ${source})"
+      local dest_actual="$(echo ${!dest} || echo ${dest})"
+      install_binary ${source_actual} ${dest_actual} $upx_pack | pr -t -o 4
     done
   fi
 
