@@ -12,6 +12,13 @@
 
 ### ⚙️ Other
 
+* add release notes link during template publish ([#16](https://github.com/ppat/coder/issues/16)) ([b4c444b](https://github.com/ppat/coder/commit/b4c444b9e80ef3591f4e18aecce65df8deccd6d0))
+* gate action-lint and renovate-lint linting steps to only run if their corresponding files changed ([#32](https://github.com/ppat/coder/issues/32)) ([b5621fc](https://github.com/ppat/coder/commit/b5621fc615b25864de23d2fc7b88caffd1b6c13d))
+* test updates to semantic release configuration or versions ([#17](https://github.com/ppat/coder/issues/17)) ([f3d9a0a](https://github.com/ppat/coder/commit/f3d9a0af42fac5ac9cb92002984f105f0e144ffa))
+
+
+### 📌 Dependencies
+
 * **deps:** pin dependencies ([#21](https://github.com/ppat/coder/issues/21)) ([52460ac](https://github.com/ppat/coder/commit/52460ac862bcc16d3bfa2e23e072db62f6ab24a0))
 * **deps:** update dependency ansible-core to v2.16.7 ([#25](https://github.com/ppat/coder/issues/25)) ([169afc3](https://github.com/ppat/coder/commit/169afc3ecd6c39e1f098273e5bfe1fb0252229e9))
 * **deps:** update dependency ansible-core to v2.17.0 ([#28](https://github.com/ppat/coder/issues/28)) ([1b5dfff](https://github.com/ppat/coder/commit/1b5dfffea415ae963ec0b218bd08bcd1d968bf00))
@@ -24,26 +31,22 @@
 * **deps:** update github-release non-major dependencies ([#19](https://github.com/ppat/coder/issues/19)) ([9107163](https://github.com/ppat/coder/commit/9107163f15bc419a3f807cd0a93142f223b3c151))
 * **deps:** update npm major dependencies (major) ([#24](https://github.com/ppat/coder/issues/24)) ([b17a66a](https://github.com/ppat/coder/commit/b17a66a36efdf6df30dbac2b82b9320af438fea3))
 * **deps:** update python non-major dependencies ([#22](https://github.com/ppat/coder/issues/22)) ([697f789](https://github.com/ppat/coder/commit/697f78942a06a6c259b084e185da04288921ff31))
-* add release notes link during template publish ([#16](https://github.com/ppat/coder/issues/16)) ([b4c444b](https://github.com/ppat/coder/commit/b4c444b9e80ef3591f4e18aecce65df8deccd6d0))
-* gate action-lint and renovate-lint linting steps to only run if their corresponding files changed ([#32](https://github.com/ppat/coder/issues/32)) ([b5621fc](https://github.com/ppat/coder/commit/b5621fc615b25864de23d2fc7b88caffd1b6c13d))
-* test updates to semantic release configuration or versions ([#17](https://github.com/ppat/coder/issues/17)) ([f3d9a0a](https://github.com/ppat/coder/commit/f3d9a0af42fac5ac9cb92002984f105f0e144ffa))
+
+
 
 ## 1.0.0 (2024-06-15)
+
+
+### ✨ Features
+
+* coder workspace image for homelab workspaces ([#1](https://github.com/ppat/coder/issues/1)) ([6238914](https://github.com/ppat/coder/commit/6238914b3bf4bf21233b117c6844234e92b1584b))
+* coder workspace template for homelab-workspaces ([#6](https://github.com/ppat/coder/issues/6)) ([d7c8f1d](https://github.com/ppat/coder/commit/d7c8f1db65c9433ba3336fa0cb84d3c148567989))
+* release workflow to publish workspace image to registry and template to coder ([#7](https://github.com/ppat/coder/issues/7)) ([db9e5c7](https://github.com/ppat/coder/commit/db9e5c7ff9b5d432057e8174646c394277218ec8))
 
 
 ### 🐛 Enhancements + Bug Fixes
 
 * only release workflow testing runs should publish w/ suffix '-test' ([#15](https://github.com/ppat/coder/issues/15)) ([3ef10e7](https://github.com/ppat/coder/commit/3ef10e7f7d4ac6e7219a25a19f41fb1a2fe12a77))
-
-
-### ⚙️ Other
-
-* **deps:** update github-release non-major dependencies ([#2](https://github.com/ppat/coder/issues/2)) ([a678a1e](https://github.com/ppat/coder/commit/a678a1e21235c45f641faf56b85b2bc3db0ca2b9))
-* **deps:** update npm non-major dependencies ([#3](https://github.com/ppat/coder/issues/3)) ([d40e121](https://github.com/ppat/coder/commit/d40e121a4bbb78afaa5aabea6d8df893606df939))
-* **deps:** update postgres docker tag to v16 ([#11](https://github.com/ppat/coder/issues/11)) ([0a6b3d4](https://github.com/ppat/coder/commit/0a6b3d4d10bc6d85955e2da2c407a8ec9a91d5c2))
-* add renovate config package rule upgrading ubuntu major versions ([#8](https://github.com/ppat/coder/issues/8)) ([8c19dbe](https://github.com/ppat/coder/commit/8c19dbe0852ed27b03fa8bb44d20060c1c700b91))
-* first commit ([e27a8a5](https://github.com/ppat/coder/commit/e27a8a5f325a1678212a38a7d117c93be072bc94))
-* fix release workflow by adding missing required file ([#14](https://github.com/ppat/coder/issues/14)) ([29373a7](https://github.com/ppat/coder/commit/29373a7be8b4cc14b0e8e8354dca2e75b17503c0))
 
 
 ### 🛠 Improvements
@@ -52,8 +55,15 @@
 * fix testing of release workflow ([#13](https://github.com/ppat/coder/issues/13)) ([a44b67d](https://github.com/ppat/coder/commit/a44b67d25bf5b6ba0312adbe0edbb92a788551ea))
 
 
-### ✨ Features
+### ⚙️ Other
 
-* coder workspace image for homelab workspaces ([#1](https://github.com/ppat/coder/issues/1)) ([6238914](https://github.com/ppat/coder/commit/6238914b3bf4bf21233b117c6844234e92b1584b))
-* coder workspace template for homelab-workspaces ([#6](https://github.com/ppat/coder/issues/6)) ([d7c8f1d](https://github.com/ppat/coder/commit/d7c8f1db65c9433ba3336fa0cb84d3c148567989))
-* release workflow to publish workspace image to registry and template to coder ([#7](https://github.com/ppat/coder/issues/7)) ([db9e5c7](https://github.com/ppat/coder/commit/db9e5c7ff9b5d432057e8174646c394277218ec8))
+* add renovate config package rule upgrading ubuntu major versions ([#8](https://github.com/ppat/coder/issues/8)) ([8c19dbe](https://github.com/ppat/coder/commit/8c19dbe0852ed27b03fa8bb44d20060c1c700b91))
+* first commit ([e27a8a5](https://github.com/ppat/coder/commit/e27a8a5f325a1678212a38a7d117c93be072bc94))
+* fix release workflow by adding missing required file ([#14](https://github.com/ppat/coder/issues/14)) ([29373a7](https://github.com/ppat/coder/commit/29373a7be8b4cc14b0e8e8354dca2e75b17503c0))
+
+
+### 📌 Dependencies
+
+* **deps:** update github-release non-major dependencies ([#2](https://github.com/ppat/coder/issues/2)) ([a678a1e](https://github.com/ppat/coder/commit/a678a1e21235c45f641faf56b85b2bc3db0ca2b9))
+* **deps:** update npm non-major dependencies ([#3](https://github.com/ppat/coder/issues/3)) ([d40e121](https://github.com/ppat/coder/commit/d40e121a4bbb78afaa5aabea6d8df893606df939))
+* **deps:** update postgres docker tag to v16 ([#11](https://github.com/ppat/coder/issues/11)) ([0a6b3d4](https://github.com/ppat/coder/commit/0a6b3d4d10bc6d85955e2da2c407a8ec9a91d5c2))
