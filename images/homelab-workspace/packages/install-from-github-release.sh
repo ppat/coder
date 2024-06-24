@@ -70,6 +70,7 @@ install_release() {
   local release_yaml="$2"
 
   # read package configuration from yaml
+  set -o allexport
   local repo="$(yq -e '.[] | select(.name == "'$package_name'") | .repo' $release_yaml)"
   local tag="$(yq -e '.[] | select(.name == "'$package_name'") | .tag' $release_yaml)"
   local asset_regex="$(yq -e '.[] | select(.name == "'$package_name'") | .asset_regex' $release_yaml)"
@@ -77,6 +78,7 @@ install_release() {
   local upx_pack="$(yq -e '.[] | select(.name == "'$package_name'") | .upx_pack' $release_yaml 2> /dev/null)"
   local unarchive_opts="$(yq -e '.[] | select(.name == "'$package_name'") | .unarchive_opts' $release_yaml 2> /dev/null)"
   local download_dir=$(mktemp -d)
+  set +o allexport
 
   local fetch_params=""
   if [[ ! -z "$RELEASES_TOKEN" ]]; then
@@ -86,7 +88,9 @@ install_release() {
     echo "Downloading (unauthenticated)..."
   fi
   set -x
+  set -o allexport
   fetch --repo=${repo} --tag=${tag} --release-asset=${asset_regex} $fetch_params $download_dir 2>&1 | pr -t -o 4
+  set +o allexport
   set +x
 
   pushd $download_dir > /dev/null
@@ -100,9 +104,11 @@ install_release() {
     install_binary $package_name $package_name | pr -t -o 4
   else
     for file_pair in $asset_files; do
+      set -o allexport
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
       install_binary ${source} ${dest} $upx_pack | pr -t -o 4
+      set +o allexport
     done
   fi
 
