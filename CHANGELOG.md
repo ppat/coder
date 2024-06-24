@@ -2,6 +2,12 @@
 
 
 
+## [1.1.1](https://github.com/ppat/coder/compare/v1.1.0...v1.1.1) (2024-06-24)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix issue where node, terraform and golang sdk were not available ([#42](https://github.com/ppat/coder/issues/42)) ([1bac177](https://github.com/ppat/coder/commit/1bac177f3f2279f232adf2237bf19f8a8b23980f))
+
 ## [1.1.0](https://github.com/ppat/coder/compare/v1.0.1...v1.1.0) (2024-06-24)
 
 ### ✨ Features
