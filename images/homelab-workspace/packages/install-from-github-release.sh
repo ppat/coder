@@ -86,14 +86,14 @@ install_release() {
     echo "Downloading (unauthenticated)..."
   fi
   set -x
-  fetch --repo="$repo" --tag="$tag" --release-asset="$asset_regex" $fetch_params $download_dir 2>&1 | pr -t -o 4
+  fetch --repo="$repo" --tag="${!tag}" --release-asset="${!asset_regex}" $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
 
   pushd $download_dir > /dev/null
 
   echo "Unpacking archive..."
-  local asset_filename=$(find $download_dir -regex ".*$asset_regex" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
-  unpack_archive $asset_filename $unarchive_opts | pr -t -o 4
+  local asset_filename=$(find $download_dir -regex ".*${!asset_regex}" 2> /dev/null | awk '{ print length(), $0 | "sort -n" }' | cut -d' ' -f2 | head -1)
+  unpack_archive $asset_filename ${!unarchive_opts} | pr -t -o 4
 
   echo "Installing..."
   if [[ -z "$asset_files" || "$asset_files" == "null" ]]; then
@@ -102,7 +102,7 @@ install_release() {
     for file_pair in $asset_files; do
       local source="$(echo $file_pair | cut -d, -f1)"
       local dest="$(echo $file_pair | cut -d, -f2)"
-      install_binary $source $dest $upx_pack | pr -t -o 4
+      install_binary ${!source} ${!dest} $upx_pack | pr -t -o 4
     done
   fi
 
