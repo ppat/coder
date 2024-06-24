@@ -105,15 +105,15 @@ jobs:
 
     - name: terraform-fmt
       if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch'
-      run: pre-commit run --all-files terraform-fmt
+      run: pre-commit run --all-files --color=always terraform-fmt
 
     - name: terraform-validate
       if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch'
-      run: pre-commit run --all-files terraform-validate
+      run: pre-commit run --all-files --color=always terraform-validate
 
     - name: tflint
       if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch'
-      run: pre-commit run --all-files tflint
+      run: pre-commit run --all-files --color=always tflint
 
     - name: hadolint
       if: steps.changed-files-yaml.outputs.docker_any_changed == 'true' || github.event_name == 'workflow_dispatch'
@@ -125,16 +125,19 @@ jobs:
         config: .hadolint.yaml
 
     - name: yamllint
-      run: yamllint -c .yamllint --strict --format github .
+      run: |
+        set -x
+        yamllint -c .yamllint --strict --format github .
 
     - name: actionlint
       if: steps.changed-files-yaml.outputs.actions_any_changed == 'true' || github.event_name == 'workflow_dispatch'
       shell: bash
       run: |
         [[ "$RUNNER_ARCH" == "ARM64" ]] && export PKG_ARCH=arm64 || export PKG_ARCH=amd64
-        wget -nv -c https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${PKG_ARCH}.tar.gz -O /tmp/actionlint.tar.gz
+        wget --quiet -c https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${PKG_ARCH}.tar.gz -O /tmp/actionlint.tar.gz
         tar -xzf /tmp/actionlint.tar.gz -C /tmp
         sudo install -o root -g root -m 0755 /tmp/actionlint /usr/local/sbin/actionlint
+        set -x
         actionlint -shellcheck "shellcheck -c .shellcheckrc"
       env:
         # renovate: datasource=github-releases depName=rhysd/actionlint
