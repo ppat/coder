@@ -10,6 +10,11 @@ esac
 # load system environment variables
 set -o allexport; source /etc/environment; set +o allexport
 
+# source bash shell defaults
+. /etc/bashrc.defaults
+. /etc/bash_aliases.defaults
+. /etc/bash_completion.defaults
+
 # load user environment variables
 set -o allexport; source $HOME/.env; set +o allexport
 
@@ -19,13 +24,11 @@ if [[ ! -z "${CODER_CLI_LOCATION}" ]]; then
   export PATH="${PATH}:${CODER_CLI_LOCATION}"
 fi
 
-# source bash shell defaults
-. /etc/bashrc.defaults
-. /etc/bash_aliases.defaults
-. /etc/bash_completion.defaults
-
 # source bash shell personalizations
 PERSONALIZED_BASH_CONFIGURATIONS="$(find ${HOME} -mindepth 1 -maxdepth 1 -type f -name '.bash*' -not -name .bashrc -not -name .bash_history -not -name .bash_logout)"
 for file in ${PERSONALIZED_BASH_CONFIGURATIONS}; do
   . ${file}
 done
+
+unset GIT_ASKPASS
+unset GIT_SSH_COMMAND
