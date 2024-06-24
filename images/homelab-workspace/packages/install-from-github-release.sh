@@ -34,7 +34,9 @@ unpack_archive() {
     tar -xzv $unarchive_opts -f $archive_file | pr -t -o 4
   elif [[ "$fileext" == "xz" ]]; then
     echo "From xz..."
+    set -x
     tar -xv --xz $unarchive_opts -f $archive_file | pr -t -o 4
+    set +x
   elif [[ "$fileext" == "zip" ]]; then
     echo "From zip file..."
     unzip $unarchive_opts $archive_file | pr -t -o 4
