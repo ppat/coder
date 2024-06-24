@@ -340,14 +340,6 @@ RUN wget --progress=dot:giga -c "https://releases.hashicorp.com/packer/${PACKER_
     upx /usr/local/sbin/packer && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
-# yq
-# renovate: datasource=github-releases depName=mikefarah/yq
-ARG YQ_VERSION="4.44.2"
-RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
-    upx /usr/local/sbin/yq && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
-
 # minio-cli
 RUN curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
     install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
@@ -360,6 +352,14 @@ FROM --platform=$TARGETPLATFORM base as github-release-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
+
+# yq
+# renovate: datasource=github-releases depName=mikefarah/yq
+ARG YQ_VERSION="4.44.2"
+RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
+    upx /usr/local/sbin/yq && \
+    rm -rf /tmp/* /var/log/* /var/tmp/*
 
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
