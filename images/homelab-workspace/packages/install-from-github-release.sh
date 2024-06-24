@@ -86,7 +86,7 @@ install_release() {
     echo "Downloading (unauthenticated)..."
   fi
   set -x
-  fetch --repo="$repo" --tag="${!tag}" --release-asset="${!asset_regex}" $fetch_params $download_dir 2>&1 | pr -t -o 4
+  fetch --repo="$repo" --tag="$tag" --release-asset="${!asset_regex}" $fetch_params $download_dir 2>&1 | pr -t -o 4
   set +x
 
   pushd $download_dir > /dev/null
