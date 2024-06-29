@@ -2,6 +2,17 @@
 
 
 
+## [1.2.0](https://github.com/ppat/coder/compare/v1.1.2...v1.2.0) (2024-06-29)
+
+### ✨ Features
+
+* add kind cli to coder image ([#51](https://github.com/ppat/coder/issues/51)) ([cc67aec](https://github.com/ppat/coder/commit/cc67aecd34a7e32569620e3bbc905bbd3cdd4475))
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix installation of starship from agent-startup-script ([#50](https://github.com/ppat/coder/issues/50)) ([1b5d818](https://github.com/ppat/coder/commit/1b5d818c9d86a702628225f082503f3ae46352cf))
+* various image updates ([#49](https://github.com/ppat/coder/issues/49)) ([52f337c](https://github.com/ppat/coder/commit/52f337cf1a0d64b4402b21dc40a5d213b9150c5a))
+
 ## [1.1.2](https://github.com/ppat/coder/compare/v1.1.1...v1.1.2) (2024-06-29)
 
 ### 📌 Dependencies
