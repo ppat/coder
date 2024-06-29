@@ -64,8 +64,8 @@ jobs:
         tags: |
           type=ref,event=branch,enable=${{ github.ref_type != 'tag' }}
           type=ref,event=pr,enable=${{ github.ref_type != 'tag' }}
-          type=raw,value={{sha}}
-          type=raw,value=${{ env.current_branch }}
+          type=raw,value={{sha}},prefix=git-
+          type=raw,value=${{ env.current_branch }},prefix=branch-
 
     - name: Tailscale Connect
       uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
