@@ -266,7 +266,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # NodeJS based tooling
 # hadolint ignore=DL3016,SC2086
-RUN --mount=type=bind,source=./packages,target=/tmp/packages \
+RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.npm,id=npm-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -276,7 +276,7 @@ RUN --mount=type=bind,source=./packages,target=/tmp/packages \
     npm config set update-notifier false && \
     npm config set fund false && \
     npm config set loglevel error && \
-    for i in $(cat /tmp/packages/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
+    for i in $(cat /packages/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
     chown -R root:coder ${FNM_ROOT} && \
     chmod -R g+rw ${FNM_ROOT}
 
@@ -393,13 +393,13 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # install apps from github releases
 # hadolint ignore=SC2155
-RUN --mount=type=bind,source=./packages,target=/tmp/packages \
+RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=secret,id=FETCH_GH_TOKEN \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
     export FETCH_GH_TOKEN="$(cat /run/secrets/FETCH_GH_TOKEN)" && \
-    /bin/bash /tmp/packages/install-from-github-release.sh /tmp/packages/github-releases.yaml
+    /bin/bash /packages/install-from-github-release.sh /packages/github-releases.yaml
 
 
 # ========================================================================================================
@@ -412,21 +412,21 @@ WORKDIR /tmp
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin
 # hadolint ignore=DL3013,SC2086
-RUN --mount=type=bind,source=./packages,target=/tmp/packages \
+RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
     mkdir ${PIPX_HOME} && \
-    for t in $(grep -v '^#' /tmp/packages/pipx-package-requirements.txt); do pipx install ${t}; done && \
+    for t in $(grep -v '^#' /packages/pipx-package-requirements.txt); do pipx install ${t}; done && \
     chown -R root:coder ${PIPX_HOME} && \
     chmod -R g+rw ${PIPX_HOME}
 
 # ansible dependencies, related apps and collections
 ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
 # hadolint ignore=SC2046
-RUN --mount=type=bind,source=./packages,target=/tmp/packages \
+RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
@@ -434,14 +434,14 @@ RUN --mount=type=bind,source=./packages,target=/tmp/packages \
     --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # ansible related apps
-    pipx inject ansible-core --include-apps $(grep -v '^#' /tmp/packages/ansible-dependent-app-requirements.txt) && \
+    pipx inject ansible-core --include-apps $(grep -v '^#' /packages/ansible-dependent-app-requirements.txt) && \
     # ----------------------------------------------------------------------------------------------------
     # ansible dependent packages
-    pipx inject ansible-core $(grep -v '^#' /tmp/packages/ansible-dependency-requirements.txt) && \
+    pipx inject ansible-core $(grep -v '^#' /packages/ansible-dependency-requirements.txt) && \
     # ----------------------------------------------------------------------------------------------------
     # ansible collections
     mkdir -p /opt/ansible/collections && \
-    ansible-galaxy collection install -p /opt/ansible/collections -r /tmp/packages/ansible-galaxy.yaml && \
+    ansible-galaxy collection install -p /opt/ansible/collections -r /packages/requirements.yaml && \
     # ----------------------------------------------------------------------------------------------------
     chown -R root:coder ${PIPX_HOME} && \
     chmod -R g+rw ${PIPX_HOME} && \
