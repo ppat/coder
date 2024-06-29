@@ -2,6 +2,13 @@
 
 
 
+## [1.1.2](https://github.com/ppat/coder/compare/v1.1.1...v1.1.2) (2024-06-29)
+
+### 📌 Dependencies
+
+* **deps:** update dependency ansible-core to v2.17.1 ([#43](https://github.com/ppat/coder/issues/43)) ([9f3fdb5](https://github.com/ppat/coder/commit/9f3fdb58dccaa3cfd29a5a0f5cc518e7fc8c747f))
+* **deps:** update dependency aquasecurity/tfsec to v1.28.9 ([#46](https://github.com/ppat/coder/issues/46)) ([475675f](https://github.com/ppat/coder/commit/475675fb9132e333c93f6ea393ded75ccc61b3aa))
+
 ## [1.1.1](https://github.com/ppat/coder/compare/v1.1.0...v1.1.1) (2024-06-24)
 
 ### 🐛 Enhancements + Bug Fixes
