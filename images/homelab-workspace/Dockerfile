@@ -310,6 +310,42 @@ RUN export GOPATH="/usr/local/go" && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
 
 # ========================================================================================================
+FROM --platform=$TARGETPLATFORM base AS sdk-rust-cargo
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
+WORKDIR /tmp
+
+# Rust / Cargo
+# renovate: datasource=github-releases depName=rust-lang/rust
+ARG RUST_VERSION="1.70.0"
+ENV CARGO_HOME="/usr/local/cargo"
+ENV PATH="$PATH:$CARGO_HOME/bin"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=${RUST_VERSION} --no-modify-path -y && \
+    mkdir /env && \
+    echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
+    echo "$CARGO_HOME/bin" > /env/rust-cargo.path
+
+# Install crates
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    cargo install atuin@18.3.0 && \
+    cargo install tokei@12.1.2 && \
+    cargo install procs@0.14.5 && \
+    cargo install topgrade@14.0.1 && \
+    cargo install du-dust@1.0.0 && \
+    cargo install difftastic@0.58.0 && \
+    cargo install zoxide@0.9.4 && \
+    cargo install czkawka_cli@7.0.0 && \
+    cargo install jless@0.9.0 && \
+    cargo install lfs@2.6.0 && \
+    cargo install exa@0.10.1 && \
+    cargo install git-delta@0.17.0
+
+    # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -460,6 +496,7 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
+COPY --from=sdk-rust-cargo /usr/local/cargo /usr/local/cargo
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
@@ -469,6 +506,7 @@ COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
 RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
+    --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
