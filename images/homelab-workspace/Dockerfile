@@ -332,18 +332,18 @@ RUN --mount=type=tmpfs,target=/tmp \
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    cargo install atuin@18.3.0 && \
-    cargo install tokei@12.1.2 && \
-    cargo install procs@0.14.5 && \
-    cargo install topgrade@14.0.1 && \
-    cargo install du-dust@1.0.0 && \
-    cargo install difftastic@0.58.0 && \
-    cargo install zoxide@0.9.4 && \
+    # cargo install atuin@18.3.0 && \
     cargo install czkawka_cli@7.0.0 && \
+    cargo install difftastic@0.58.0 && \
+    cargo install du-dust@1.0.0 && \
+    cargo install exa@0.10.1 && \
+    cargo install git-delta@0.17.0 && \
     cargo install jless@0.9.0 && \
     cargo install lfs@2.6.0 && \
-    cargo install exa@0.10.1 && \
-    cargo install git-delta@0.17.0
+    cargo install procs@0.14.5 && \
+    cargo install tokei@12.1.2 && \
+    cargo install topgrade@14.0.1 && \
+    cargo install zoxide@0.9.4
 
     # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
