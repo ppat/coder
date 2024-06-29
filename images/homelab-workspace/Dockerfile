@@ -21,42 +21,40 @@ ENV PYTHONPYCACHEPREFIX=/var/cache/python
 RUN mkdir -p /var/cache/python && \
     chown -R root:coder /var/cache/python && \
     chmod 775 /var/cache/python && \
-    echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment
+    echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
+    find /usr -name __pycache__ -exec rm -rf {} +
 
-# minimum requirements for homelab workspace
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    --mount=type=cache,target=/var/cache/debconf,sharing=locked \
-    --mount=type=cache,target=/var/cache/python,sharing=locked \
+RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+# minimum requirements for base image (for supporting builds of subsequent stages)
+RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
-    # minimum requirements for coder agent (from https://github.com/coder/enterprise-images/blob/main/images/base/Dockerfile.ubuntu)
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
-      bash \
-      curl \
-      git \
-      jq \
-      sudo \
-      unzip \
-      wget \
-      xz-utils \
-      zip \
-      && \
-    # minimum requirements for homelab workspace environment
-    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
-      apt-transport-https \
-      build-essential \
-      ca-certificates \
-      gnupg \
-      locales \
-      man \
-      python3 \
-      python3-pip \
-      software-properties-common \
-      && \
-    # Install latest Git using their official PPA
-    add-apt-repository ppa:git-core/ppa && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends git && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+        apt-transport-https \
+        bash \
+        build-essential \
+        ca-certificates \
+        curl \
+        git \
+        gnupg \
+        jq \
+        locales \
+        man \
+        python3 \
+        python3-pip \
+        software-properties-common \
+        sudo \
+        unzip \
+        wget \
+        xz-utils \
+        zip
 
 # generate locales (needed for many applications, specially python)
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
@@ -92,11 +90,18 @@ FROM --platform=$TARGETPLATFORM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
+# unminimize
+RUN sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
+    echo -e 'y\ny' | unminimize
+
 # systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
-    --mount=type=cache,target=/var/cache/debconf,sharing=private \
-    --mount=type=cache,target=/var/cache/python,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
       dbus \
@@ -116,15 +121,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       systemd-udevd-control.socket \
       systemd-modules-load.service \
       sys-kernel-debug.mount \
-      sys-kernel-tracing.mount && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+      sys-kernel-tracing.mount
 
 # install docker-engine
 # hadolint ignore=SC1091
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
-    --mount=type=cache,target=/var/cache/debconf,sharing=private \
-    --mount=type=cache,target=/var/cache/python,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     # prep apt source for docker
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
@@ -155,16 +162,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       /usr/bin/rootlesskit \
       /usr/bin/runc \
       /usr/libexec/docker/cli-plugins/docker-buildx  \
-      /usr/libexec/docker/cli-plugins/docker-compose \
-    && \
-    find /usr -name __pycache__ -exec rm -rf {} + && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+      /usr/libexec/docker/cli-plugins/docker-compose
 
 # system packages
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
-    --mount=type=cache,target=/var/cache/debconf,sharing=private \
-    --mount=type=cache,target=/var/cache/python,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       autoconf \
@@ -217,13 +224,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
       vim \
       watch \
       zsh \
-      zstd \
-    && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
-
-# unminimize
-RUN sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
-    echo -e 'y\ny' | unminimize
+      zstd
 
 # enables docker starting with systemd
 RUN systemctl enable docker
@@ -458,6 +459,8 @@ COPY --link --chown=root:root --chmod=644 shell/bashrc /etc/skel/.bashrc
 # coder initialization scripts
 RUN mkdir -p /opt/coder/bin
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
+
+RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
 # Add `coder` user (coder platform will connect the user in as this user)
 RUN useradd coder --no-create-home --shell /bin/bash -g coder --groups sudo,docker
