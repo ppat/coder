@@ -9,9 +9,13 @@ initialize_shell_config() {
       cp $skel $target
     fi
   done
-  if [[ ! -f ${HOME}/.local/bin/starship ]]; then
+
+  local home_bin_dir="${HOME}/.local/bin"
+  mkdir -p $home_bin_dir
+
+  if [[ ! -f $home_bin_dir/starship ]]; then
     echo "Starship binary not found, installing..."
-    curl -sS https://starship.rs/install.sh | sh -s - --bin-dir $HOME/.local/bin -y
+    curl -sS https://starship.rs/install.sh | sh -s - --bin-dir $home_bin_dir -y
   else
     echo "Starship binary already exists, skipping install."
   fi
