@@ -301,6 +301,13 @@ RUN --mount=type=tmpfs,target=/tmp \
     echo "GOROOT=$GOROOT" > /env/golang.env && \
     echo "$GOROOT/bin" > /env/golang.path
 
+# kind
+# renovate: datasource=github-releases depName=kubernetes-sigs/kind
+ARG KIND_VERSION="0.23.0"
+RUN export GOPATH="/usr/local/go" && \
+    go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
+    unset GOPATH && \
+    rm -rf /var/log/* /tmp/* /var/tmp/*
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
