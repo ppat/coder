@@ -317,7 +317,7 @@ WORKDIR /tmp
 
 # Rust / Cargo
 # renovate: datasource=github-releases depName=rust-lang/rust
-ARG RUST_VERSION="1.70.0"
+ARG RUST_VERSION="1.74.0"
 ENV CARGO_HOME="/usr/local/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=tmpfs,target=/tmp \
