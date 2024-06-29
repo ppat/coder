@@ -68,7 +68,7 @@
 - name: tfsec
   repo: https://github.com/aquasecurity/tfsec
   # renovate: datasource=github-releases depName=aquasecurity/tfsec
-  tag: "v1.28.6"
+  tag: "v1.28.9"
   asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
   asset_files:
   - source: tfsec
