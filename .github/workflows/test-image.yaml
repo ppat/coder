@@ -1,4 +1,5 @@
 ---
+# yamllint disable rule:line-length
 name: "test image"
 
 # yamllint disable-line rule:truthy
@@ -30,6 +31,7 @@ env:
   image_cache_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
   image_path: images/homelab-workspace
   default_branch: main
+  current_branch: ${{ github.head_ref || github.ref_name }}
   default_verbosity: 0
 
 jobs:
@@ -49,6 +51,21 @@ jobs:
         buildkitd-flags: '--debug --allow-insecure-entitlement=network.host'
         driver-opts: network=host
         platforms: linux/amd64,linux/arm64
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5
+      with:
+        images: |
+          ${{ env.image_name }}
+        labels: |
+          org.opencontainers.image.title=Homelab-Workspace
+          org.opencontainers.image.description=Coder workspace image
+        tags: |
+          type=ref,event=branch,enable=${{ github.ref_type != 'tag' }}
+          type=ref,event=pr,enable=${{ github.ref_type != 'tag' }}
+          type=raw,value={{sha}},prefix=git-
+          type=raw,value=${{ env.current_branch }},prefix=branch-
 
     - name: Tailscale Connect
       uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
@@ -78,35 +95,24 @@ jobs:
         username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
         password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
 
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5
-      with:
-        images: |
-          ${{ env.image_name }}
-        labels: |
-          org.opencontainers.image.title=Homelab-Workspace
-          org.opencontainers.image.description=Coder workspace image
-        tags: |
-          type=ref,event=branch,enable=${{ github.ref_type != 'tag' }}
-          type=ref,event=pr,enable=${{ github.ref_type != 'tag' }}
-          type=raw,value={{sha}}
-          type=raw,value=${{ github.run_id }}
-
     - name: Build image
       id: build
       uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6
       with:
         context: ./${{ env.image_path }}
+        platforms: |
+          linux/arm64
+          linux/amd64
         load: false
-        platforms: linux/arm64,linux/amd64
-        pull: true
         push: false
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
-        cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+        cache-from: |
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }}
+        cache-to: |
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd
         secrets: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
@@ -117,15 +123,14 @@ jobs:
       uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6
       with:
         context: ./${{ env.image_path }}
+        platforms: ${{ (runner.arch == 'ARM64') && 'linux/arm64' || 'linux/amd64' }}
         load: true
-        platforms: linux/amd64
-        pull: true
         push: false
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=inline
+        cache-from: |
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }}
         secrets: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
@@ -134,7 +139,7 @@ jobs:
     - name: Test image (amd64 only)
       id: test
       env:
-        container_image: "${{ env.image_name }}:${{ github.run_id }}"
+        container_image: "${{ env.image_name }}:${{ env.current_branch }}"
         container_name: "test_${{ github.run_id }}"
         test_user: tester
       shell: bash

@@ -14,7 +14,7 @@ on:
       verbosity:
         description: 'Log Verbosity'
         required: true
-        default: 1
+        default: 0
         type: choice
         options:
         - '0'
@@ -163,14 +163,17 @@ jobs:
       uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6
       with:
         context: ./${{ env.image_path }}
-        platforms: linux/amd64,linux/arm64
-        pull: true
+        platforms: |
+          linux/arm64
+          linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
-        cache-to: ${{ github.event_name == 'workflow_dispatch' && format('type=registry,ref={0}:{1},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd', env.image_cache_name, env.default_branch) || 'type=inline' }}
+        cache-from: |
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
+        cache-to: |
+          type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd
         secrets: |
           FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
         allow: network.host
