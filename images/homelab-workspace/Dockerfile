@@ -91,7 +91,14 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
 # unminimize
-RUN sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
+RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
     echo -e 'y\ny' | unminimize
 
 # systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
@@ -241,7 +248,10 @@ WORKDIR /tmp
 ARG NODE_VERSION="20.15.0"
 ENV FNM_ROOT=/opt/fnm
 ENV PATH="$PATH:${FNM_ROOT}"
-RUN mkdir -p /opt/fnm && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    mkdir -p /opt/fnm && \
     curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir ${FNM_ROOT} && \
     eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
     ${FNM_ROOT}/fnm install ${NODE_VERSION} && \
@@ -252,21 +262,23 @@ RUN mkdir -p /opt/fnm && \
     chmod 755 ${FNM_ROOT}/fnm && \
     mkdir /env && \
     echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
-    echo "$FNM_ROOT" > /env/fnm.path && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    echo "$FNM_ROOT" > /env/fnm.path
 
 # NodeJS based tooling
-COPY packages/npm-packages.json /tmp/npm-packages.json
 # hadolint ignore=DL3016,SC2086
-RUN eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
+RUN --mount=type=bind,source=./packages,target=/packages \
+    --mount=type=cache,target=/root/.npm,id=npm-cache-${TARGETARCH} \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
     ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
     npm config set update-notifier false && \
     npm config set fund false && \
     npm config set loglevel error && \
-    for i in $(cat /tmp/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
+    for i in $(cat /packages/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
     chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT} && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    chmod -R g+rw ${FNM_ROOT}
 
 
 # ========================================================================================================
@@ -280,16 +292,14 @@ WORKDIR /tmp
 ARG GOLANG_VERSION="1.22.4"
 ENV GOROOT="/usr/local/go"
 ENV PATH="$PATH:$GOROOT/bin"
-RUN wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz" -O /tmp/golang.tar.gz && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz" -O /tmp/golang.tar.gz && \
     tar -C /usr/local -xzf /tmp/golang.tar.gz && \
-    export GOPATH="/usr/local/go" && \
-    go install golang.org/x/lint/golint@latest && \
-    go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest && \
-    unset GOPATH && \
     mkdir /env && \
     echo "GOROOT=$GOROOT" > /env/golang.env && \
-    echo "$GOROOT/bin" > /env/golang.path && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    echo "$GOROOT/bin" > /env/golang.path
 
 
 # ========================================================================================================
@@ -304,15 +314,17 @@ ARG TFENV_VERSION="3.0.0"
 # renovate: datasource=github-releases depName=hashicorp/terraform
 ARG TERRAFORM_VERSION="1.8.5"
 ENV PATH="${PATH}:/opt/tfenv/bin"
-RUN git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.git /opt/tfenv 2> /dev/null && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.git /opt/tfenv 2> /dev/null && \
     tfenv install ${TERRAFORM_VERSION} && \
     tfenv use ${TERRAFORM_VERSION} && \
     upx /opt/tfenv/versions/${TERRAFORM_VERSION}/terraform && \
     chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
     mkdir /env && \
-    echo "/opt/tfenv/bin" > /env/terraform.path && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    echo "/opt/tfenv/bin" > /env/terraform.path
 
 
 # ========================================================================================================
@@ -324,35 +336,43 @@ WORKDIR /tmp
 # kubectl version=latest(intersect(stable-channel(https://github.com/k3s-io/k3s/releases), https://github.com/kubernetes/kubernetes/releases))
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION="1.30.2"
-RUN wget --progress=dot:giga "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" -O /tmp/kubectl && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" -O /tmp/kubectl && \
     wget --progress=dot:giga "https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" -O /tmp/kubectl.sha256 && \
     echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check && \
     install -o root -g root -m 0755 /tmp/kubectl /usr/local/sbin/kubectl && \
-    upx /usr/local/sbin/kubectl && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/kubectl
 
 # helm
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION="3.15.2"
-RUN wget --progress=dot:giga -c "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 1 -C /tmp && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 1 -C /tmp && \
     install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
-    upx /usr/local/sbin/helm && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/helm
 
 # packer
 # renovate: datasource=github-releases depName=hashicorp/packer
 ARG PACKER_VERSION="1.10.3"
-RUN wget --progress=dot:giga -c "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip" -O /tmp/packer.zip && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip" -O /tmp/packer.zip && \
     unzip /tmp/packer.zip && \
     install -o root -g root -m 0755 /tmp/packer /usr/local/sbin/packer && \
-    upx /usr/local/sbin/packer && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/packer
 
 # minio-cli
-RUN curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
     install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
-    upx /usr/local/sbin/mc && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/mc
 
 
 # ========================================================================================================
@@ -364,19 +384,22 @@ WORKDIR /tmp
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
 ARG FETCH_VERSION="0.4.6"
-RUN wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
     install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
-    upx /usr/local/sbin/fetch && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/fetch
 
 # install apps from github releases
-RUN mkdir /data /scripts
-COPY --link --chown=root:root --chmod=644 packages/github-releases.yaml /data/github-releases.yaml
-COPY --link --chown=root:root --chmod=755 packages/install-from-github-release.sh /scripts/install-from-github-release.sh
 # hadolint ignore=SC2155
-RUN --mount=type=secret,id=FETCH_GH_TOKEN \
+RUN --mount=type=bind,source=./packages,target=/packages \
+    --mount=type=secret,id=FETCH_GH_TOKEN \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     export FETCH_GH_TOKEN="$(cat /run/secrets/FETCH_GH_TOKEN)" && \
-    /scripts/install-from-github-release.sh /data/github-releases.yaml
+    /bin/bash /packages/install-from-github-release.sh /packages/github-releases.yaml
 
 
 # ========================================================================================================
@@ -388,41 +411,43 @@ WORKDIR /tmp
 # python build and lint tools: (poetry, etc)
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/usr/local/bin
-COPY --link packages/pipx-package-requirements.txt /tmp/pipx-package-requirements.txt
 # hadolint ignore=DL3013,SC2086
-RUN --mount=type=cache,target=/var/cache/python,sharing=private \
-    --mount=type=cache,target=/root/.cache/pip,sharing=private \
+RUN --mount=type=bind,source=./packages,target=/packages \
+    --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     mkdir ${PIPX_HOME} && \
-    for t in $(grep -v '^#' /tmp/pipx-package-requirements.txt); do pipx install ${t}; done && \
+    for t in $(grep -v '^#' /packages/pipx-package-requirements.txt); do pipx install ${t}; done && \
     chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME} && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    chmod -R g+rw ${PIPX_HOME}
 
 # ansible dependencies, related apps and collections
 ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
-COPY packages/ansible-* /tmp/
-COPY packages/requirements.yaml /tmp/ansible-galaxy.yaml
 # hadolint ignore=SC2046
-RUN --mount=type=cache,target=/var/cache/python,sharing=private \
-    --mount=type=cache,target=/root/.cache/pip,sharing=private \
+RUN --mount=type=bind,source=./packages,target=/packages \
+    --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # ansible related apps
-    pipx inject ansible-core --include-apps $(grep -v '^#' /tmp/ansible-dependent-app-requirements.txt) && \
+    pipx inject ansible-core --include-apps $(grep -v '^#' /packages/ansible-dependent-app-requirements.txt) && \
     # ----------------------------------------------------------------------------------------------------
     # ansible dependent packages
-    pipx inject ansible-core $(grep -v '^#' /tmp/ansible-dependency-requirements.txt) && \
+    pipx inject ansible-core $(grep -v '^#' /packages/ansible-dependency-requirements.txt) && \
     # ----------------------------------------------------------------------------------------------------
     # ansible collections
     mkdir -p /opt/ansible/collections && \
-    ansible-galaxy collection install -p /opt/ansible/collections -r /tmp/ansible-galaxy.yaml && \
+    ansible-galaxy collection install -p /opt/ansible/collections -r /packages/requirements.yaml && \
     # ----------------------------------------------------------------------------------------------------
     chown -R root:coder ${PIPX_HOME} && \
     chmod -R g+rw ${PIPX_HOME} && \
     chown -R root:coder /opt/ansible && \
     find /opt/ansible -type d -exec chmod g+rwx {} + && \
-    echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment && \
-    # ----------------------------------------------------------------------------------------------------
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment
 
 # copy sdks
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
@@ -434,21 +459,21 @@ COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
 COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
 
 # copy environment variables
-RUN mkdir /env
-COPY --from=sdk-nodejs /env/* /env/
-COPY --from=sdk-golang /env/* /env/
-COPY --from=sdk-terraform /env/* /env/
-RUN \
+RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
+    --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
+    --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
-    for path_file in $(ls /env/*.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
+    for path_file in $(find /env -type f -name *.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
     mv /etc/environment /tmp/env.tmp && \
     grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
     echo 'PATH="'${PATH}'"' >> /etc/environment && \
     # ----------------------------------------------------------------------------------------------------
     # add all environment values from /env/*.env files to /etc/environment
-    for env_file in $(ls /env/*.env | sort); do cat $env_file >> /etc/environment; done && \
-    rm -rf /env /tmp/* /var/log/* /var/tmp/*
+    for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
 
 # shell initialization scripts
 COPY --link --chown=root:root --chmod=644 shell/bash_aliases.defaults /etc/bash_aliases.defaults

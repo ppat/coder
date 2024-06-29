@@ -139,7 +139,7 @@ jobs:
     - name: Test image (amd64 only)
       id: test
       env:
-        container_image: "${{ env.image_name }}:${{ env.current_branch }}"
+        container_image: "${{ env.image_name }}:branch-${{ env.current_branch }}"
         container_name: "test_${{ github.run_id }}"
         test_user: tester
       shell: bash
