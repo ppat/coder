@@ -14,6 +14,7 @@
   # renovate: datasource=github-releases depName=atuinsh/atuin
   tag: "v18.3.0"
   asset_regex: "atuin-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz"
+  unarchive_opts: "--strip-components 1"
 - name: czkawka
   repo: https://github.com/qarmin/czkawka
   # renovate: datasource=github-releases depName=qarmin/czkawka
