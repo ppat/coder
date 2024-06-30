@@ -521,6 +521,7 @@ COPY --link --chown=root:root --chmod=644 shell/bash_aliases.defaults /etc/bash_
 COPY --link --chown=root:root --chmod=644 shell/bash_completion.defaults /etc/bash_completion.defaults
 COPY --link --chown=root:root --chmod=644 shell/bashrc.defaults /etc/bashrc.defaults
 COPY --link --chown=root:root --chmod=644 shell/bashrc /etc/skel/.bashrc
+COPY --link --chown=root:root --chmod=644 shell/bashrc.extra /etc/skel/.bashrc.extra
 
 # coder initialization scripts
 RUN mkdir -p /opt/coder/bin

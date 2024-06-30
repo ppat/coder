@@ -23,3 +23,12 @@ source <(pip completion --bash)
 
 # flux
 source <(flux completion bash)
+
+# gh
+source <(gh completion -s bash)
+
+# kind
+source <(kind completion bash)
+
+# mc
+complete -C /usr/local/sbin/mc mc
