@@ -28,7 +28,6 @@
   # renovate: datasource=github-releases depName=Wilfred/difftastic
   tag: "0.58.0"
   asset_regex: "difft-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz"
-  unarchive_opts: "--strip-components 1"
 - name: delta
   repo: https://github.com/dandavison/delta
   # renovate: datasource=github-releases depName=dandavison/delta
@@ -40,6 +39,7 @@
   # renovate: datasource=github-releases depName=bootandy/dust
   tag: "v1.0.0"
   asset_regex: ".*-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz"
+  unarchive_opts: "--strip-components 1"
 - name: flux
   repo: https://github.com/fluxcd/flux2
   # renovate: datasource=github-releases depName=fluxcd/flux2
@@ -103,4 +103,3 @@
   # renovate: datasource=github-releases depName=ajeetdsouza/zoxide
   tag: "0.9.4"
   asset_regex: ".*-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-musl.tar.gz"
-  unarchive_opts: "--strip-components 1"
