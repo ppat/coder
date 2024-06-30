@@ -499,7 +499,7 @@ COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
 COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
-COPY --from=sdk-rust-cargo opt/rustup /opt/rustup
+COPY --from=sdk-rust-cargo /opt/rustup /opt/rustup
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
