@@ -322,14 +322,13 @@ ENV RUSTUP_HOME="/opt/rustup"
 ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=${RUSTUP_HOME}/tmp \
-    --mount=type=tmpfs,target=/tmp \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
     rustup default ${RUST_VERSION} && \
     mkdir /env && \
     echo "RUSTUP_HOME=$RUSTUP_HOME" > /env/rust-cargo.env && \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
-    echo "$CARGO_HOME/bin" > /env/rust-cargo.path
+    echo "$CARGO_HOME/bin" > /env/rust-cargo.path && \
+    rm -rf ${RUSTUP_HOME}/tmp/*
 
 # Install crates
 # renovate: datasource=crate depName=atuin
