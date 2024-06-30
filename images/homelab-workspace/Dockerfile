@@ -410,7 +410,7 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS python-packages
+FROM --platform=$TARGETPLATFORM system-base AS python-packages
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
