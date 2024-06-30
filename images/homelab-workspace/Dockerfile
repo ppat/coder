@@ -304,7 +304,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 # kind
 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
 ARG KIND_VERSION="0.23.0"
-RUN export GOPATH="/usr/local/go" && \
+RUN export GOPATH="/usr/local" && \
     go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
     unset GOPATH && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
@@ -345,7 +345,6 @@ RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH}
         --root /usr/local \
         dysk@${DYSK_VERSION} \
         procs@${PROCS_VERSION}
-
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
@@ -504,6 +503,8 @@ COPY --from=sdk-rust-cargo /opt/rustup /opt/rustup
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
 COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
+COPY --from=sdk-rust-cargo /usr/local/bin/* /usr/local/sbin/
+COPY --from=sdk-golang /usr/local/bin/* /usr/local/sbin/
 
 # copy environment variables
 RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
