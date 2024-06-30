@@ -308,10 +308,11 @@ RUN --mount=type=tmpfs,target=/tmp \
 # kind
 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
 ARG KIND_VERSION="0.23.0"
-RUN export GOPATH="/usr/local" && \
+RUN --mount=type=tmpfs,target=/tmp \
+    export GOPATH="/usr/local" && \
     go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
-    unset GOPATH && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    unset GOPATH
+
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-rust-cargo
@@ -334,21 +335,22 @@ RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache
     echo "$CARGO_HOME/bin" > /env/rust-cargo.path && \
     rm -rf ${RUSTUP_HOME}/tmp/*
 
-# Install crates
-# renovate: datasource=crate depName=dysk
-ARG DYSK_VERSION="2.9.0"
-# renovate: datasource=crate depName=procs
-ARG PROCS_VERSION="0.14.5"
-ENV CARGO_TARGET_DIR="/cargo_target"
-RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH} \
-    --mount=type=cache,target=${CARGO_HOME}/registry,id=cargo-registry-cache-${TARGETARCH} \
-    --mount=type=cache,target=${CARGO_TARGET_DIR},id=cargo-target-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=/tmp \
-    cargo install \
-        --locked \
-        --root /usr/local \
-        dysk@${DYSK_VERSION} \
-        procs@${PROCS_VERSION}
+# # Install crates
+# # renovate: datasource=crate depName=dysk
+# ARG DYSK_VERSION="2.9.0"
+# # renovate: datasource=crate depName=procs
+# ARG PROCS_VERSION="0.14.5"
+# ENV CARGO_TARGET_DIR="/cargo_target"
+# RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH} \
+#     --mount=type=cache,target=${CARGO_HOME}/registry,id=cargo-registry-cache-${TARGETARCH} \
+#     --mount=type=cache,target=${CARGO_TARGET_DIR},id=cargo-target-cache-${TARGETARCH} \
+#     --mount=type=tmpfs,target=/tmp \
+#     cargo install \
+#         --locked \
+#         --root /usr/local \
+#         dysk@${DYSK_VERSION} \
+#         procs@${PROCS_VERSION}
+
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
