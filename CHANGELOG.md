@@ -2,6 +2,12 @@
 
 
 
+## [1.4.1](https://github.com/ppat/coder/compare/v1.4.0...v1.4.1) (2024-06-30)
+
+### 🐛 Enhancements + Bug Fixes
+
+* update shell configurations - autocompletions, alias and environment ([#61](https://github.com/ppat/coder/issues/61)) ([16aa034](https://github.com/ppat/coder/commit/16aa0349d25fae866e41cb793a545cb44ddb689e))
+
 ## [1.4.0](https://github.com/ppat/coder/compare/v1.3.0...v1.4.0) (2024-06-30)
 
 ### ✨ Features
