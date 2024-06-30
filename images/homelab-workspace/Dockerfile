@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:19478ce7fc2ffbce89df29fea5725a8d12e57de52eb9ea570890dc5852aac1ac AS base
+FROM --platform=$TARGETPLATFORM ubuntu:noble@sha256:2e863c44b718727c860746568e1d54afd13b2fa71b160f5cd9058fc436217b30 AS base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
