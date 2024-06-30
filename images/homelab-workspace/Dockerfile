@@ -187,7 +187,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
       bsdextrautils \
       cron \
       dnsutils \
+      exa \
       fd-find \
+      ffmpeg \
       fish \
       fontconfig \
       fzf \
@@ -204,6 +206,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
       less \
       libarchive-dev \
       libarchive-tools \
+      libheif-dev \
+      libraw-dev \
       libssl-dev \
       libtool \
       lsof \
