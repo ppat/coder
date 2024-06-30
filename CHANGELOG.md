@@ -2,6 +2,17 @@
 
 
 
+## [1.4.0](https://github.com/ppat/coder/compare/v1.3.0...v1.4.0) (2024-06-30)
+
+### ✨ Features
+
+* add github-cli to coder image ([#57](https://github.com/ppat/coder/issues/57)) ([7196078](https://github.com/ppat/coder/commit/71960788873d60b752239165d0ab6a7112979364))
+
+### 🐛 Enhancements + Bug Fixes
+
+* do not add RUSTUP_HOME to image, add it at workspace start up ([#59](https://github.com/ppat/coder/issues/59)) ([2844099](https://github.com/ppat/coder/commit/284409938342c60d0d81f88897db3e4a83ef06a9))
+* refactor to ensure that docker build cache id's are unique ([#60](https://github.com/ppat/coder/issues/60)) ([91b19d8](https://github.com/ppat/coder/commit/91b19d86dce0e110737eff572a59d89ad31f306d))
+
 ## [1.3.0](https://github.com/ppat/coder/compare/v1.2.0...v1.3.0) (2024-06-30)
 
 ### ✨ Features
