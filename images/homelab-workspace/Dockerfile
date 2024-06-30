@@ -447,35 +447,33 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM system-base
+FROM --platform=$TARGETPLATFORM system-base AS python-packages
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
 # python build and lint tools: (poetry, etc)
 ENV PIPX_HOME=/opt/pipx
-ENV PIPX_BIN_DIR=/usr/local/bin
+ENV PIPX_BIN_DIR=/opt/pipx/bin
+ENV PATH="$PATH:$PIPX_BIN_DIR"
 # hadolint ignore=DL3013,SC2086
 RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
     mkdir ${PIPX_HOME} && \
     for t in $(grep -v '^#' /packages/pipx-package-requirements.txt); do pipx install ${t}; done && \
     chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME}
+    chmod -R g+rw ${PIPX_HOME} && \
+    mkdir /env && \
+    echo "$PIPX_BIN_DIR" > /env/pipx.path
 
-# ansible dependencies, related apps and collections
-ENV ANSIBLE_COLLECTIONS_PATH="/opt/ansible/collections:/usr/share/ansible/collections"
+# ansible and its dependencies, related apps and collections
 # hadolint ignore=SC2046
 RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # ansible related apps
     pipx inject ansible-core --include-apps $(grep -v '^#' /packages/ansible-dependent-app-requirements.txt) && \
@@ -491,14 +489,23 @@ RUN --mount=type=bind,source=./packages,target=/packages \
     chmod -R g+rw ${PIPX_HOME} && \
     chown -R root:coder /opt/ansible && \
     find /opt/ansible -type d -exec chmod g+rwx {} + && \
-    echo "ANSIBLE_COLLECTIONS_PATH=\"${ANSIBLE_COLLECTIONS_PATH}\"" >> /etc/environment
+    echo 'ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections:/opt/ansible/collections:/usr/share/ansible/collections"' > /env/ansible.env
 
-# copy sdks
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM system-base
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
+WORKDIR /tmp
+
+# copy sdks + packages installations
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
 COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
 COPY --from=sdk-rust-cargo /opt/rustup /opt/rustup
+COPY --from=python-packages /opt/pipx /opt/pipx
+COPY --from=python-packages /opt/ansible /opt/ansible
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
@@ -511,6 +518,7 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
     --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
+    --mount=type=bind,from=python-packages,source=/env,target=/env/python-packages \
     --mount=type=tmpfs,target=/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
