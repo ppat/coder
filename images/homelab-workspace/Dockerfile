@@ -28,9 +28,9 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
 # minimum requirements for base image (for supporting builds of subsequent stages)
-RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=base-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=base-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=base-lib-apt-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -91,9 +91,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
 # unminimize
-RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -102,9 +102,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
     echo -e 'y\ny' | unminimize
 
 # systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
-RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=sysbase2-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=sysbase2-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=sysbase2-lib-apt-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -132,9 +132,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
 
 # install docker-engine
 # hadolint ignore=SC1091
-RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=sysbase3-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=sysbase3-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=sysbase3-lib-apt-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -172,9 +172,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
       /usr/libexec/docker/cli-plugins/docker-compose
 
 # system packages
-RUN --mount=type=cache,target=/var/cache/apt,id=var-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=var-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=var-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=sysbase4-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=sysbase4-lib-apt-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -328,28 +328,10 @@ ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
-    rustup default ${RUST_VERSION} && \
     mkdir /env && \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
     echo "RUST_VERSION=$RUST_VERSION" >> /env/rust-cargo.env && \
     echo "$CARGO_HOME/bin" > /env/rust-cargo.path
-
-# # Install crates
-# # renovate: datasource=crate depName=dysk
-# ARG DYSK_VERSION="2.9.0"
-# # renovate: datasource=crate depName=procs
-# ARG PROCS_VERSION="0.14.5"
-# ENV CARGO_TARGET_DIR="/cargo_target"
-# RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH} \
-#     --mount=type=cache,target=${CARGO_HOME}/registry,id=cargo-registry-cache-${TARGETARCH} \
-#     --mount=type=cache,target=${CARGO_TARGET_DIR},id=cargo-target-cache-${TARGETARCH} \
-#     --mount=type=tmpfs,target=/tmp \
-#     cargo install \
-#         --locked \
-#         --root /usr/local \
-#         dysk@${DYSK_VERSION} \
-#         procs@${PROCS_VERSION}
-
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
@@ -463,7 +445,7 @@ ENV PIPX_BIN_DIR=/opt/pipx/bin
 ENV PATH="$PATH:$PIPX_BIN_DIR"
 # hadolint ignore=DL3013,SC2086
 RUN --mount=type=bind,source=./packages,target=/packages \
-    --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
+    --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     mkdir ${PIPX_HOME} && \
@@ -476,7 +458,7 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 # ansible and its dependencies, related apps and collections
 # hadolint ignore=SC2046
 RUN --mount=type=bind,source=./packages,target=/packages \
-    --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
+    --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     # ----------------------------------------------------------------------------------------------------
