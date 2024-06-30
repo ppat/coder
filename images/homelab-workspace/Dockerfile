@@ -418,6 +418,7 @@ WORKDIR /tmp
 # python build and lint tools: (poetry, etc)
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/opt/pipx/bin
+ENV PATH="$PATH:$PIPX_BIN_DIR"
 # hadolint ignore=DL3013,SC2086
 RUN --mount=type=bind,source=./packages,target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pip-cache-${TARGETARCH} \
