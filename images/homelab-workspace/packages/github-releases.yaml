@@ -48,6 +48,12 @@
   # renovate: datasource=github-releases depName=fluxcd/flux2
   tag: "v2.3.0"
   asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
+- name: gh
+  repo: https://github.com/cli/cli
+  # renovate: datasource=github-releases depName=cli/cli
+  tag: "v2.52.0"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
+  unarchive_opts: "--strip-components 2"
 - name: hadolint
   repo: https://github.com/hadolint/hadolint
   # renovate: datasource=github-releases depName=hadolint/hadolint
