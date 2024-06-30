@@ -272,27 +272,6 @@
       ]
     },
     {
-      "allowedVersions": "<24",
-      "matchDatasources": [
-        "pypi"
-      ],
-      "matchPackageNames": [
-        "ansible-lint",
-        "molecule",
-        "molecule-plugins"
-      ]
-    },
-    {
-      "description": "slow down the update of packages with daily releases",
-      "matchDepNames": [
-        "snyk/cli"
-      ],
-      "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Wednesday"
-      ]
-    },
-    {
       "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
       "matchDatasources": [
         "docker"
