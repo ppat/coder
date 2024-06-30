@@ -324,17 +324,15 @@ WORKDIR /tmp
 # Rust / Cargo
 # renovate: datasource=github-releases depName=rust-lang/rust
 ARG RUST_VERSION="1.77.0"
-ENV RUSTUP_HOME="/opt/rustup"
 ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
-RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache-${TARGETARCH} \
+RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
     rustup default ${RUST_VERSION} && \
     mkdir /env && \
-    echo "RUSTUP_HOME=$RUSTUP_HOME" > /env/rust-cargo.env && \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
-    echo "$CARGO_HOME/bin" > /env/rust-cargo.path && \
-    rm -rf ${RUSTUP_HOME}/tmp/*
+    echo "RUST_VERSION=$RUST_VERSION" >> /env/rust-cargo.env && \
+    echo "$CARGO_HOME/bin" > /env/rust-cargo.path
 
 # # Install crates
 # # renovate: datasource=crate depName=dysk
@@ -510,7 +508,6 @@ COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
 COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
-COPY --from=sdk-rust-cargo /opt/rustup /opt/rustup
 COPY --from=python-packages /opt/pipx /opt/pipx
 COPY --from=python-packages /opt/ansible /opt/ansible
 

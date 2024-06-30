@@ -10,9 +10,19 @@ initialize_shell_config() {
     fi
   done
 
+  set -o allexport
+  source /etc/environment
+  set +o allexport
+
   local home_bin_dir="${HOME}/.local/bin"
   mkdir -p $home_bin_dir
 
+  if [[ ! -d $HOME/.rustup && ! -z "$RUST_VERSION" ]]; then
+    echo "$HOME/.rustup is not present, installing rust $RUST_VERSION ..."
+    rustup default ${RUST_VERSION}
+  else
+    echo "$HOME/.rustup is already present, skipping rust installation."
+  fi
   if [[ ! -f $home_bin_dir/starship ]]; then
     echo "Starship binary not found, installing..."
     curl -sS https://starship.rs/install.sh | sh -s - --bin-dir $home_bin_dir -y
