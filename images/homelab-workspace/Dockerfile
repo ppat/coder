@@ -331,8 +331,6 @@ RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache
     rm -rf ${RUSTUP_HOME}/tmp/*
 
 # Install crates
-# renovate: datasource=crate depName=du-dust
-ARG DUST_VERSION="1.0.0"
 # renovate: datasource=crate depName=dysk
 ARG DYSK_VERSION="2.9.0"
 # renovate: datasource=crate depName=procs
@@ -345,7 +343,6 @@ RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH}
     cargo install \
         --locked \
         --root /usr/local \
-        du-dust@${DUST_VERSION} \
         dysk@${DYSK_VERSION} \
         procs@${PROCS_VERSION}
 
@@ -501,7 +498,8 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
-COPY --from=sdk-rust-cargo /usr/local/cargo /usr/local/cargo
+COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
+COPY --from=sdk-rust-cargo opt/rustup /opt/rustup
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
@@ -513,8 +511,6 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
     --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
     --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
     for path_file in $(find /env -type f -name *.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
