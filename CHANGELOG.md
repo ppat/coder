@@ -2,6 +2,17 @@
 
 
 
+## [1.3.0](https://github.com/ppat/coder/compare/v1.2.0...v1.3.0) (2024-06-30)
+
+### ✨ Features
+
+* add rust/cargo sdk and some rust cli tools ([#52](https://github.com/ppat/coder/issues/52)) ([fc271b9](https://github.com/ppat/coder/commit/fc271b9043e02ee223eb29025c649a6bfac336ac))
+* add various new CLI tools to coder image ([#54](https://github.com/ppat/coder/issues/54)) ([135eb03](https://github.com/ppat/coder/commit/135eb03b2880bd8fc2a5ebac58cb17826debb23b))
+
+### 🐛 Enhancements + Bug Fixes
+
+* move python packages + ansible collections in coder image into its own build stage ([#53](https://github.com/ppat/coder/issues/53)) ([f047731](https://github.com/ppat/coder/commit/f0477312c2b3ce507a604f34df4ce4c48d767771))
+
 ## [1.2.0](https://github.com/ppat/coder/compare/v1.1.2...v1.2.0) (2024-06-29)
 
 ### ✨ Features
