@@ -318,13 +318,15 @@ WORKDIR /tmp
 # Rust / Cargo
 # renovate: datasource=github-releases depName=rust-lang/rust
 ARG RUST_VERSION="1.77.0"
-ENV CARGO_HOME="/usr/local/cargo"
+ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=${RUST_VERSION} --no-modify-path -y && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
+    rustup toolchain install ${RUST_VERSION} && \
+    rustup default ${RUST_VERSION} && \
     mkdir /env && \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
     echo "$CARGO_HOME/bin" > /env/rust-cargo.path
@@ -361,6 +363,9 @@ RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH}
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
+    echo "SHow path=$PATH" && \
+    env | sort | grep '^CARGO_' && \
+    cargo --version && \
     # cargo install --root /usr/local atuin@${ATUIN_VERSION} && \
     cargo install --locked --root /usr/local czkawka_cli@${CZKAWKA_VERSION} && \
     cargo install --locked --root /usr/local difftastic@${DIFFTASTIC_VERSION} && \
