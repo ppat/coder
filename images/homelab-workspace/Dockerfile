@@ -304,10 +304,47 @@ RUN --mount=type=tmpfs,target=/tmp \
 # kind
 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
 ARG KIND_VERSION="0.23.0"
-RUN export GOPATH="/usr/local/go" && \
+RUN export GOPATH="/usr/local" && \
     go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
     unset GOPATH && \
     rm -rf /var/log/* /tmp/* /var/tmp/*
+
+# ========================================================================================================
+FROM --platform=$TARGETPLATFORM base AS sdk-rust-cargo
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
+WORKDIR /tmp
+
+# Rust / Cargo
+# renovate: datasource=github-releases depName=rust-lang/rust
+ARG RUST_VERSION="1.77.0"
+ENV RUSTUP_HOME="/opt/rustup"
+ENV CARGO_HOME="/opt/cargo"
+ENV PATH="$PATH:$CARGO_HOME/bin"
+RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache-${TARGETARCH} \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
+    rustup default ${RUST_VERSION} && \
+    mkdir /env && \
+    echo "RUSTUP_HOME=$RUSTUP_HOME" > /env/rust-cargo.env && \
+    echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
+    echo "$CARGO_HOME/bin" > /env/rust-cargo.path && \
+    rm -rf ${RUSTUP_HOME}/tmp/*
+
+# Install crates
+# renovate: datasource=crate depName=dysk
+ARG DYSK_VERSION="2.9.0"
+# renovate: datasource=crate depName=procs
+ARG PROCS_VERSION="0.14.5"
+ENV CARGO_TARGET_DIR="/cargo_target"
+RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH} \
+    --mount=type=cache,target=${CARGO_HOME}/registry,id=cargo-registry-cache-${TARGETARCH} \
+    --mount=type=cache,target=${CARGO_TARGET_DIR},id=cargo-target-cache-${TARGETARCH} \
+    --mount=type=tmpfs,target=/tmp \
+    cargo install \
+        --locked \
+        --root /usr/local \
+        dysk@${DYSK_VERSION} \
+        procs@${PROCS_VERSION}
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
@@ -465,21 +502,24 @@ WORKDIR /tmp
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
+COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
+COPY --from=sdk-rust-cargo /opt/rustup /opt/rustup
 COPY --from=python-packages /opt/pipx /opt/pipx
 COPY --from=python-packages /opt/ansible /opt/ansible
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
 COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
+COPY --from=sdk-rust-cargo /usr/local/bin/* /usr/local/sbin/
+COPY --from=sdk-golang /usr/local/bin/* /usr/local/sbin/
 
 # copy environment variables
 RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
+    --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
     --mount=type=bind,from=python-packages,source=/env,target=/env/python-packages \
     --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
     for path_file in $(find /env -type f -name *.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
