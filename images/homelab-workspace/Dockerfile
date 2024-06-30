@@ -331,52 +331,23 @@ RUN --mount=type=cache,target=${RUSTUP_HOME}/downloads,id=rustup-downloads-cache
     rm -rf ${RUSTUP_HOME}/tmp/*
 
 # Install crates
-# renovate: datasource=crate depName=atuin
-ARG ATUIN_VERSION="18.2.0"
-# renovate: datasource=crate depName=czkawka_cli
-ARG CZKAWKA_VERSION="7.0.0"
-# renovate: datasource=crate depName=difftastic
-ARG DIFFTASTIC_VERSION="0.58.0"
 # renovate: datasource=crate depName=du-dust
 ARG DUST_VERSION="1.0.0"
-# renovate: datasource=crate depName=exa
-ARG EXA_VERSION="0.10.1"
-# renovate: datasource=crate depName=git-delta
-ARG GIT_DELTA_VERSION="0.17.0"
-# renovate: datasource=crate depName=jless
-ARG JLESS_VERSION="0.9.0"
-# renovate: datasource=crate depName=lfs
-ARG LFS_VERSION="2.6.0"
+# renovate: datasource=crate depName=dysk
+ARG DYSK_VERSION="2.9.0"
 # renovate: datasource=crate depName=procs
 ARG PROCS_VERSION="0.14.5"
-# renovate: datasource=crate depName=tokei
-ARG TOKEI_VERSION="12.1.2"
-# renovate: datasource=crate depName=topgrade
-ARG TOPGRADE_VERSION="14.0.1"
-# renovate: datasource=crate depName=zoxide
-ARG ZOXIDE_VERSION="0.9.4"
 ENV CARGO_TARGET_DIR="/cargo_target"
 RUN --mount=type=cache,target=${CARGO_HOME}/git,id=cargo-git-cache-${TARGETARCH} \
     --mount=type=cache,target=${CARGO_HOME}/registry,id=cargo-registry-cache-${TARGETARCH} \
     --mount=type=cache,target=${CARGO_TARGET_DIR},id=cargo-target-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    echo "SHow path=$PATH" && \
-    env | sort | grep -E '^(CARGO_|RUSTUP_)' && \
-    cargo --version && \
-    # cargo install --root /usr/local atuin@${ATUIN_VERSION} && \
-    cargo install --locked --root /usr/local czkawka_cli@${CZKAWKA_VERSION} && \
-    cargo install --locked --root /usr/local difftastic@${DIFFTASTIC_VERSION} && \
-    cargo install --locked --root /usr/local du-dust@${DUST_VERSION} && \
-    cargo install --locked --root /usr/local exa@${EXA_VERSION} && \
-    cargo install --locked --root /usr/local git-delta@${GIT_DELTA_VERSION} && \
-    cargo install --locked --root /usr/local jless@${JLESS_VERSION} && \
-    cargo install --locked --root /usr/local lfs@${LFS_VERSION} && \
-    cargo install --locked --root /usr/local procs@${PROCS_VERSION} && \
-    cargo install --locked --root /usr/local tokei@${TOKEI_VERSION} && \
-    cargo install --locked --root /usr/local topgrade@${TOPGRADE_VERSION} && \
-    cargo install --locked --root /usr/local zoxide@${ZOXIDE_VERSION}
+    cargo install \
+        --locked \
+        --root /usr/local \
+        du-dust@${DUST_VERSION} \
+        dysk@${DYSK_VERSION} \
+        procs@${PROCS_VERSION}
 
 
 # ========================================================================================================
