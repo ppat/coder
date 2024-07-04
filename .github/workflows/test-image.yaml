@@ -9,64 +9,35 @@ on:
     - 'images/**'
     - '.github/workflows/test-image.yaml'
   workflow_dispatch:
-    inputs:
-      verbosity:
-        description: 'Log Verbosity'
-        required: true
-        default: 1
-        type: choice
-        options:
-        - '0'
-        - '1'
-        - '2'
-        - '3'
-        - '4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  image_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
-  image_cache_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
-  image_path: images/homelab-workspace
-  default_branch: main
-  current_branch: ${{ github.head_ref || github.ref_name }}
-  default_verbosity: 0
-
 jobs:
-  test-image-build:
+  build-workspace-image:
+    uses: ppat/images/.github/workflows/build-image-workflow.yaml@main
+    with:
+      image_context_path: images/homelab-workspace
+      label_title: "Homelab Workspace"
+      label_description: "Homelab workspace image"
+      source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || github.ref }}
+      timeout_minutes: 60
+    secrets:
+      private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
+      private_registry_token: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
+      repository_private_registry: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace
+      repository_build_cache: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
+      tailscale_oauth_client_id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+      tailscale_oauth_secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+      build_secrets: |
+        FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+
+  test-image:
+    needs: [build-workspace-image]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-    - name: Checkout
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3
-      with:
-        buildkitd-flags: '--debug --allow-insecure-entitlement=network.host'
-        driver-opts: network=host
-        platforms: linux/amd64,linux/arm64
-
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5
-      with:
-        images: |
-          ${{ env.image_name }}
-        labels: |
-          org.opencontainers.image.title=Homelab-Workspace
-          org.opencontainers.image.description=Coder workspace image
-        tags: |
-          type=ref,event=branch,enable=${{ github.ref_type != 'tag' }}
-          type=ref,event=pr,enable=${{ github.ref_type != 'tag' }}
-          type=raw,value={{sha}},prefix=git-
-          type=raw,value=${{ env.current_branch }},prefix=branch-
-
     - name: Tailscale Connect
       uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
       with:
@@ -76,17 +47,6 @@ jobs:
         # renovate: datasource=github-releases depName=tailscale/tailscale
         version: "1.68.1"
 
-    - name: Tailscale Debug
-      if: ${{ (github.event.inputs.verbosity || env.default_verbosity) >= 1 }}
-      shell: bash
-      run: |
-        sudo -E tailscale netcheck --verbose 2>&1 | sed -f .output-filter
-        echo
-        sudo -E tailscale status 2>&1 | sed -f .output-filter
-        echo
-        sudo -E tailscale status --json --peers=false 2>&1 | sed -f .output-filter
-        echo
-
     - name: Login to container registry
       id: login
       uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
@@ -95,55 +55,18 @@ jobs:
         username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
         password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
 
-    - name: Build image
-      id: build
-      uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6
-      with:
-        context: ./${{ env.image_path }}
-        platforms: |
-          linux/arm64
-          linux/amd64
-        load: false
-        push: false
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: |
-          type=registry,ref=${{ env.image_cache_name }}:${{ env.default_branch }}
-          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }}
-        cache-to: |
-          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }},image-manifest=true,oci-mediatypes=true,mode=max,compression=zstd
-        secrets: |
-          FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
-        allow: network.host
-        network: host
-
-    - name: Load image (amd64 only)
-      id: load
-      uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6
-      with:
-        context: ./${{ env.image_path }}
-        platforms: ${{ (runner.arch == 'ARM64') && 'linux/arm64' || 'linux/amd64' }}
-        load: true
-        push: false
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: |
-          type=registry,ref=${{ env.image_cache_name }}:${{ env.current_branch }}
-        secrets: |
-          FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
-        allow: network.host
-        network: host
-
-    - name: Test image (amd64 only)
+    - name: Test image
       id: test
       env:
-        container_image: "${{ env.image_name }}:branch-${{ env.current_branch }}"
+        container_image: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.build-workspace-image.outputs.image_tag }}"
         container_name: "test_${{ github.run_id }}"
         test_user: tester
       shell: bash
       run: |
+        echo "Fetch built image from registry"
+        docker pull $container_image
+        echo
+
         echo "Show available images..."
         docker images
         echo
