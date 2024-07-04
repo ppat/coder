@@ -13,7 +13,7 @@ initialize_shell_config() {
 
 create_log_file() {
   local prefix="$1"
-  local log="/var/log/${prefix}.$(date +%Y%m%d_%H%M%S).log"
+  local log="$HOME/.log/${prefix}.$(date +%Y%m%d_%H%M%S).log"
   sudo touch $log
   sudo chown $USER:coder $log
   echo $log

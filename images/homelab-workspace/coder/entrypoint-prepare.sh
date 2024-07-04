@@ -43,14 +43,10 @@ maintain_directories() {
   local home_dir="/home/${username}"
 
   echo "- Creating directories..."
-  mkdir -p $home_dir/.var/
-  mkdir $home_dir/.var/log/
+  mkdir $home_dir/.log/
   echo "- Updating directory permissions..."
   chown $username:coder $home_dir
-  chown $username:coder $home_dir/.var
-  chown root:coder $home_dir/.var/log
-  echo "- Binding mounting locations..."
-  sudo mount -o bind $home_dir/.var/log /var/log
+  chown $username:coder $home_dir/.log/
   echo
 }
 
