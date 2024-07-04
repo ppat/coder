@@ -43,6 +43,7 @@ maintain_directories() {
   local home_dir="/home/${username}"
 
   echo "- Creating directories..."
+  mkdir $home_dir
   mkdir $home_dir/.log/
   echo "- Updating directory permissions..."
   chown $username:coder $home_dir
