@@ -50,7 +50,7 @@ maintain_directories() {
   chown $username:coder $home_dir/.var
   chown root:coder $home_dir/.var/log
   echo "- Binding mounting locations..."
-  mount -o bind $home_dir/.var/log /var/log
+  sudo mount -o bind $home_dir/.var/log /var/log
   echo
 }
 
