@@ -22,7 +22,7 @@ create_log_file() {
 install_rust() {
   if [[ ! -d $HOME/.rustup && ! -z "$RUST_VERSION" ]]; then
     echo "$HOME/.rustup is not present, installing rust $RUST_VERSION ..."
-    rustup default ${RUST_VERSION}
+    rustup default ${RUST_VERSION} 2>&1
   else
     echo "$HOME/.rustup is already present, skipping rust installation."
   fi
