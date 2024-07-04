@@ -9,40 +9,61 @@ initialize_shell_config() {
       cp $skel $target
     fi
   done
+}
 
-  set -o allexport
-  source /etc/environment
-  set +o allexport
+create_log_file() {
+  local prefix="$1"
+  local log="/var/log/${prefix}.$(date +%Y%m%d_%H%M%S).log"
+  sudo touch $log
+  sudo chown $USER:coder $log
+  echo $log
+}
 
-  local home_bin_dir="${HOME}/.local/bin"
-  mkdir -p $home_bin_dir
-
+install_rust() {
   if [[ ! -d $HOME/.rustup && ! -z "$RUST_VERSION" ]]; then
     echo "$HOME/.rustup is not present, installing rust $RUST_VERSION ..."
     rustup default ${RUST_VERSION}
   else
     echo "$HOME/.rustup is already present, skipping rust installation."
   fi
+}
+
+install_starship() {
   if [[ ! -f $home_bin_dir/starship ]]; then
     echo "Starship binary not found, installing..."
     curl -sS https://starship.rs/install.sh | sh -s - --bin-dir $home_bin_dir -y
   else
     echo "Starship binary already exists, skipping install."
   fi
-  if [[ ! -f ${HOME}/.bashrc.optional ]]; then
-    {
-      # shellcheck disable=SC2016
-      echo 'eval "$($FNM_ROOT/fnm env --shell bash --use-on-cd --fnm-dir $FNM_ROOT)"'
-      # shellcheck disable=SC2016
-      echo 'eval "$(${HOME}/.local/bin/starship init bash)"'
-    } >> ${HOME}/.bashrc.optional
-  fi
 }
 
 main() {
-  echo "agent-startup-script: Starting..."
-  initialize_shell_config
-  echo "agent-startup-script: Done."
+  echo "Starting..."
+  echo "--------------------------------------------------------------------------------------"
+  echo "Loading environment..."
+  set -o allexport
+  source /etc/environment
+  set +o allexport
+  echo "--------------------------------------------------------------------------------------"
+  echo "Initialize shell configuration from /etc/skel..."
+  initialize_shell_config | pr -t -o 4
+  echo "--------------------------------------------------------------------------------------"
+  echo "Creating $HOME/.local/bin..."
+  local home_bin_dir="${HOME}/.local/bin"
+  mkdir -p $home_bin_dir
+  echo "--------------------------------------------------------------------------------------"
+  echo "Installing rust..."
+  install_rust | pr -t -o 4
+  echo "--------------------------------------------------------------------------------------"
+  echo "Installing starship..."
+  install_starship | pr -t -o 4
+  echo "--------------------------------------------------------------------------------------"
+  echo "Maintaining krew plugins (in background)..."
+  local krew_log="$(create_log_file "krew-plugins")"
+  $(dirname ${0})/maintain-krew-plugins.sh >$krew_log 2>&1  &
+  echo "See log: $krew_log"
+  echo "--------------------------------------------------------------------------------------"
+  echo "Done."
 }
 
-main
+main | sed -E 's/^(.*)/agent-startup: \1/g'

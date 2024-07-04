@@ -1,1 +1,11 @@
 source <(zoxide init bash)
+
+# shellcheck disable=SC2016
+echo 'eval "$($FNM_ROOT/fnm env --shell bash --use-on-cd --fnm-dir $FNM_ROOT)"'
+# shellcheck disable=SC2016
+echo 'eval "$(${HOME}/.local/bin/starship init bash)"'
+
+if [[ -f $HOME/.krew/bin/kubectl-cnpg ]]; then
+  ln -sf $HOME/.krew/bin/kubectl-cnpg $HOME/.local/bin/cnpg
+  source <($HOME/.local/bin/cnpg completion bash)
+fi
