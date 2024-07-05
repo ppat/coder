@@ -30,6 +30,20 @@ variable "workspace_image" {
 locals {
   test_mode = (var.workspace_image == "simple-workspace:latest")
   username  = local.test_mode ? "coder" : data.coder_workspace_owner.me.name
+
+  container_volume_mounts = {
+    "home"   = "/home/coder",
+    "docker" = "/var/lib/docker"
+  }
+  bind_mount_host_paths = {
+    "home"   = "/srv/workspaces/${local.username}",
+    "docker" = "/srv/workspaces/${local.username}-docker"
+  }
+
+  # create docker volumes in test_mode
+  docker_volumes = local.test_mode ? ["home", "docker"] : []
+  # create bind mounts otherwise
+  bind_mounts = local.test_mode ? [] : ["home", "docker"]
 }
 
 
@@ -90,10 +104,10 @@ resource "coder_agent" "main" {
   }
 }
 
-resource "docker_volume" "test_home_volume" {
-  count = local.test_mode ? 1 : 0
+resource "docker_volume" "volume" {
+  for_each = toset(local.docker_volumes)
 
-  name = "coder-${data.coder_workspace.me.id}-home"
+  name = "coder-${data.coder_workspace.me.id}-${each.key}"
   lifecycle {
     ignore_changes = all
   }
@@ -150,20 +164,20 @@ resource "docker_container" "workspace" {
     ip   = "host-gateway"
   }
 
-  # home volume for test mode
+  # docker volumes
   dynamic "volumes" {
-    for_each = local.test_mode ? { "coder" : docker_volume.test_home_volume[0].name } : {}
+    for_each = { for k, v in docker_volume.volume : local.container_volume_mounts[k] => v.name }
     content {
-      container_path = "/home/${volumes.key}"
+      container_path = volumes.key
       volume_name    = volumes.value
       read_only      = false
     }
   }
-  # home volume for standard mode
+  # bind mounts
   dynamic "volumes" {
-    for_each = local.test_mode ? {} : { (local.username) : "/srv/workspaces/${local.username}" }
+    for_each = { for k in local.bind_mounts : local.container_volume_mounts[k] => local.bind_mount_host_paths[k] }
     content {
-      container_path = "/home/${volumes.key}"
+      container_path = volumes.key
       host_path      = volumes.value
       read_only      = false
     }
