@@ -241,6 +241,15 @@ RUN systemctl enable docker
 
 
 # ========================================================================================================
+FROM --platform=$TARGETPLATFORM base AS packages
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG TARGETARCH
+WORKDIR /tmp
+
+COPY --chown=root:root --chmod=644 packages /packages/${TARGETARCH}
+
+
+# ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-nodejs
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -269,7 +278,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # NodeJS based tooling
 # hadolint ignore=DL3016,SC2086
-RUN --mount=type=bind,source=./packages,target=/packages \
+RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=cache,target=/root/.npm,id=npm-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -423,7 +432,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # install apps from github releases
 # hadolint ignore=SC2155
-RUN --mount=type=bind,source=./packages,target=/packages \
+RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=secret,id=FETCH_GH_TOKEN \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -443,7 +452,7 @@ ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/opt/pipx/bin
 ENV PATH="$PATH:$PIPX_BIN_DIR"
 # hadolint ignore=DL3013,SC2086
-RUN --mount=type=bind,source=./packages,target=/packages \
+RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
@@ -456,7 +465,7 @@ RUN --mount=type=bind,source=./packages,target=/packages \
 
 # ansible and its dependencies, related apps and collections
 # hadolint ignore=SC2046
-RUN --mount=type=bind,source=./packages,target=/packages \
+RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
