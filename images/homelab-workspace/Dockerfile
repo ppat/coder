@@ -39,7 +39,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=base-cache-apt-${TARGETARCH} \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
         apt-transport-https \
         bash \
-        build-essential \
         ca-certificates \
         curl \
         git \
@@ -47,14 +46,11 @@ RUN --mount=type=cache,target=/var/cache/apt,id=base-cache-apt-${TARGETARCH} \
         jq \
         locales \
         man \
-        python3 \
-        python3-pip \
         software-properties-common \
         sudo \
         unzip \
         wget \
-        xz-utils \
-        zip
+        xz-utils
 
 # generate locales (needed for many applications, specially python)
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
@@ -185,6 +181,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       bash-completion \
       bat \
       bsdextrautils \
+      build-essential \
       cron \
       dnsutils \
       fd-find \
@@ -221,6 +218,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       postgresql-client \
       psmisc \
       pv \
+      python3 \
+      python3-pip \
       ripgrep \
       rsync \
       screen \
@@ -233,6 +232,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       tzdata \
       vim \
       watch \
+      zip \
       zsh \
       zstd
 
