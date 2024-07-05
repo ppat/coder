@@ -32,7 +32,7 @@ locals {
   username  = local.test_mode ? "coder" : data.coder_workspace_owner.me.name
 
   container_volume_mounts = {
-    "home"   = "/home/coder",
+    "home"   = "/home/${local.username}",
     "docker" = "/var/lib/docker"
   }
   bind_mount_host_paths = {
