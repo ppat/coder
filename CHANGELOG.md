@@ -2,6 +2,25 @@
 
 
 
+## [1.5.0](https://github.com/ppat/coder/compare/v1.4.1...v1.5.0) (2024-07-05)
+
+### ✨ Features
+
+* install and upgrade kubectl plugins ([#67](https://github.com/ppat/coder/issues/67)) ([9ee80c3](https://github.com/ppat/coder/commit/9ee80c3e3e35c66282d95a6a4b9fecd0db52e9a2))
+
+### 🐛 Enhancements + Bug Fixes
+
+* optimize the order of sys package installation ([#69](https://github.com/ppat/coder/issues/69)) ([a71a6af](https://github.com/ppat/coder/commit/a71a6af9631d6fe77c6e8fbfc4164fef68082ece))
+* re-use docker image build workflow from ppat/images ([#66](https://github.com/ppat/coder/issues/66)) ([bea2e38](https://github.com/ppat/coder/commit/bea2e38e623dc59a7e6788d4605115ed027f2e6c))
+* temporarily drop exa support ([#68](https://github.com/ppat/coder/issues/68)) ([34249db](https://github.com/ppat/coder/commit/34249db5843565b1613c12fb0f42a30294165f94))
+
+### 📌 Dependencies
+
+* **deps:** update dependency golang to v1.22.5 ([#65](https://github.com/ppat/coder/issues/65)) ([61b59ef](https://github.com/ppat/coder/commit/61b59efbf489342cbaa331957bf1daf4069ea10d))
+* **deps:** update dependency ipython to v8.26.0 ([#47](https://github.com/ppat/coder/issues/47)) ([0389e99](https://github.com/ppat/coder/commit/0389e99b585c3181248838e8ae7d0e91b0cb367c))
+* **deps:** update github-release non-major dependencies ([#55](https://github.com/ppat/coder/issues/55)) ([76773da](https://github.com/ppat/coder/commit/76773dadb018af6c4376a9d043f33608920cc048))
+* **deps:** update python major dependencies to v24 (major) ([#62](https://github.com/ppat/coder/issues/62)) ([373310c](https://github.com/ppat/coder/commit/373310c01de76306961cebca251559017cc4d57f))
+
 ## [1.4.1](https://github.com/ppat/coder/compare/v1.4.0...v1.4.1) (2024-06-30)
 
 ### 🐛 Enhancements + Bug Fixes
