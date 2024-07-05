@@ -10,18 +10,6 @@ on:
     - '.releaserc.js'
     - 'package.json'
   workflow_dispatch:
-    inputs:
-      verbosity:
-        description: 'Log Verbosity'
-        required: true
-        default: 0
-        type: choice
-        options:
-        - '0'
-        - '1'
-        - '2'
-        - '3'
-        - '4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +21,6 @@ env:
   image_path: images/homelab-workspace
   template_path: templates/docker/homelab-workspace
   default_branch: main
-  default_verbosity: 0
 
 jobs:
   create-release:
@@ -92,7 +79,7 @@ jobs:
             echo "No release occurred... cannot proceed."
             exit 1
           fi
-          echo "version=$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
+          echo "version=v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
         else
           # release workflow is being tested
           echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
@@ -134,17 +121,6 @@ jobs:
         tags: tag:github-action-ci-runner
         # renovate: datasource=github-releases depName=tailscale/tailscale
         version: "1.68.2"
-
-    - name: Tailscale Debug
-      if: ${{ (github.event.inputs.verbosity || env.default_verbosity) >= 1 }}
-      shell: bash
-      run: |
-        sudo -E tailscale netcheck --verbose 2>&1 | sed -f .output-filter
-        echo
-        sudo -E tailscale status 2>&1 | sed -f .output-filter
-        echo
-        sudo -E tailscale status --json --peers=false 2>&1 | sed -f .output-filter
-        echo
 
     - name: Login to Coder
       id: login

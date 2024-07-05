@@ -14,7 +14,7 @@ on:
       verbosity:
         description: 'Log Verbosity'
         required: true
-        default: 1
+        default: "1"
         type: choice
         options:
         - '0'
