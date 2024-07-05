@@ -187,7 +187,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       bsdextrautils \
       cron \
       dnsutils \
-      exa \
       fd-find \
       ffmpeg \
       fish \
