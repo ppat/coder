@@ -20,7 +20,7 @@ create_log_file() {
 }
 
 install_rust() {
-  if [[ ! -d $HOME/.rustup && ! -z "$RUST_VERSION" ]]; then
+  if [[ ! -d ~/.rustup/toolchains/${RUST_VERSION:?}-$(arch)-unknown-linux-gnu ]]; then
     echo "$HOME/.rustup is not present, installing rust $RUST_VERSION ..."
     rustup default ${RUST_VERSION} 2>&1
   else
