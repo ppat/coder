@@ -452,7 +452,7 @@ ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/opt/pipx/bin
 ENV PATH="$PATH:$PIPX_BIN_DIR"
 # hadolint ignore=DL3013,SC2086
-RUN --mount=type=bind,source=./packages,target=/packages \
+RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
