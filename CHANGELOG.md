@@ -2,6 +2,13 @@
 
 
 
+## [1.5.1](https://github.com/ppat/coder/compare/v1.5.0...v1.5.1) (2024-07-05)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix up some misc bugs in workspace template and image ([#72](https://github.com/ppat/coder/issues/72)) ([fff57a3](https://github.com/ppat/coder/commit/fff57a33259d3a322eced36d892cf6a3e14c13ef))
+* improve workspace image build performance ([#71](https://github.com/ppat/coder/issues/71)) ([a568b74](https://github.com/ppat/coder/commit/a568b742b51e5e2794c7e4d531a4724257619255))
+
 ## [1.5.0](https://github.com/ppat/coder/compare/v1.4.1...v1.5.0) (2024-07-05)
 
 ### ✨ Features
