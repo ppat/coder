@@ -2,7 +2,7 @@
 - name: act
   repo: https://github.com/nektos/act
   # renovate: datasource=github-releases depName=nektos/act
-  tag: "v0.2.63"
+  tag: "v0.2.64"
   asset_regex: "act_Linux_${TARGETARCH_ALTERNATE_X86_ONLY}.tar.gz"
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
@@ -95,12 +95,12 @@
 - name: tflint
   repo: https://github.com/terraform-linters/tflint
   # renovate: datasource=github-releases depName=terraform-linters/tflint
-  tag: "v0.51.1"
+  tag: "v0.51.2"
   asset_regex: "tflint_linux_${TARGETARCH}.zip"
 - name: tfsec
   repo: https://github.com/aquasecurity/tfsec
   # renovate: datasource=github-releases depName=aquasecurity/tfsec
-  tag: "v1.28.9"
+  tag: "v1.28.10"
   asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
   asset_files:
   - source: tfsec
