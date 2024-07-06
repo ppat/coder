@@ -1,0 +1,48 @@
+{
+  "docker.languageserver.formatter.ignoreMultilineInstructions": true,
+  "editor.detectIndentation": true,
+  "editor.indentSize": 2,
+  "editor.insertSpaces": true,
+  "explorer.excludeGitIgnore": true,
+  "files.exclude": {
+    "**/.terraform": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.terraform": true,
+    "**/package-lock.json": true
+  },
+  "search.useIgnoreFiles": true,
+
+
+  "[dockerfile]": {
+    "editor.detectIndentation": false,
+    "editor.indentSize": 4
+  },
+  "[javascript]": {
+    "editor.detectIndentation": false,
+    "editor.indentSize": 2
+  },
+  "[json]": {
+    "editor.detectIndentation": false,
+    "editor.indentSize": 2
+  },
+  "[shellscript]": {
+    "editor.detectIndentation": false,
+    "editor.indentSize": 2
+  },
+  "[terraform]": {
+    "editor.defaultFormatter": "hashicorp.terraform",
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.formatAll.terraform": "explicit"
+    }
+  },
+  "[terraform-vars]": {
+    "editor.defaultFormatter": "hashicorp.terraform",
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.formatAll.terraform": "explicit"
+    }
+  }
+}
