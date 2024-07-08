@@ -95,7 +95,7 @@
 - name: tflint
   repo: https://github.com/terraform-linters/tflint
   # renovate: datasource=github-releases depName=terraform-linters/tflint
-  tag: "v0.51.2"
+  tag: "v0.52.0"
   asset_regex: "tflint_linux_${TARGETARCH}.zip"
 - name: tfsec
   repo: https://github.com/aquasecurity/tfsec
