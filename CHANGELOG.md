@@ -2,6 +2,20 @@
 
 
 
+## [1.5.2](https://github.com/ppat/coder/compare/v1.5.1...v1.5.2) (2024-07-12)
+
+### 📌 Dependencies
+
+* **deps:** update dependency community.docker to v3.11.0 ([#80](https://github.com/ppat/coder/issues/80)) ([11f7742](https://github.com/ppat/coder/commit/11f7742e14a4baf9fe75ac784c39122e3d616ad7))
+* **deps:** update dependency helm/helm to v3.15.3 ([#81](https://github.com/ppat/coder/issues/81)) ([8f0b412](https://github.com/ppat/coder/commit/8f0b412a88bd0355b76fb70db5b5d9c5f317bb8e))
+* **deps:** update dependency molecule to v24.6.1 ([#75](https://github.com/ppat/coder/issues/75)) ([3da462b](https://github.com/ppat/coder/commit/3da462b71284850fa6f6d331fbd48e842769c0e6))
+* **deps:** update dependency node to v20.15.1 ([#86](https://github.com/ppat/coder/issues/86)) ([cd05606](https://github.com/ppat/coder/commit/cd05606159fbd134ed2be45c4f968feff183a087))
+* **deps:** update dependency terraform-linters/tflint to v0.52.0 ([#77](https://github.com/ppat/coder/issues/77)) ([21d7f42](https://github.com/ppat/coder/commit/21d7f428c9681293ebc7ff26b00566e2b03448c3))
+* **deps:** update postgres:16.3 docker digest to 0aafd2a ([#84](https://github.com/ppat/coder/issues/84)) ([e3bdd02](https://github.com/ppat/coder/commit/e3bdd020dbe731eda8b6d8cd157c1fdd62bd2f71))
+* **deps:** update python non-major dependencies ([#74](https://github.com/ppat/coder/issues/74)) ([d9be3f3](https://github.com/ppat/coder/commit/d9be3f3e1d3e5555b8dde70535d86ddd9435e744))
+* **deps:** update python non-major dependencies to v24.7.0 ([#82](https://github.com/ppat/coder/issues/82)) ([4b76bb1](https://github.com/ppat/coder/commit/4b76bb18c050409ca3e0c4218afe5357b6d2bedf))
+* **deps:** update ubuntu:jammy docker digest to 340d9b0 ([#85](https://github.com/ppat/coder/issues/85)) ([3a8e2d1](https://github.com/ppat/coder/commit/3a8e2d1936101df0f2a922ad1e8d6f7a6abae68f))
+
 ## [1.5.1](https://github.com/ppat/coder/compare/v1.5.0...v1.5.1) (2024-07-05)
 
 ### 🐛 Enhancements + Bug Fixes
