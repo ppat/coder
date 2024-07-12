@@ -97,6 +97,16 @@
   # renovate: datasource=github-releases depName=terraform-linters/tflint
   tag: "v0.52.0"
   asset_regex: "tflint_linux_${TARGETARCH}.zip"
+- name: tfsec
+  repo: https://github.com/aquasecurity/tfsec
+  # renovate: datasource=github-releases depName=aquasecurity/tfsec
+  tag: "v1.28.10"
+  asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
+  asset_files:
+  - source: tfsec
+    dest: tfsec
+  - source: tfsec-checkgen
+    dest: tfsec-checkgen
 - name: zoxide
   repo: https://github.com/ajeetdsouza/zoxide
   # renovate: datasource=github-releases depName=ajeetdsouza/zoxide

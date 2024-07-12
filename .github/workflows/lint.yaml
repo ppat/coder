@@ -118,19 +118,19 @@ jobs:
       run: poetry run pre-commit run --all-files --color=always shellcheck
 
     - name: terraform-fmt
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       run: poetry run pre-commit run --all-files --color=always terraform-fmt
 
     - name: terraform-validate
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       run: poetry run pre-commit run --all-files --color=always terraform-validate
 
     - name: tflint
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.terraform_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       run: poetry run pre-commit run --all-files --color=always tflint
 
     - name: hadolint
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.docker_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.docker_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
       with:
         dockerfile: "Dockerfile"
@@ -143,7 +143,7 @@ jobs:
       run: poetry run yamllint -c .yamllint --strict --format github .
 
     - name: actionlint
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.actions_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.actions_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       shell: bash
       run: |
         [[ "$RUNNER_ARCH" == "ARM64" ]] && export PKG_ARCH=arm64 || export PKG_ARCH=amd64
@@ -157,11 +157,11 @@ jobs:
         ACTIONLINT_VERSION: "1.7.1"
 
     - name: commitlint
-      if: (success() || failure()) and (github.event_name == 'pull_request')
+      if: (success() || failure()) && (github.event_name == 'pull_request')
       run: npx commitlint --color --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
     - name: validate-renovate-config
-      if: (success() || failure()) and (steps.changed-files-yaml.outputs.renovate_any_changed == 'true' || github.event_name == 'workflow_dispatch')
+      if: (success() || failure()) && (steps.changed-files-yaml.outputs.renovate_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       shell: bash
       run: |
         npm install --no-fund --no-audit renovate
