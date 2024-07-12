@@ -257,7 +257,7 @@ WORKDIR /tmp
 
 # NodeJS/NPM/NPX: install latest LTS version
 # renovate: datasource=node depName=node versioning=node
-ARG NODE_VERSION="20.15.0"
+ARG NODE_VERSION="20.15.1"
 ENV FNM_ROOT=/opt/fnm
 ENV PATH="$PATH:${FNM_ROOT}"
 RUN --mount=type=tmpfs,target=/tmp \
