@@ -120,12 +120,12 @@ resource "docker_image" "workspace_image" {
 }
 
 locals {
-  test_mode_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-  standard_init_script  = <<EOF
+  standard_init_script   = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  supervised_init_script = <<EOF
     exec /usr/bin/supervisord
-  EOF
+    EOF
 
-  agent_init_script = (local.test_mode) ? test_mode_init_script : standard_init_script
+  agent_init_script = (local.test_mode) ? standard_init_script : supervised_init_script
 }
 
 resource "docker_container" "workspace" {
@@ -148,7 +148,7 @@ resource "docker_container" "workspace" {
   #     EOT
   #   else
   #     # prepare user, filesystem and other configuration
-  #     /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
+  #     
   #     # write out coder agent init script to file that acts as a wrapper script
   #     echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}" > /tmp/coder-agent-wrapper.sh
   #     chmod 700 /tmp/coder-agent-wrapper.sh
