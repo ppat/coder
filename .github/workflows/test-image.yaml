@@ -22,7 +22,7 @@ jobs:
       label_title: "Homelab Workspace"
       label_description: "Homelab workspace image"
       source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || github.ref }}
-      timeout_minutes: 60
+      timeout_minutes: 120
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
       private_registry_token: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
