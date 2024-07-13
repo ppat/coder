@@ -242,6 +242,7 @@ ENV FNM_ROOT=/opt/fnm
 # renovate: datasource=node depName=node versioning=node
 ARG NODE_VERSION="20.15.1"
 ENV PATH="$PATH:${FNM_ROOT}"
+# hadolint ignore=SC2086
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
@@ -428,7 +429,7 @@ RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packa
     echo "$PIPX_BIN_DIR" > /env/pipx.path
 
 # ansible and its dependencies, related apps and collections
-# hadolint ignore=SC2046
+# hadolint ignore=SC2046,SC2016
 RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
     --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
@@ -472,6 +473,7 @@ COPY --from=sdk-rust-cargo /usr/local/bin/* /usr/local/sbin/
 COPY --from=sdk-golang /usr/local/bin/* /usr/local/sbin/
 
 # copy environment variables
+# hadolint ignore=SC2086
 RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
@@ -505,6 +507,7 @@ COPY --link --chown=root:root --chmod=644 etc/supervisord.conf /etc/supervisord.
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
 # Add `coder` user (coder platform will connect the user in as this user)
+# hadolint ignore=DL3059
 RUN useradd coder --no-create-home --shell /bin/bash -g coder --groups sudo,docker
 USER coder
 WORKDIR /

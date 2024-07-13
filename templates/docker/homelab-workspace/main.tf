@@ -46,7 +46,7 @@ locals {
   bind_mounts = local.test_mode ? [] : ["home", "docker"]
 
   agent_init_script = templatefile(
-    "${path.module}/agent-init-script.sh.tftpl",
+    "agent-init-script.sh.tftpl",
     {
       init_script = coder_agent.main.init_script
       username    = local.username
