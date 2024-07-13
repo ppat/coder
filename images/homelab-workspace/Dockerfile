@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM ubuntu:jammy@sha256:340d9b015b194dc6e2a13938944e0d016e57b9679963fdeb9ce021daac430221 AS base
+FROM --platform=$TARGETPLATFORM ubuntu:noble@sha256:2e863c44b718727c860746568e1d54afd13b2fa71b160f5cd9058fc436217b30 AS base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -45,8 +45,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=base-cache-apt-${TARGETARCH} \
         gnupg \
         jq \
         locales \
-        man \
-        software-properties-common \
         sudo \
         unzip \
         wget \
@@ -62,8 +60,7 @@ ENV LANG=en_US.UTF-8
 RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment
 
-# fetch and use upx to compress larger executables as this is already a large image
-# this will be utilized in subsequent stages
+# upx
 # renovate: datasource=github-releases depName=upx/upx
 ARG UPX_VERSION="4.2.4"
 WORKDIR /tmp
@@ -80,6 +77,15 @@ RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/downlo
     upx /usr/local/sbin/yq && \
     rm -rf /tmp/* /var/log/* /var/tmp/*
 
+# fetch (used for installing packages from github release assets)
+# renovate: datasource=github-releases depName=gruntwork-io/fetch
+ARG FETCH_VERSION="0.4.6"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
+    install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
+    upx /usr/local/sbin/fetch
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS system-base
@@ -94,6 +100,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH}
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
+    apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db && \
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
     echo -e 'y\ny' | unminimize
 
@@ -184,6 +192,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       build-essential \
       cron \
       dnsutils \
+      eza \
       fd-find \
       ffmpeg \
       fish \
@@ -218,11 +227,15 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       postgresql-client \
       psmisc \
       pv \
+      python-is-python3 \
       python3 \
       python3-pip \
+      python3-venv \
+      qemu-user-static \
       ripgrep \
       rsync \
       screen \
+      software-properties-common \
       sshpass \
       ssh-askpass \
       strace \
@@ -255,42 +268,34 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# NodeJS/NPM/NPX: install latest LTS version
+# renovate: datasource=github-releases depName=fnm/releases
+ENV FNM_VERSION="1.37.1"
+ENV FNM_ROOT=/opt/fnm
 # renovate: datasource=node depName=node versioning=node
 ARG NODE_VERSION="20.15.1"
-ENV FNM_ROOT=/opt/fnm
 ENV PATH="$PATH:${FNM_ROOT}"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    mkdir -p /opt/fnm && \
-    curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir ${FNM_ROOT} && \
-    eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm install ${NODE_VERSION} && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    ${FNM_ROOT}/fnm default --fnm-dir ${FNM_ROOT} ${NODE_VERSION} && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT} && \
-    chmod 755 ${FNM_ROOT}/fnm && \
+    --mount=type=secret,id=FETCH_GH_TOKEN \
+    export FNM_RELEASE_ASSET="$(test "${TARGETARCH}" == "arm64" && echo "fnm-arm64.zip" || echo "fnm-linux.zip")" && \
+    fetch \
+        --repo="https://github.com/Schniz/fnm" \
+        --tag="v${FNM_VERSION}" \
+        --release-asset="${FNM_RELEASE_ASSET}" \
+        --github-oauth-token="$(cat /run/secrets/FETCH_GH_TOKEN)" \
+        /tmp && \
+    unzip $FNM_RELEASE_ASSET && \
+    mkdir -p $FNM_ROOT && \
+    install -o root -g root -m 0755 /tmp/fnm $FNM_ROOT/fnm && \
+    upx $FNM_ROOT/fnm && \
     mkdir /env && \
     echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
+    echo "NODE_VERSION=$NODE_VERSION" >> /env/fnm.env && \
     echo "$FNM_ROOT" > /env/fnm.path
 
-# NodeJS based tooling
-# hadolint ignore=DL3016,SC2086
-RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
-    --mount=type=cache,target=/root/.npm,id=npm-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    npm config set update-notifier false && \
-    npm config set fund false && \
-    npm config set loglevel error && \
-    for i in $(cat /packages/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT}
+# npm packages: installed by agent-startup-script
+COPY --link --chown=root:root --chmod=644 packages/npm-packages.json /opt/fnm/npm-packages.json
 
 
 # ========================================================================================================
@@ -340,6 +345,7 @@ RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
     echo "RUST_VERSION=$RUST_VERSION" >> /env/rust-cargo.env && \
     echo "$CARGO_HOME/bin" > /env/rust-cargo.path
+
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-terraform
@@ -419,16 +425,6 @@ FROM --platform=$TARGETPLATFORM base AS github-release-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
-
-# fetch (used for installing packages from github release assets)
-# renovate: datasource=github-releases depName=gruntwork-io/fetch
-ARG FETCH_VERSION="0.4.6"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
-    install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
-    upx /usr/local/sbin/fetch
 
 # install apps from github releases
 # hadolint ignore=SC2155

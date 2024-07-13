@@ -28,6 +28,26 @@ install_rust() {
   fi
 }
 
+install_node() {
+  if [[ ! -d $HOME/.fnm/node-versions/v${NODE_VERSION:?} ]]; then
+    eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
+    fnm install ${NODE_VERSION}
+    fnm use ${NODE_VERSION}
+    fnm default --fnm-dir $HOME/.fnm ${NODE_VERSION}
+    npm config set update-notifier false
+    npm config set fund false
+    npm config set loglevel error
+  else
+    echo "Node version $NODE_VERSION already exists, skipping install."
+  fi
+}
+
+install_npm_packages() {
+  for i in $(jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]' /opt/fnm/npm-packages.json); do
+    npm install --global --no-audit $i
+  done
+}
+
 install_starship() {
   if [[ ! -f $home_bin_dir/starship ]]; then
     echo "Starship binary not found, installing..."
@@ -54,6 +74,11 @@ main() {
   echo "--------------------------------------------------------------------------------------"
   echo "Installing rust..."
   install_rust | pr -t -o 4
+  echo "--------------------------------------------------------------------------------------"
+  echo "Installing node..."
+  install_node | pr -t -o 4
+  echo "Installing npm packages..."
+  install_npm_packages | pr -t -o 4
   echo "--------------------------------------------------------------------------------------"
   echo "Installing starship..."
   install_starship | pr -t -o 4
