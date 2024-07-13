@@ -2,6 +2,22 @@
 
 
 
+## [1.6.0](https://github.com/ppat/coder/compare/v1.5.2...v1.6.0) (2024-07-13)
+
+### ✨ Features
+
+* update coder workspace images to ubuntu:noble ([#95](https://github.com/ppat/coder/issues/95)) ([976b4f5](https://github.com/ppat/coder/commit/976b4f560e77b95bdafae5fa4c0b1b9fb7f5a95b))
+
+### 🐛 Enhancements + Bug Fixes
+
+* drop tfsec from coder workspace image ([#90](https://github.com/ppat/coder/issues/90)) ([973f6e9](https://github.com/ppat/coder/commit/973f6e9ae79caef21613fc0f8b24b1557f0cd565))
+
+### 📌 Dependencies
+
+* **deps:** lock file maintenance ([#94](https://github.com/ppat/coder/issues/94)) ([1e96f97](https://github.com/ppat/coder/commit/1e96f979616562b633c828d8d17f01a5e10a9e2c))
+* **deps:** update github-action dependencies ([#91](https://github.com/ppat/coder/issues/91)) ([eb4f1fe](https://github.com/ppat/coder/commit/eb4f1feb4dcbcd15607b217d7a79d0d321714772))
+* **deps:** update terraform coder to v1 ([#92](https://github.com/ppat/coder/issues/92)) ([b4b48f8](https://github.com/ppat/coder/commit/b4b48f856cf6c17f53bc4b73d401391e6e296776))
+
 ## [1.5.2](https://github.com/ppat/coder/compare/v1.5.1...v1.5.2) (2024-07-12)
 
 ### 📌 Dependencies
