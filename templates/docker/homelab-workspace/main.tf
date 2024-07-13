@@ -44,6 +44,14 @@ locals {
   docker_volumes = local.test_mode ? ["home", "docker"] : []
   # create bind mounts otherwise
   bind_mounts = local.test_mode ? [] : ["home", "docker"]
+
+  agent_init_script = templatefile(
+    "${path.module}/agent-init-script.sh.tftpl",
+    {
+      init_script = coder_agent.main.init_script
+      username    = local.username
+    }
+  )
 }
 
 
@@ -131,25 +139,19 @@ resource "docker_container" "workspace" {
   entrypoint = ["/bin/bash", "-c", <<EOF
     echo "TEST_MODE=$TEST_MODE"
     echo
+
     if [[ "$TEST_MODE" == "1" ]]; then
       sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
       ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
       EOT
     else
+      # prepare user, filesystem and other configuration
       /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
-
-      # start coder agent as the "coder" user once systemd has started up
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT' &
-      while [[ ! $(systemctl is-system-running) =~ ^(running|degraded) ]]
-      do
-        echo "Waiting for system to start... $(systemctl is-system-running)"
-        sleep 2
-      done
-      ${coder_agent.main.init_script}
-      EOT
-
-      # /sbin/init must be the last line within entrypoint script to have systemd start as the init process
-      exec /sbin/init
+      # write out coder agent init script to file that acts as a wrapper script
+      echo "${local.agent_init_script}" > /tmp/coder-agent-wrapper.sh
+      chmod 700 /tmp/coder-agent-wrapper.sh
+      # start supervisord (which in turn will start docker and coder agent)
+      exec /usr/bin/supervisord
     fi
     EOF
     ,

@@ -105,35 +105,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH}
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
     echo -e 'y\ny' | unminimize
 
-# systemd requirements (from https://github.com/nestybox/dockerfiles/blob/master/ubuntu-jammy-systemd/Dockerfile)
-RUN --mount=type=cache,target=/var/cache/apt,id=sysbase2-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=sysbase2-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=sysbase2-lib-apt-${TARGETARCH} \
-    --mount=type=tmpfs,target=/var/cache/python \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
-      dbus \
-      iptables \
-      iproute2 \
-      kmod \
-      libsystemd0 \
-      systemd \
-      systemd-sysv \
-      udev \
-      && \
-    # Prevents journald from reading kernel messages from /dev/kmsg
-    echo "ReadKMsg=no" >> /etc/systemd/journald.conf && \
-    # Disable systemd services/units that are unnecessary within a container.
-    systemctl mask systemd-udevd.service \
-      systemd-udevd-kernel.socket \
-      systemd-udevd-control.socket \
-      systemd-modules-load.service \
-      sys-kernel-debug.mount \
-      sys-kernel-tracing.mount
-
 # install docker-engine
 # hadolint ignore=SC1091
 RUN --mount=type=cache,target=/var/cache/apt,id=sysbase3-cache-apt-${TARGETARCH} \
@@ -231,7 +202,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       python3 \
       python3-pip \
       python3-venv \
-      qemu-user-static \
       ripgrep \
       rsync \
       screen \
@@ -239,6 +209,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       sshpass \
       ssh-askpass \
       strace \
+      supervisor \
       sysstat \
       traceroute \
       tmux \
@@ -248,9 +219,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       zip \
       zsh \
       zstd
-
-# enables docker starting with systemd
-RUN systemctl enable docker
 
 
 # ========================================================================================================
@@ -530,6 +498,9 @@ COPY --link --chown=root:root --chmod=644 shell/bashrc.extra /etc/skel/.bashrc.e
 # coder initialization scripts
 RUN mkdir -p /opt/coder/bin
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
+
+# supervisord configuration for docker and coder agent
+COPY --link --chown=root:root --chmod=644 etc/supervisord.conf /etc/supervisord.conf
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 

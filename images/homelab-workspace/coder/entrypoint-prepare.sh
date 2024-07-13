@@ -44,6 +44,7 @@ maintain_directories() {
 
   echo "- Creating directories..."
   mkdir -p $home_dir
+  ln -s $home_dir /home/coder
   mkdir -p $home_dir/.log/
   echo "- Updating directory permissions..."
   chown $username:coder $home_dir
