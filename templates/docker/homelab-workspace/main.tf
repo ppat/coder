@@ -119,6 +119,10 @@ resource "docker_image" "workspace_image" {
   keep_locally = true
 }
 
+locals {
+  agent_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+}
+
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
 
@@ -128,26 +132,27 @@ resource "docker_container" "workspace" {
   runtime  = "sysbox-runc"
   user     = "0:0"
 
-  entrypoint = ["/bin/bash", "-c", <<EOF
-    echo "TEST_MODE=$TEST_MODE"
-    echo
+  entrypoint = ["/bin/bash", "-c", local.agent_init_script]
+  # entrypoint = ["/bin/bash", "-c", <<EOF
+  #   echo "TEST_MODE=$TEST_MODE"
+  #   echo
 
-    if [[ "$TEST_MODE" == "1" ]]; then
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
-      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-      EOT
-    else
-      # prepare user, filesystem and other configuration
-      /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
-      # write out coder agent init script to file that acts as a wrapper script
-      echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}" > /tmp/coder-agent-wrapper.sh
-      chmod 700 /tmp/coder-agent-wrapper.sh
-      # start supervisord (which in turn will start docker and coder agent)
-      exec /usr/bin/supervisord
-    fi
-    EOF
-    ,
-  ]
+  #   if [[ "$TEST_MODE" == "1" ]]; then
+  #     sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
+  #     ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
+  #     EOT
+  #   else
+  #     # prepare user, filesystem and other configuration
+  #     /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
+  #     # write out coder agent init script to file that acts as a wrapper script
+  #     echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}" > /tmp/coder-agent-wrapper.sh
+  #     chmod 700 /tmp/coder-agent-wrapper.sh
+  #     # start supervisord (which in turn will start docker and coder agent)
+  #     exec /usr/bin/supervisord
+  #   fi
+  #   EOF
+  #   ,
+  # ]
 
   env = [
     "CODER_AGENT_TOKEN=${coder_agent.main.token}",
