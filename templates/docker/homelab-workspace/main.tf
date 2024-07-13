@@ -139,12 +139,14 @@ resource "docker_container" "workspace" {
     echo
 
     if [[ "$TEST_MODE" == "1" ]]; then
-      ${local.agent_init_script}
+      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
+      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
+      EOT
     else
       # prepare user, filesystem and other configuration
       /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
       # write out coder agent init script to file that acts as a wrapper script
-      echo "${local.agent_init_script}" > /tmp/coder-agent-wrapper.sh
+      echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}" > /tmp/coder-agent-wrapper.sh
       chmod 700 /tmp/coder-agent-wrapper.sh
       # start supervisord (which in turn will start docker and coder agent)
       exec /usr/bin/supervisord
