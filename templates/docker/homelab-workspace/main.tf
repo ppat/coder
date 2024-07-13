@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = "~> 0.23.0"
+      version = "~> 1.0.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -141,26 +141,6 @@ resource "docker_container" "workspace" {
   user     = "0:0"
 
   entrypoint = ["/bin/bash", "-c", local.agent_init_script]
-  # entrypoint = ["/bin/bash", "-c", <<EOF
-  #   echo "TEST_MODE=$TEST_MODE"
-  #   echo
-
-  #   if [[ "$TEST_MODE" == "1" ]]; then
-  #     sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
-  #     ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-  #     EOT
-  #   else
-  #     # prepare user, filesystem and other configuration
-  #     
-  #     # write out coder agent init script to file that acts as a wrapper script
-  #     echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}" > /tmp/coder-agent-wrapper.sh
-  #     chmod 700 /tmp/coder-agent-wrapper.sh
-  #     # start supervisord (which in turn will start docker and coder agent)
-  #     exec /usr/bin/supervisord
-  #   fi
-  #   EOF
-  #   ,
-  # ]
 
   env = [
     "CODER_AGENT_TOKEN=${coder_agent.main.token}"
