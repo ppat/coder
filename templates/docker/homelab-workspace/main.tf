@@ -120,16 +120,19 @@ resource "docker_image" "workspace_image" {
 }
 
 locals {
-  standard_init_script   = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-  supervised_init_script = <<EOF
-    /opt/coder/bin/entrypoint-prepare.sh --username ${local.username};
+  supervised_mode      = (local.test_mode) ? 0 : 1
+  standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  agent_init_script    = <<EOF
     echo ${local.standard_init_script} > /tmp/coder-agent-init-script.sh
-    echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh;
-    chmod 700 /tmp/coder-agent-wrapper.sh;
-    exec /usr/bin/supervisord
+    if [[ "${local.supervised_mode}" == "1" ]]; then
+      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
+    else
+      /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
+      echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
+      chmod 700 /tmp/coder-agent-wrapper.sh
+      exec /usr/bin/supervisord
+    fi
     EOF
-
-  agent_init_script = (local.test_mode) ? local.standard_init_script : local.supervised_init_script
 }
 
 resource "docker_container" "workspace" {
