@@ -231,6 +231,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       python3 \
       python3-pip \
       python3-venv \
+      qemu-user-static \
       ripgrep \
       rsync \
       screen \
@@ -270,6 +271,8 @@ WORKDIR /tmp
 # renovate: datasource=github-releases depName=fnm/releases
 ENV FNM_VERSION="1.37.1"
 ENV FNM_ROOT=/opt/fnm
+# renovate: datasource=node depName=node versioning=node
+ARG NODE_VERSION="20.15.1"
 ENV PATH="$PATH:${FNM_ROOT}"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -285,40 +288,14 @@ RUN --mount=type=tmpfs,target=/tmp \
     unzip $FNM_RELEASE_ASSET && \
     mkdir -p $FNM_ROOT && \
     install -o root -g root -m 0755 /tmp/fnm $FNM_ROOT/fnm && \
-    upx $FNM_ROOT/fnm
-
-# NodeJS/NPM/NPX: install latest LTS version
-# renovate: datasource=node depName=node versioning=node
-ARG NODE_VERSION="20.15.1"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm install ${NODE_VERSION} && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    ${FNM_ROOT}/fnm default --fnm-dir ${FNM_ROOT} ${NODE_VERSION} && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT} && \
-    chmod 755 ${FNM_ROOT}/fnm && \
+    upx $FNM_ROOT/fnm && \
     mkdir /env && \
     echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
+    echo "NODE_VERSION=$NODE_VERSION" >> /env/fnm.env && \
     echo "$FNM_ROOT" > /env/fnm.path
 
-# NodeJS based tooling
-# hadolint ignore=DL3016,SC2086
-RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
-    --mount=type=cache,target=/root/.npm,id=npm-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    eval "$(${FNM_ROOT}/fnm env --shell bash --use-on-cd --fnm-dir ${FNM_ROOT})" && \
-    ${FNM_ROOT}/fnm use ${NODE_VERSION} && \
-    npm config set update-notifier false && \
-    npm config set fund false && \
-    npm config set loglevel error && \
-    for i in $(cat /packages/npm-packages.json | jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]'); do echo $i; npm install -g $i; done && \
-    chown -R root:coder ${FNM_ROOT} && \
-    chmod -R g+rw ${FNM_ROOT}
+# npm packages: installed by agent-startup-script
+COPY --link --chown=root:root --chmod=644 packages/npm-packages.json /opt/fnm/npm-packages.json
 
 
 # ========================================================================================================
