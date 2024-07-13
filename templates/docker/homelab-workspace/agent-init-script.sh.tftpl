@@ -1,3 +1,0 @@
-sudo -u ${username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'EOT'
-${replace(init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-EOT

@@ -44,14 +44,6 @@ locals {
   docker_volumes = local.test_mode ? ["home", "docker"] : []
   # create bind mounts otherwise
   bind_mounts = local.test_mode ? [] : ["home", "docker"]
-
-  agent_init_script = templatefile(
-    "agent-init-script.sh.tftpl",
-    {
-      init_script = coder_agent.main.init_script
-      username    = local.username
-    }
-  )
 }
 
 
@@ -127,6 +119,12 @@ resource "docker_image" "workspace_image" {
   keep_locally = true
 }
 
+locals {
+  agent_init_script = <<EOF
+    sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
+    EOF
+}
+
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
 
@@ -141,9 +139,7 @@ resource "docker_container" "workspace" {
     echo
 
     if [[ "$TEST_MODE" == "1" ]]; then
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
-      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-      EOT
+      ${local.agent_init_script}
     else
       # prepare user, filesystem and other configuration
       /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
