@@ -120,7 +120,12 @@ resource "docker_image" "workspace_image" {
 }
 
 locals {
-  agent_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  test_mode_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  standard_init_script  = <<EOF
+    exec /usr/bin/supervisord
+  EOF
+
+  agent_init_script = (local.test_mode) ? test_mode_init_script : standard_init_script
 }
 
 resource "docker_container" "workspace" {
@@ -155,8 +160,7 @@ resource "docker_container" "workspace" {
   # ]
 
   env = [
-    "CODER_AGENT_TOKEN=${coder_agent.main.token}",
-    "TEST_MODE=${(local.test_mode) ? 1 : 0}"
+    "CODER_AGENT_TOKEN=${coder_agent.main.token}"
   ]
   host {
     host = "host.docker.internal"
