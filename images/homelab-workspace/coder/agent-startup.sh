@@ -43,6 +43,7 @@ install_node() {
 }
 
 install_npm_packages() {
+  eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
   for i in $(jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]' /opt/fnm/npm-packages.json); do
     npm install --global --no-audit $i
   done

@@ -5,20 +5,7 @@ provider "registry.terraform.io/coder/coder" {
   version     = "1.0.1"
   constraints = "~> 1.0.0"
   hashes = [
-    "h1:/zNbekgRrw9A4VYXsB0e2de8D3NNQ8Q9st8XNlskrMg=",
-    "h1:1TNtcFcb6kiEYcBFnaBLetWUy3MB6g4N9M2SHFzVpKg=",
-    "h1:2Ar9iBygwpBPIxYsQQ59nsVJX72omZBI1k5YOL/nGwc=",
-    "h1:2bVsUDbwHGz3azfWmqduPwFjLmyYX9fLvG4vtzY+zkE=",
-    "h1:6j3Rbu5TkJgLqINc2LFq5tvIdsaruoU66ohuJKeDhWA=",
-    "h1:EPEuK5Cx9Hg25AwYzaoZxo6A48tztTMrVSrjq0GriYY=",
-    "h1:HlyI+eJ8d7FD+WEAr4BJJxnVlDdZwr8tSxn1llQe8Fw=",
     "h1:NmQcWN7x2OuEDGIzCuwQFNOy0MDY4blaBDyBLOEyO/Y=",
-    "h1:ZBtniOxmaFj42gnybvslEuHhN1RCCpr/IrrE4GFVxC4=",
-    "h1:a8sOpKpZd8qCU4zjgbeBADjhZWFKPNdcd+NXOCyOp10=",
-    "h1:i9P2IbsUrSKlJqCVDy/rc9xd/glAASQEMMb7OE3INVs=",
-    "h1:j17qhRuCg3V9taF3eXGEIuCTsNjX4s6EpqY07Tlqsp8=",
-    "h1:k300Waq6c+qn4gsjhlVy3HxibcMRPSve7q1Z46sgMsk=",
-    "h1:v1Z6NbpbmNo7kjPHWGT4VeFWK3HwRz9dN85MdZqhqsE=",
     "zh:0e45b1c78ecb3fd0d73e083ec1a61e699cc74abcb95a715287eff0993f66456f",
     "zh:1cf6ea16e9c6b932f23a605cb7afbbfc8039f8539e13c1b74e30df47667faa83",
     "zh:22c7b6a9b109a7bd609a49ce5b396b6bff06164eaa20a404e31256955b7a1702",

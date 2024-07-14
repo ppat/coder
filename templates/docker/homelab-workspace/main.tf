@@ -119,6 +119,22 @@ resource "docker_image" "workspace_image" {
   keep_locally = true
 }
 
+locals {
+  supervised_mode      = (local.test_mode) ? 0 : 1
+  standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  agent_init_script    = <<EOF
+    echo ${local.standard_init_script} > /tmp/coder-agent-init-script.sh
+    if [[ "${local.supervised_mode}" == "1" ]]; then
+      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
+    else
+      /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
+      echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
+      chmod 700 /tmp/coder-agent-wrapper.sh
+      exec /usr/bin/supervisord
+    fi
+    EOF
+}
+
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
 
@@ -128,36 +144,10 @@ resource "docker_container" "workspace" {
   runtime  = "sysbox-runc"
   user     = "0:0"
 
-  entrypoint = ["/bin/bash", "-c", <<EOF
-    echo "TEST_MODE=$TEST_MODE"
-    echo
-    if [[ "$TEST_MODE" == "1" ]]; then
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT'
-      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-      EOT
-    else
-      /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
-
-      # start coder agent as the "coder" user once systemd has started up
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash -- <<-'      EOT' &
-      while [[ ! $(systemctl is-system-running) =~ ^(running|degraded) ]]
-      do
-        echo "Waiting for system to start... $(systemctl is-system-running)"
-        sleep 2
-      done
-      ${coder_agent.main.init_script}
-      EOT
-
-      # /sbin/init must be the last line within entrypoint script to have systemd start as the init process
-      exec /sbin/init
-    fi
-    EOF
-    ,
-  ]
+  entrypoint = ["/bin/bash", "-c", local.agent_init_script]
 
   env = [
-    "CODER_AGENT_TOKEN=${coder_agent.main.token}",
-    "TEST_MODE=${(local.test_mode) ? 1 : 0}"
+    "CODER_AGENT_TOKEN=${coder_agent.main.token}"
   ]
   host {
     host = "host.docker.internal"
