@@ -2,6 +2,12 @@
 
 
 
+## [1.7.2](https://github.com/ppat/coder/compare/v1.7.1...v1.7.2) (2024-07-14)
+
+### 🐛 Enhancements + Bug Fixes
+
+* run workspace initialization scripts in background when possible to speed up start up ([#100](https://github.com/ppat/coder/issues/100)) ([4f582c6](https://github.com/ppat/coder/commit/4f582c6080251240ea31a1441a0a04f5e6ee4e09))
+
 ## [1.7.1](https://github.com/ppat/coder/compare/v1.7.0...v1.7.1) (2024-07-14)
 
 ### 🐛 Enhancements + Bug Fixes
