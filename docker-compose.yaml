@@ -10,6 +10,7 @@ services:
       CODER_HTTP_ADDRESS: "0.0.0.0:8080"
       CODER_TELEMETRY_ENABLE: false
       CODER_ACCESS_URL: "http://127.0.0.1:${AVAILABLE_PORT:-8080}"
+      CODER_ENABLE_TERRAFORM_DEBUG_MODE: true
     # add write permissions on the mounted docker socket to enable coder user to start containers
     group_add:
     - "${DOCKER_GROUP:-999}" # docker group on host
