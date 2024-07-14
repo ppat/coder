@@ -123,7 +123,7 @@ locals {
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
   entrypoint_script    = <<EOF
     echo "Running entrypoint script..."
-    echo "${local.standard_init_script}" > /tmp/coder-agent-init-script.sh
+    cat > /tmp/coder-agent-init-script.sh <<< "${local.standard_init_script}"
     if [[ "$ENTRYPOINT_MODE" == "UNSUPERVISED" ]]; then
       echo "Running in unsupervised mode..."
       sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
@@ -132,7 +132,7 @@ locals {
       /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
       echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
       chmod 700 /tmp/coder-agent-wrapper.sh
-      exec /usr/bin/supervisord
+      exec /usr/bin/supervisord -c /etc/supervisord.conf
     fi
     EOF
 }
