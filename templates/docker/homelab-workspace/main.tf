@@ -120,13 +120,15 @@ resource "docker_image" "workspace_image" {
 }
 
 locals {
-  supervised_mode      = (local.test_mode) ? 0 : 1
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-  agent_init_script    = <<EOF
-    echo ${local.standard_init_script} > /tmp/coder-agent-init-script.sh
-    if [[ "${local.supervised_mode}" == "1" ]]; then
+  entrypoint_script    = <<EOF
+    echo "Running entrypoint script..."
+    echo "${local.standard_init_script}" > /tmp/coder-agent-init-script.sh
+    if [[ "$ENTRYPOINT_MODE" == "UNSUPERVISED" ]]; then
+      echo "Running in unsupervised mode..."
       sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
     else
+      echo "Running in supervised mode..."
       /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
       echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
       chmod 700 /tmp/coder-agent-wrapper.sh
@@ -144,10 +146,11 @@ resource "docker_container" "workspace" {
   runtime  = "sysbox-runc"
   user     = "0:0"
 
-  entrypoint = ["/bin/bash", "-c", local.agent_init_script]
+  entrypoint = ["/bin/bash", "-c", local.entrypoint_script]
 
   env = [
-    "CODER_AGENT_TOKEN=${coder_agent.main.token}"
+    "CODER_AGENT_TOKEN=${coder_agent.main.token}",
+    "ENTRYPOINT_MODE=${local.test_mode ? "UNSUPERVISED" : "SUPERVISED"}"
   ]
   host {
     host = "host.docker.internal"
