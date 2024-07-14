@@ -19,36 +19,6 @@ create_log_file() {
   echo $log
 }
 
-install_rust() {
-  if [[ ! -d ~/.rustup/toolchains/${RUST_VERSION:?}-$(arch)-unknown-linux-gnu ]]; then
-    echo "$HOME/.rustup is not present, installing rust $RUST_VERSION ..."
-    rustup default ${RUST_VERSION} 2>&1
-  else
-    echo "$HOME/.rustup is already present, skipping rust installation."
-  fi
-}
-
-install_node() {
-  if [[ ! -d $HOME/.fnm/node-versions/v${NODE_VERSION:?} ]]; then
-    eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
-    fnm install ${NODE_VERSION}
-    fnm use ${NODE_VERSION}
-    fnm default --fnm-dir $HOME/.fnm ${NODE_VERSION}
-    npm config set update-notifier false
-    npm config set fund false
-    npm config set loglevel error
-  else
-    echo "Node version $NODE_VERSION already exists, skipping install."
-  fi
-}
-
-install_npm_packages() {
-  eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
-  for i in $(jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]' /opt/fnm/npm-packages.json); do
-    npm install --global --no-audit $i
-  done
-}
-
 install_starship() {
   if [[ ! -f $home_bin_dir/starship ]]; then
     echo "Starship binary not found, installing..."
@@ -73,21 +43,13 @@ main() {
   local home_bin_dir="${HOME}/.local/bin"
   mkdir -p $home_bin_dir
   echo "--------------------------------------------------------------------------------------"
-  echo "Installing rust..."
-  install_rust | pr -t -o 4
-  echo "--------------------------------------------------------------------------------------"
-  echo "Installing node..."
-  install_node | pr -t -o 4
-  echo "Installing npm packages..."
-  install_npm_packages | pr -t -o 4
-  echo "--------------------------------------------------------------------------------------"
   echo "Installing starship..."
   install_starship | pr -t -o 4
   echo "--------------------------------------------------------------------------------------"
-  echo "Maintaining krew plugins (in background)..."
-  local krew_log="$(create_log_file "krew-plugins")"
-  $(dirname ${0})/maintain-krew-plugins.sh >$krew_log 2>&1  &
-  echo "See log: $krew_log"
+  BACKGROUND_INIT_LOG="$(create_log_file "init-background")"
+  echo "Starting background initialization for long running tasks..."
+  $(dirname ${0})/init-background.sh >$BACKGROUND_INIT_LOG 2>&1 &
+  echo "See log: $BACKGROUND_INIT_LOG"
   echo "--------------------------------------------------------------------------------------"
   echo "Done."
 }
