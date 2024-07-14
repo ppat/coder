@@ -188,6 +188,9 @@ jobs:
         echo Container status:
         docker ps
         echo
+        echo Coder logs:
+        docker logs -n 100 coder-coder-1
+        echo
         echo Container logs:
         docker logs -n 100 ${WORKSPACE_NAME}
         echo
