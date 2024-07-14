@@ -37,7 +37,7 @@ locals {
   }
   bind_mount_host_paths = {
     "home"   = "/srv/workspaces/${local.username}",
-    "docker" = "/srv/workspaces/${local.username}-docker"
+    "docker" = "/srv/workspaces/${local.username}-${data.coder_workspace.me.name}-docker"
   }
 
   # create docker volumes in test_mode
@@ -122,19 +122,22 @@ resource "docker_image" "workspace_image" {
 locals {
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
   entrypoint_script    = <<EOF
-    echo "Running entrypoint script..."
-    cat > /tmp/coder-agent-init-script.sh <<< "${local.standard_init_script}"
-    if [[ "$ENTRYPOINT_MODE" == "UNSUPERVISED" ]]; then
-      echo "Running in unsupervised mode..."
-      sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
-    else
-      echo "Running in supervised mode..."
-      /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
-      echo "sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
-      chmod 700 /tmp/coder-agent-wrapper.sh
-      exec /usr/bin/supervisord -c /etc/supervisord.conf
-    fi
-    EOF
+echo "Running entrypoint script..."
+cat > /tmp/coder-agent-init-script.sh <<'EOT'
+${local.standard_init_script}
+EOT
+chmod 755 /tmp/coder-agent-init-script.sh
+if [[ "$ENTRYPOINT_MODE" == "SUPERVISED" ]]; then
+  echo "Running in supervised mode..."
+  /opt/coder/bin/entrypoint-prepare.sh --username ${local.username}
+  echo -e "#!/bin/bash\nsudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
+  chmod 755 /tmp/coder-agent-wrapper.sh
+  exec /usr/bin/supervisord -c /etc/supervisord.conf
+else
+  echo "Running in unsupervised mode..."
+  sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
+fi
+EOF
 }
 
 resource "docker_container" "workspace" {
