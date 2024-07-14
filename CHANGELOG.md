@@ -2,6 +2,12 @@
 
 
 
+## [1.7.1](https://github.com/ppat/coder/compare/v1.7.0...v1.7.1) (2024-07-14)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix workspace entrypoint script ([#99](https://github.com/ppat/coder/issues/99)) ([c58479a](https://github.com/ppat/coder/commit/c58479accc4ef607b5114cf13490e793c1c2b671))
+
 ## [1.7.0](https://github.com/ppat/coder/compare/v1.6.0...v1.7.0) (2024-07-14)
 
 ### ✨ Features
