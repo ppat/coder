@@ -51,7 +51,7 @@ main() {
   echo "Installing npm packages..."
   install_npm_packages /opt/fnm/npm-packages.json | pr -t -o 4
   echo "--------------------------------------------------------------------------------------"
-  echo "Maintaining krew plugins (in background)..."
+  echo "Maintaining krew plugins..."
   $(dirname ${0})/init-krew-plugins.sh | pr -t -o 4
   echo "--------------------------------------------------------------------------------------"
   echo "Done."
