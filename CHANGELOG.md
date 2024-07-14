@@ -2,6 +2,16 @@
 
 
 
+## [1.7.0](https://github.com/ppat/coder/compare/v1.6.0...v1.7.0) (2024-07-14)
+
+### ✨ Features
+
+* replace systemd with supervisord in coder image ([#98](https://github.com/ppat/coder/issues/98)) ([02b1759](https://github.com/ppat/coder/commit/02b17599ffebab12d60439ce98464e844a6af961))
+
+### 📌 Dependencies
+
+* **deps:** update terraform coder to v1.0.1 ([#96](https://github.com/ppat/coder/issues/96)) ([e89b8c7](https://github.com/ppat/coder/commit/e89b8c744d7d0eb8f7cb500ac3e14546b914ed5f))
+
 ## [1.6.0](https://github.com/ppat/coder/compare/v1.5.2...v1.6.0) (2024-07-13)
 
 ### ✨ Features
