@@ -2,6 +2,16 @@
 
 
 
+## [1.7.3](https://github.com/ppat/coder/compare/v1.7.2...v1.7.3) (2024-07-16)
+
+### 🐛 Enhancements + Bug Fixes
+
+* various fixes to workspace initialization scripts ([#105](https://github.com/ppat/coder/issues/105)) ([41367a7](https://github.com/ppat/coder/commit/41367a7b7c3c633889c22ba165591f0acde0e1a0))
+
+### 📌 Dependencies
+
+* **deps:** update dependency community.general to v9.2.0 ([#101](https://github.com/ppat/coder/issues/101)) ([893cfc7](https://github.com/ppat/coder/commit/893cfc72ab55326f65a91a48c39b2b30f6adc493))
+
 ## [1.7.2](https://github.com/ppat/coder/compare/v1.7.1...v1.7.2) (2024-07-14)
 
 ### 🐛 Enhancements + Bug Fixes
