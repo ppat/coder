@@ -236,7 +236,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# renovate: datasource=github-releases depName=fnm/releases
+# renovate: datasource=github-releases depName=Schniz/fnm
 ENV FNM_VERSION="1.37.1"
 ENV FNM_ROOT=/opt/fnm
 # renovate: datasource=node depName=node versioning=node
