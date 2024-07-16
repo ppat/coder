@@ -490,19 +490,11 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     # add all environment values from /env/*.env files to /etc/environment
     for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
 
-# shell initialization scripts
-COPY --link --chown=root:root --chmod=644 shell/bash_aliases.defaults /etc/bash_aliases.defaults
-COPY --link --chown=root:root --chmod=644 shell/bash_completion.defaults /etc/bash_completion.defaults
-COPY --link --chown=root:root --chmod=644 shell/bashrc.defaults /etc/bashrc.defaults
-COPY --link --chown=root:root --chmod=644 shell/bashrc /etc/skel/.bashrc
-COPY --link --chown=root:root --chmod=644 shell/bashrc.extra /etc/skel/.bashrc.extra
+# copy /etc config files
+COPY --link --chown=root:root --chmod=644 etc/* /etc/
 
 # coder initialization scripts
-RUN mkdir -p /opt/coder/bin
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
-
-# supervisord configuration for docker and coder agent
-COPY --link --chown=root:root --chmod=644 etc/supervisord.conf /etc/supervisord.conf
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
