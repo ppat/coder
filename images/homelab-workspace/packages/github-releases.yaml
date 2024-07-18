@@ -40,7 +40,7 @@
 - name: dust
   repo: https://github.com/bootandy/dust
   # renovate: datasource=github-releases depName=bootandy/dust
-  tag: "v1.0.0"
+  tag: "v1.1.0"
   asset_regex: ".*-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz"
   unarchive_opts: "--strip-components 1"
 - name: flux
