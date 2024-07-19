@@ -2,6 +2,16 @@
 
 
 
+## [1.7.6](https://github.com/ppat/coder/compare/v1.7.5...v1.7.6) (2024-07-19)
+
+### 🐛 Enhancements + Bug Fixes
+
+* extract out workspace template entrypoint into its own file ([#112](https://github.com/ppat/coder/issues/112)) ([9785eed](https://github.com/ppat/coder/commit/9785eede5bb80fe0e1d2e1a148cae7cf4170487b))
+
+### 🛠 Improvements
+
+* fix image test so that agent-startup script can be tested ([#111](https://github.com/ppat/coder/issues/111)) ([3b7749e](https://github.com/ppat/coder/commit/3b7749efd30c95eca2ad3e31788b286b61116aff))
+
 ## [1.7.5](https://github.com/ppat/coder/compare/v1.7.4...v1.7.5) (2024-07-19)
 
 ### 🐛 Enhancements + Bug Fixes
