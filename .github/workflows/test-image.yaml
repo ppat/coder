@@ -82,7 +82,7 @@ jobs:
         echo
 
         echo "Create test user within container..."
-        docker exec $container_name sudo -u root useradd --groups sudo --shell /bin/bash $test_user
+        docker exec $container_name sudo -u root useradd --groups sudo --shell /bin/bash --home-dir /home/$test_user --create-home $test_user
         echo "Done"
         echo
 
