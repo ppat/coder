@@ -40,7 +40,7 @@
 - name: dust
   repo: https://github.com/bootandy/dust
   # renovate: datasource=github-releases depName=bootandy/dust
-  tag: "v1.1.0"
+  tag: "v1.1.1"
   asset_regex: ".*-${TARGETARCH_ALTERNATE_BOTH}-unknown-linux-gnu.tar.gz"
   unarchive_opts: "--strip-components 1"
 - name: flux
@@ -51,7 +51,7 @@
 - name: gh
   repo: https://github.com/cli/cli
   # renovate: datasource=github-releases depName=cli/cli
-  tag: "v2.52.0"
+  tag: "v2.53.0"
   asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
   unarchive_opts: "--strip-components 2"
 - name: hadolint
