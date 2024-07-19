@@ -492,6 +492,8 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
 
 # copy /etc config files
 COPY --link --chown=root:root --chmod=644 etc/* /etc/
+COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc /etc/skel/.bashrc
+COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc.extra /etc/skel/.bashrc.extra
 
 # coder initialization scripts
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/

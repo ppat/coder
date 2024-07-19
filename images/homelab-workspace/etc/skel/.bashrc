@@ -8,6 +8,14 @@ case $- in
       *) return;;
 esac
 
+# save bash history when multiple shell sessions are open
+# see: https://unix.stackexchange.com/a/48113
+export HISTCONTROL=ignoredups:erasedups  # no duplicate entries
+export HISTSIZE=100000                   # big big history
+export HISTFILESIZE=100000               # big big history
+shopt -s histappend                      # append to history, don't overwrite it
+export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"  # Save & reload history after each command
+
 # load system environment variables
 set -o allexport; source /etc/environment; set +o allexport
 

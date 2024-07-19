@@ -31,7 +31,7 @@ manage_krew_plugins() {
   echo
   echo "Installing plugins..."
   for p in $plugins; do
-    install_plugin_if_not_exists $p | pr -t -o 4
+    install_plugin_if_not_exists $p | sed -E 's/^(.*)/    \1/g'
   done
   echo
   upgrade_existing_plugins
