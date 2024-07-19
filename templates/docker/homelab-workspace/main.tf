@@ -27,9 +27,12 @@ variable "workspace_image" {
   type = string
 }
 
+variable "test_mode" {
+  type = bool
+}
+
 locals {
-  test_mode = (var.workspace_image == "simple-workspace:latest")
-  username  = local.test_mode ? "coder" : data.coder_workspace_owner.me.name
+  username = var.test_mode ? "coder" : data.coder_workspace_owner.me.name
 
   container_volume_mounts = {
     "home"   = "/home/${local.username}",
@@ -41,16 +44,16 @@ locals {
   }
 
   # create docker volumes in test_mode
-  docker_volumes = local.test_mode ? ["home", "docker"] : []
+  docker_volumes = var.test_mode ? ["home", "docker"] : []
   # create bind mounts otherwise
-  bind_mounts = local.test_mode ? [] : ["home", "docker"]
+  bind_mounts = var.test_mode ? [] : ["home", "docker"]
 }
 
 
 resource "coder_agent" "main" {
   arch                    = "amd64"
   os                      = "linux"
-  startup_script          = local.test_mode ? "/bin/bash --noprofile --norc" : "/bin/bash --noprofile --norc /opt/coder/bin/agent-startup.sh"
+  startup_script          = var.test_mode ? "/bin/bash --noprofile --norc" : "/bin/bash --noprofile --norc /opt/coder/bin/agent-startup.sh"
   startup_script_behavior = "blocking"
 
   metadata {
@@ -123,9 +126,20 @@ locals {
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
   entrypoint_script    = <<EOF
 echo "Running entrypoint script..."
+echo "Writing coder agent init script to file..."
 cat > /tmp/coder-agent-init-script.sh <<'EOT'
 ${local.standard_init_script}
 EOT
+echo
+echo "Checking minimum requirements for coder agent..."
+if (command -v curl && command -v sudo) > /dev/null; then
+  echo "Minimum requirements for running coder agent is met."
+else
+  echo "Installing minimum required software for running coder agent..."
+  apt-get update
+  DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends curl sudo
+fi
+echo
 chmod 755 /tmp/coder-agent-init-script.sh
 if [[ "$ENTRYPOINT_MODE" == "SUPERVISED" ]]; then
   echo "Running in supervised mode..."
@@ -144,7 +158,7 @@ resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
 
   image    = docker_image.workspace_image.image_id
-  name     = local.test_mode ? data.coder_workspace.me.name : "${lower(local.username)}-${lower(data.coder_workspace.me.name)}"
+  name     = var.test_mode ? data.coder_workspace.me.name : "${lower(local.username)}-${lower(data.coder_workspace.me.name)}"
   hostname = data.coder_workspace.me.name
   runtime  = "sysbox-runc"
   user     = "0:0"
@@ -153,7 +167,7 @@ resource "docker_container" "workspace" {
 
   env = [
     "CODER_AGENT_TOKEN=${coder_agent.main.token}",
-    "ENTRYPOINT_MODE=${local.test_mode ? "UNSUPERVISED" : "SUPERVISED"}"
+    "ENTRYPOINT_MODE=${var.test_mode ? "UNSUPERVISED" : "SUPERVISED"}"
   ]
   host {
     host = "host.docker.internal"

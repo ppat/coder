@@ -6,7 +6,7 @@ name: "test image"
 on:
   pull_request:
     paths:
-    - 'images/**'
+    - 'images/homelab-workspace/**'
     - '.github/workflows/test-image.yaml'
   workflow_dispatch:
 

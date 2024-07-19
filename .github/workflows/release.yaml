@@ -87,6 +87,7 @@ jobs:
         echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
   publish-image:
+    if: github.event_name == 'workflow_dispatch'
     needs: [create-release]
     uses: ppat/images/.github/workflows/build-image-workflow.yaml@main
     with:
@@ -106,8 +107,9 @@ jobs:
         FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   publish-template:
-    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: [create-release, publish-image]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
     - name: Checkout
@@ -178,6 +180,7 @@ jobs:
         coder template push \
           --directory ${TEMPLATE_DIR} \
           --var workspace_image=${WORKSPACE_IMAGE} \
+          --var test_mode=false \
           --name ${TEMPLATE_VERSION} \
           --message "${RELEASE_MSG}" \
           --yes \
