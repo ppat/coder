@@ -18,6 +18,7 @@ locals {
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
   entrypoint_script    = <<EOF
 echo "Running entrypoint script..."
+exec 2>&1
 echo "Writing coder agent init script to file..."
 cat > /tmp/coder-agent-init-script.sh <<'EOT'
 ${local.standard_init_script}
