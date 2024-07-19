@@ -81,8 +81,8 @@ jobs:
         echo "Done"
         echo
 
-        echo "Running entrypoint preparation script..."
-        docker exec $container_name sudo -u root /opt/coder/bin/entrypoint-prepare.sh --username $test_user
+        echo "Create test user within container..."
+        docker exec $container_name sudo -u root useradd --groups sudo --shell /bin/bash $test_user
         echo "Done"
         echo
 
