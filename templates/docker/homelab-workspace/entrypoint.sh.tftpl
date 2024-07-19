@@ -1,0 +1,54 @@
+#!/bin/bash
+set -eo pipefail
+exec 2>&1
+
+CODER_USER="${coder_user}"
+
+echo "Running entrypoint script..."
+echo "---------------------------------------------------------------------------------"
+echo "Writing coder agent init script to file..."
+cat > /tmp/coder-agent-init-script.sh <<'EOT'
+${agent_init_script}
+EOT
+chmod 755 /tmp/coder-agent-init-script.sh
+echo "---------------------------------------------------------------------------------"
+echo "Checking minimum requirements for coder agent..."
+if (command -v curl && command -v sudo && command -v useradd) > /dev/null; then
+  echo "Minimum requirements for running coder agent is met."
+else
+  echo "Installing minimum required software for running coder agent..."
+  apt-get update
+  DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends curl sudo adduser
+fi
+echo "---------------------------------------------------------------------------------"
+if ! getent group coder > /dev/null; then
+  echo "Creating group: coder..."
+  groupadd coder
+fi
+if ! getent group docker > /dev/null; then
+  echo "Creating group: docker..."
+  groupadd docker
+fi
+echo "Creating user: $CODER_USER..."
+useradd -g coder --groups sudo,docker --home-dir /home/$CODER_USER --shell /bin/bash $CODER_USER
+# allow coder user to sudo to so that they can run any system actions (such as using apt-get) within their workspace container.
+echo "Enabling user ($CODER_USER) to sudo"
+echo "$CODER_USER ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/$CODER_USER
+chmod 0440 /etc/sudoers.d/$CODER_USER
+echo "---------------------------------------------------------------------------------"
+echo "Creating directories..."
+mkdir -p /home/$CODER_USER/.log/
+echo "Ensuring ownership by user and group ($CODER_USER:coder)..."
+chown $CODER_USER:coder /home/$CODER_USER
+chown $CODER_USER:coder /home/$CODER_USER/.log/
+echo "---------------------------------------------------------------------------------"
+echo "Preparation complete. Starting coder agent..."
+if [[ "$ENTRYPOINT_MODE" == "SUPERVISED" ]]; then
+  echo "Running agent in supervised mode..."
+  echo -e "#!/bin/bash\nsudo -u $CODER_USER --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
+  chmod 755 /tmp/coder-agent-wrapper.sh
+  exec /usr/bin/supervisord -c /etc/supervisord.conf
+else
+  echo "Running agent in unsupervised mode..."
+  sudo -u $CODER_USER --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
+fi
