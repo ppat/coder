@@ -1,6 +1,6 @@
 {
   "devDependencies": {
     "@bitwarden/cli": "2024.6.0",
-    "renovate": "37.406.2"
+    "renovate": "37.413.2"
   }
 }
