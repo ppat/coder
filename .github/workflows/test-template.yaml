@@ -165,7 +165,6 @@ jobs:
           echo "Created workspace is in an unhealthy state."
           exit 1
         fi
-        docker logs ${WORKSPACE_NAME}
 
     - name: Test - connect to created workspace
       id: check-workspace-connect
@@ -185,7 +184,7 @@ jobs:
         docker logs -n 100 coder-coder-1
         echo
         echo Container logs:
-        docker logs -n 100 ${WORKSPACE_NAME}
+        docker logs 100 ${WORKSPACE_NAME}
         echo
         echo Workspace status
         coder show ${WORKSPACE_NAME}
