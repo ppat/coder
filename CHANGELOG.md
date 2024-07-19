@@ -2,6 +2,21 @@
 
 
 
+## [1.7.4](https://github.com/ppat/coder/compare/v1.7.3...v1.7.4) (2024-07-19)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix workspace initialization scripts ([#108](https://github.com/ppat/coder/issues/108)) ([51dc6b3](https://github.com/ppat/coder/commit/51dc6b3a78b5c45400f70df6e36e26ca5735dac3))
+
+### 🛠 Improvements
+
+* use base ubuntu:noble image for testing template ([#109](https://github.com/ppat/coder/issues/109)) ([06b7f9e](https://github.com/ppat/coder/commit/06b7f9eecb35adfcb4087b3798e0e7a1614303c7))
+
+### 📌 Dependencies
+
+* **deps:** update dependency bootandy/dust to v1.1.0 ([#106](https://github.com/ppat/coder/issues/106)) ([f8e8966](https://github.com/ppat/coder/commit/f8e89664888d1da74ab54da15ded7daaf24d263f))
+* **deps:** update github-release non-major dependencies ([#107](https://github.com/ppat/coder/issues/107)) ([7fb736b](https://github.com/ppat/coder/commit/7fb736b71890cccc9f0767a4e1e3d0ee560c9c9a))
+
 ## [1.7.3](https://github.com/ppat/coder/compare/v1.7.2...v1.7.3) (2024-07-16)
 
 ### 🐛 Enhancements + Bug Fixes
