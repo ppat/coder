@@ -35,13 +35,16 @@ else
   DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends curl sudo adduser
 fi
 echo "---------------------------------------------------------------------------------"
-if grep coder /etc/passwd > /dev/null; then
-  echo "Modifying user: coder -> ${local.username}..."
-  usermod --home /home/${local.username} --shell /bin/bash --login $username coder
-else
-  echo "Creating user - ${local.username}..."
-  useradd --groups sudo --home-dir /home/${local.username} --shell /bin/bash ${local.username}
+if ! getent group coder > /dev/null; then
+  echo "Creating group: coder..."
+  groupadd coder
 fi
+if ! getent group docker > /dev/null; then
+  echo "Creating group: docker..."
+  groupadd docker
+fi
+echo "Creating user - ${local.username}..."
+useradd -g coder --groups sudo,docker --home-dir /home/${local.username} --shell /bin/bash ${local.username}
 # allow coder user to sudo to so that they can run any system actions (such as using apt-get) within their workspace container.
 echo "Enabling ${local.username} to sudo"
 echo "${local.username} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${local.username}

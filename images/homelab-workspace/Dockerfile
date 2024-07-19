@@ -500,8 +500,4 @@ COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
-# Add `coder` user (coder platform will connect the user in as this user)
-# hadolint ignore=DL3059
-RUN useradd coder --no-create-home --shell /bin/bash -g coder --groups sudo,docker
-USER coder
 WORKDIR /
