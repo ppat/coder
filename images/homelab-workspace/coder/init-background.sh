@@ -6,7 +6,7 @@ install_rust() {
   local rust_version="$1"
   if [[ ! -d $HOME/.rustup/toolchains/${rust_version:?}-$(arch)-unknown-linux-gnu ]]; then
     echo "$HOME/.rustup is not present, installing rust $rust_version ..."
-    rustup default ${rust_version} 2>&1
+    rustup default ${rust_version}
   else
     echo "$HOME/.rustup is already present, skipping rust installation."
   fi
@@ -31,7 +31,9 @@ install_npm_packages() {
   local npm_package_json="$1"
   eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
   for i in $(jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]' ${npm_package_json:?}); do
-    npm install --global --no-audit $i
+    echo "Installing $i..."
+    npm install --global --no-audit $i 2>&1 | sed -E 's|^(.*)|    \1|g'
+    echo
   done
 }
 
@@ -44,17 +46,18 @@ main() {
   set +o allexport
   echo "--------------------------------------------------------------------------------------"
   echo "Installing rust..."
-  install_rust ${RUST_VERSION:?} | pr -t -o 4
+  install_rust ${RUST_VERSION:?} 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
   echo "Installing node..."
-  install_node ${NODE_VERSION:?} | pr -t -o 4
+  install_node ${NODE_VERSION:?} 2>&1 | sed -E 's|^(.*)|    \1|g'
+  echo
   echo "Installing npm packages..."
-  install_npm_packages /opt/fnm/npm-packages.json | pr -t -o 4
+  install_npm_packages /opt/fnm/npm-packages.json 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
   echo "Maintaining krew plugins..."
-  $(dirname ${0})/init-krew-plugins.sh | pr -t -o 4
+  $(dirname ${0})/init-krew-plugins.sh 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
   echo "Done."
 }
 
-main | sed -E 's/^(.*)/init-background: \1/g'
+main | sed -E 's|^(.*)|init-background: \1|g'
