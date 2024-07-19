@@ -29,15 +29,16 @@ if ! getent group docker > /dev/null; then
   echo "Creating group: docker..."
   groupadd docker
 fi
-echo "Creating user - $CODER_USER..."
+echo "Creating user: $CODER_USER..."
 useradd -g coder --groups sudo,docker --home-dir /home/$CODER_USER --shell /bin/bash $CODER_USER
 # allow coder user to sudo to so that they can run any system actions (such as using apt-get) within their workspace container.
-echo "Enabling $CODER_USER to sudo"
+echo "Enabling user ($CODER_USER) to sudo"
 echo "$CODER_USER ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/$CODER_USER
 chmod 0440 /etc/sudoers.d/$CODER_USER
 echo "---------------------------------------------------------------------------------"
-echo "Creating directories and updating directory permissions..."
+echo "Creating directories..."
 mkdir -p /home/$CODER_USER/.log/
+echo "Ensuring ownership by user and group ($CODER_USER:coder)..."
 chown $CODER_USER:coder /home/$CODER_USER
 chown $CODER_USER:coder /home/$CODER_USER/.log/
 echo "---------------------------------------------------------------------------------"
