@@ -106,8 +106,8 @@ jobs:
         FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   publish-template:
-    runs-on: ubuntu-latest
     needs: [create-release, publish-image]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
     - name: Checkout
@@ -178,6 +178,7 @@ jobs:
         coder template push \
           --directory ${TEMPLATE_DIR} \
           --var workspace_image=${WORKSPACE_IMAGE} \
+          --var test_mode=false \
           --name ${TEMPLATE_VERSION} \
           --message "${RELEASE_MSG}" \
           --yes \
