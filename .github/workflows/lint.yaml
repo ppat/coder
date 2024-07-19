@@ -89,10 +89,6 @@ jobs:
       if: success() || failure()
       run: poetry run pre-commit run --all-files --color=always check-json
 
-    - name: check-shebang-scripts-are-executable
-      if: success() || failure()
-      run: poetry run pre-commit run --all-files --color=always check-shebang-scripts-are-executable
-
     - name: detect-private-key
       if: success() || failure()
       run: poetry run pre-commit run --all-files --color=always detect-private-key

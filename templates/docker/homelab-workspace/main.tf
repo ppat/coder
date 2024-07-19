@@ -16,56 +16,11 @@ resource "docker_image" "workspace_image" {
 
 locals {
   standard_init_script = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
-  entrypoint_script    = <<EOF
-echo "Running entrypoint script..."
-exec 2>&1
-echo "---------------------------------------------------------------------------------"
-echo "Writing coder agent init script to file..."
-cat > /tmp/coder-agent-init-script.sh <<'EOT'
-${local.standard_init_script}
-EOT
-chmod 755 /tmp/coder-agent-init-script.sh
-echo "---------------------------------------------------------------------------------"
-echo "Checking minimum requirements for coder agent..."
-if (command -v curl && command -v sudo && command -v useradd) > /dev/null; then
-  echo "Minimum requirements for running coder agent is met."
-else
-  echo "Installing minimum required software for running coder agent..."
-  apt-get update
-  DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends curl sudo adduser
-fi
-echo "---------------------------------------------------------------------------------"
-if ! getent group coder > /dev/null; then
-  echo "Creating group: coder..."
-  groupadd coder
-fi
-if ! getent group docker > /dev/null; then
-  echo "Creating group: docker..."
-  groupadd docker
-fi
-echo "Creating user - ${local.username}..."
-useradd -g coder --groups sudo,docker --home-dir /home/${local.username} --shell /bin/bash ${local.username}
-# allow coder user to sudo to so that they can run any system actions (such as using apt-get) within their workspace container.
-echo "Enabling ${local.username} to sudo"
-echo "${local.username} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${local.username}
-chmod 0440 /etc/sudoers.d/${local.username}
-echo "---------------------------------------------------------------------------------"
-echo "Creating directories and updating directory permissions..."
-mkdir -p /home/${local.username}/.log/
-chown ${local.username} /home/${local.username}
-chown ${local.username} /home/${local.username}/.log/
-echo "---------------------------------------------------------------------------------"
-echo "Preparation complete. Starting coder agent..."
-if [[ "$ENTRYPOINT_MODE" == "SUPERVISED" ]]; then
-  echo "Running agent in supervised mode..."
-  echo -e "#!/bin/bash\nsudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh" > /tmp/coder-agent-wrapper.sh
-  chmod 755 /tmp/coder-agent-wrapper.sh
-  exec /usr/bin/supervisord -c /etc/supervisord.conf
-else
-  echo "Running agent in unsupervised mode..."
-  sudo -u ${local.username} --preserve-env=CODER_AGENT_TOKEN /bin/bash /tmp/coder-agent-init-script.sh
-fi
-EOF
+  entrypoint_template_params = {
+    agent_init_script = local.standard_init_script
+    coder_user        = local.username
+  }
+  entrypoint_script = templatefile("${path.cwd}/entrypoint.sh.tftpl", local.entrypoint_template_params)
 }
 
 resource "docker_container" "workspace" {
