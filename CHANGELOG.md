@@ -2,6 +2,12 @@
 
 
 
+## [1.7.5](https://github.com/ppat/coder/compare/v1.7.4...v1.7.5) (2024-07-19)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix user creation during workspace startup ([#110](https://github.com/ppat/coder/issues/110)) ([3c3f0ea](https://github.com/ppat/coder/commit/3c3f0ea03a0526d9f964ceba0ff5cd0ba7b03c39))
+
 ## [1.7.4](https://github.com/ppat/coder/compare/v1.7.3...v1.7.4) (2024-07-19)
 
 ### 🐛 Enhancements + Bug Fixes
