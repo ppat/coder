@@ -1,0 +1,73 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "addLabels": [
+        "image:cli-tools"
+      ],
+      "commitMessageTopic": "{{packageName}}",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "semanticCommitScope": "cli-tools",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": false
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days",
+      "platformAutomerge": true,
+      "semanticCommitType": "fix"
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "7 days",
+      "platformAutomerge": true,
+      "semanticCommitType": "feat"
+    },
+    {
+      "automerge": false,
+      "commitBody": "BREAKING CHANGE",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
+      "semanticCommitType": "feat"
+    }
+  ]
+}
