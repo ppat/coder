@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "stability required dependencies: minor versions (60 days)",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "fluxcd/flux2",
+        "hashicorp/terraform",
+        "kubernetes-sigs/kustomize"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "60 days"
+    },
+    {
+      "description": "stability required dependencies: minor versions (90 days)",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core",
+        "hashicorp/packer",
+        "kubernetes/kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "90 days"
+    },
+    {
+      "description": "stability required dependencies: major versions (180 days)",
+      "matchDatasources": [
+        "github-releases",
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "ansible-core",
+        "fluxcd/flux2",
+        "hashicorp/terraform",
+        "hashicorp/packer",
+        "kubernetes/kubernetes",
+        "kubernetes-sigs/kustomize"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "180 days"
+    },
+    {
+      "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "270 days"
+    }
+  ]
+}

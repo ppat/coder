@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "addLabels": [
+        "image:galaxy-collection",
+        "image:ansible"
+      ],
+      "commitMessageTopic": "{{packageName}}",
+      "groupName": "{{datasource}}",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchFileNames": [
+        "images/**"
+      ],
+      "semanticCommitScope": "galaxy-collection",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": false
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "7 days",
+      "platformAutomerge": true,
+      "semanticCommitType": "fix"
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "30 days",
+      "platformAutomerge": true,
+      "semanticCommitType": "feat"
+    },
+    {
+      "automerge": false,
+      "commitBody": "BREAKING CHANGE",
+      "matchDatasources": [
+        "galaxy-collection"
+      ],
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "90 days",
+      "reviewers": [
+        "ppat"
+      ],
+      "semanticCommitType": "feat"
+    }
+  ]
+}

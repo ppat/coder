@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "addLabels": [
+        "template:terraform-provider"
+      ],
+      "commitMessageTopic": "{{packageName}}",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "semanticCommitScope": "terraform-provider",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": true
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days",
+      "platformAutomerge": true,
+      "semanticCommitType": "fix"
+    },
+    {
+      "automerge": false,
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
+      "semanticCommitType": "feat"
+    },
+    {
+      "automerge": false,
+      "commitBody": "BREAKING CHANGE",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "90 days",
+      "reviewers": [
+        "ppat"
+      ],
+      "semanticCommitType": "feat"
+    }
+  ]
+}
