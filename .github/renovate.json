@@ -8,25 +8,21 @@
         "(^|/)Dockerfile$"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-\/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
+        "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-\/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?(\\s+extractVersion=(?<extractVersion>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }
   ],
   "extends": [
     "config:best-practices",
-    "group:linters"
+    "group:linters",
+    "mergeConfidence:all-badges",
+    "github>ppat/renovate-presets:default-commit-message",
+    "github>ppat/renovate-presets:ci-dependencies",
+    "github>ppat/renovate-presets:ci-dev-tools",
+    "github>ppat/renovate-presets:ci-github-actions"
   ],
   "internalChecksFilter": "strict",
-  "lockFileMaintenance": {
-    "automerge": true,
-    "automergeType": "pr",
-    "enabled": true,
-    "platformAutomerge": true,
-    "schedule": [
-      "every 30 day"
-    ]
-  },
   "npm": {
     "fileMatch": [
       "images/(.+/)*npm-packages\\.json$"
@@ -34,56 +30,73 @@
   },
   "packageRules": [
     {
-      "groupName": "github-action dependencies",
-      "groupSlug": "github-actions-deps",
-      "matchFileNames": [
-        ".github/workflows/**"
+      "addLabels": [
+        "image:cli-tools"
       ],
-      "matchManagers": [
-        "github-actions"
-      ],
-      "minimumReleaseAge": "90 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
-    },
-    {
       "automerge": true,
       "automergeType": "pr",
-      "groupName": "github-release non-major dependencies",
-      "groupSlug": "github-release-non-major-deps",
-      "matchDatasources": [
-        "github-releases"
+      "groupName": "{{depNameSanitized}}-non-major",
+      "matchFileNames": [
+        "images/homelab-workspace/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
       ],
       "matchUpdateTypes": [
         "minor",
         "patch"
       ],
       "minimumReleaseAge": "1 days",
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "semanticCommitScope": "cli-tools"
     },
     {
-      "groupName": "github-release major dependencies",
-      "groupSlug": "github-release-deps",
-      "matchDatasources": [
-        "github-releases"
+      "addLabels": [
+        "image:cli-tools"
+      ],
+      "automerge": false,
+      "groupName": "{{depNameSanitized}}-major",
+      "matchFileNames": [
+        "images/homelab-workspace/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
       ],
       "matchUpdateTypes": [
         "major"
       ],
       "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "semanticCommitScope": "cli-tools"
     },
     {
+      "addLabels": [
+        "image:lang-sdk"
+      ],
+      "matchFileNames": [
+        "images/homelab-workspace/**"
+      ],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "node",
+        "golang",
+        "rust-lang/rust"
+      ],
+      "semanticCommitScope": "lang-sdk"
+    },
+    {
+      "addLabels": [
+        "image:npm-tools"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "groupName": "npm non-major dependencies",
       "groupSlug": "npm-deps-non-major",
-      "matchDatasources": [
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "matchManagers": [
         "npm"
       ],
       "matchUpdateTypes": [
@@ -91,69 +104,74 @@
         "patch"
       ],
       "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ],
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "semanticCommitScope": "npm-tools"
     },
     {
+      "addLabels": [
+        "image:npm-tools"
+      ],
+      "automerge": false,
       "groupName": "npm major dependencies",
-      "groupSlug": "npm-deps",
-      "matchDatasources": [
+      "groupSlug": "npm-deps-major",
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "matchManagers": [
         "npm"
       ],
       "matchUpdateTypes": [
         "major"
       ],
       "minimumReleaseAge": "90 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "semanticCommitScope": "npm-tools"
     },
     {
+      "addLabels": [
+        "image:python-tools"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "groupName": "python non-major dependencies",
-      "groupSlug": "pypi-deps-non-major",
-      "matchDatasources": [
-        "pypi"
+      "groupSlug": "python-deps-non-major",
+      "matchFileNames": [
+        "images/homelab-workspace/packages/**"
+      ],
+      "matchManagers": [
+        "pip_requirements"
       ],
       "matchUpdateTypes": [
         "minor",
         "patch"
       ],
       "minimumReleaseAge": "1 days",
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "semanticCommitScope": "python-tools"
     },
     {
+      "addLabels": [
+        "image:python-tools"
+      ],
+      "automerge": false,
       "groupName": "python major dependencies",
-      "groupSlug": "pypi-deps",
-      "matchDatasources": [
-        "pypi"
+      "groupSlug": "python-deps-major",
+      "matchFileNames": [
+        "images/homelab-workspace/packages/**"
+      ],
+      "matchManagers": [
+        "pip_requirements"
       ],
       "matchUpdateTypes": [
         "major"
       ],
       "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "semanticCommitScope": "python-tools"
     },
     {
-      "automerge": true,
-      "automergeType": "pr",
-      "groupName": "pre-commit dependencies",
-      "groupSlug": "pre-commit-deps",
-      "matchManagers": [
-        "pre-commit"
+      "addLabels": [
+        "image:ansible-galaxy-collection",
+        "image:ansible"
       ],
-      "minimumReleaseAge": "30 days",
-      "platformAutomerge": true
-    },
-    {
       "automerge": true,
       "automergeType": "pr",
       "groupName": "galaxy-collection non-major dependencies",
@@ -166,11 +184,17 @@
         "patch"
       ],
       "minimumReleaseAge": "1 days",
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "semanticCommitScope": "ansible-galaxy-collection"
     },
     {
+      "addLabels": [
+        "image:ansible-galaxy-collection",
+        "image:ansible"
+      ],
+      "automerge": false,
       "groupName": "galaxy-collection major dependencies",
-      "groupSlug": "galaxy-collection-deps",
+      "groupSlug": "galaxy-collection-major-deps",
       "matchDatasources": [
         "galaxy-collection"
       ],
@@ -178,12 +202,20 @@
         "major"
       ],
       "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
+      "semanticCommitScope": "ansible-galaxy-collection"
+    },
+    {
+      "addLabels": [
+        "image:ansible"
+      ],
+      "matchFileNames": [
+        "images/homelab-workspace/packages/ansible-*"
       ]
     },
     {
+      "addLabels": [
+        "template:terraform-provider"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "groupName": "terraform-provider patch dependencies",
@@ -195,9 +227,14 @@
         "patch"
       ],
       "minimumReleaseAge": "1 days",
-      "platformAutomerge": true
+      "platformAutomerge": true,
+      "semanticCommitScope": "terraform-provider"
     },
     {
+      "addLabels": [
+        "template:terraform-provider"
+      ],
+      "automerge": false,
       "groupName": "terraform-provider minor dependencies",
       "groupSlug": "terraform-provider-minor-deps",
       "matchDatasources": [
@@ -207,12 +244,13 @@
         "minor"
       ],
       "minimumReleaseAge": "30 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "semanticCommitScope": "terraform-provider"
     },
     {
+      "addLabels": [
+        "template:terraform-provider"
+      ],
+      "automerge": false,
       "groupName": "terraform-provider major dependencies",
       "groupSlug": "terraform-provider-deps",
       "matchDatasources": [
@@ -222,14 +260,9 @@
         "major"
       ],
       "minimumReleaseAge": "90 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "semanticCommitScope": "terraform-provider"
     },
     {
-      "automerge": true,
-      "automergeType": "pr",
       "description": "stability required dependencies: patch versions",
       "matchDatasources": [
         "github-releases",
@@ -246,8 +279,7 @@
       "matchUpdateTypes": [
         "patch"
       ],
-      "minimumReleaseAge": "7 days",
-      "platformAutomerge": true
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "stability required dependencies: minor versions",
@@ -266,11 +298,7 @@
       "matchUpdateTypes": [
         "minor"
       ],
-      "minimumReleaseAge": "60 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "minimumReleaseAge": "60 days"
     },
     {
       "description": "stability required dependencies: major versions",
@@ -289,11 +317,7 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "180 days",
-      "schedule": [
-        "before 10am on Tuesday",
-        "before 10am on Thursday"
-      ]
+      "minimumReleaseAge": "180 days"
     },
     {
       "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
@@ -306,17 +330,11 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "270 days",
-      "schedule": [
-        "before 10am on Wednesday"
-      ]
+      "minimumReleaseAge": "270 days"
     }
   ],
   "prConcurrentLimit": 20,
   "prHourlyLimit": 10,
-  "pre-commit": {
-    "enabled": true
-  },
   "rebaseWhen": "behind-base-branch",
   "semanticCommits": "enabled",
   "semanticCommitScope": "deps",

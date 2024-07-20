@@ -34,8 +34,15 @@ module.exports = {
     'scope-enum': [2, 'always',
       [
         '',
+        'ansible-galaxy-collection',
+        'cli-tools',
         'deps',
-        'release'
+        'lang-sdk',
+        'npm-tools',
+        'python-tools',
+        'release',
+        'renovate',
+        'terraform-provider'
       ]
     ],
     // 'scope-empty': [2, 'always'],

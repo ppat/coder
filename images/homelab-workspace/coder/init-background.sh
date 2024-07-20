@@ -30,7 +30,7 @@ install_node() {
 install_npm_packages() {
   local npm_package_json="$1"
   eval "$(fnm env --shell bash --use-on-cd --fnm-dir $HOME/.fnm)"
-  for i in $(jq -r '.devDependencies | to_entries | map([.key, .value] | join("@")) | .[]' ${npm_package_json:?}); do
+  for i in $(jq -r '.dependencies | to_entries | map([.key, .value] | join("@")) | .[]' ${npm_package_json:?}); do
     echo "Installing $i..."
     npm install --global --no-audit $i 2>&1 | sed -E 's|^(.*)|    \1|g'
     echo
