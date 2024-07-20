@@ -66,6 +66,9 @@
         "major"
       ],
       "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "cli-tools"
     },
     {
@@ -124,6 +127,9 @@
         "major"
       ],
       "minimumReleaseAge": "90 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "npm-tools"
     },
     {
@@ -165,6 +171,9 @@
         "major"
       ],
       "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "python-tools"
     },
     {
@@ -202,6 +211,9 @@
         "major"
       ],
       "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "ansible-galaxy-collection"
     },
     {
@@ -244,6 +256,9 @@
         "minor"
       ],
       "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "terraform-provider"
     },
     {
@@ -260,6 +275,9 @@
         "major"
       ],
       "minimumReleaseAge": "90 days",
+      "reviewers": [
+        "ppat"
+      ],
       "semanticCommitScope": "terraform-provider"
     },
     {
@@ -340,6 +358,6 @@
   "semanticCommitScope": "deps",
   "semanticCommitType": "chore",
   "separateMajorMinor": true,
-  "separateMultipleMajor": false,
+  "separateMultipleMajor": true,
   "timezone": "US/Eastern"
 }
