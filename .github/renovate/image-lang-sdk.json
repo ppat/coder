@@ -6,7 +6,7 @@
         "image:lang-sdk"
       ],
       "commitMessageTopic": "{{packageName}}",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "sdk-{{packageName}}",
       "matchFileNames": [
         "images/**"
       ],

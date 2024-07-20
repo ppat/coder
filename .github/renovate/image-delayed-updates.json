@@ -5,7 +5,7 @@
       "automerge": false,
       "commitMessageTopic": "{{packageName}}",
       "description": "stability required dependencies: npm-minor-60d",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{packageName}}",
       "matchDatasources": [
         "github-releases"
       ],
@@ -24,7 +24,7 @@
       "automerge": false,
       "commitMessageTopic": "{{packageName}}",
       "description": "stability required dependencies: npm-minor-90d",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{packageName}}",
       "matchDatasources": [
         "github-releases"
       ],
@@ -60,7 +60,7 @@
       "commitBody": "BREAKING CHANGE",
       "commitMessageTopic": "{{packageName}}",
       "description": "stability required dependencies: npm-major-180d",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{packageName}}",
       "matchDatasources": [
         "github-releases"
       ],
@@ -79,6 +79,7 @@
     },
     {
       "automerge": false,
+      "commitBody": "BREAKING CHANGE",
       "commitMessageTopic": "{{packageName}}",
       "description": "stability required dependencies: pypi-major-180d",
       "groupName": "{{manager}}",
@@ -96,9 +97,10 @@
     },
     {
       "automerge": false,
+      "commitBody": "BREAKING CHANGE",
       "commitMessageTopic": "{{packageName}}",
       "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{packageName}}",
       "matchDatasources": [
         "docker"
       ],

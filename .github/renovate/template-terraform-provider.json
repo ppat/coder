@@ -6,7 +6,7 @@
         "template:terraform-provider"
       ],
       "commitMessageTopic": "{{packageName}}",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{datasource}}-{{packageName}}",
       "matchDatasources": [
         "terraform-provider"
       ],

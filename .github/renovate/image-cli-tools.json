@@ -6,7 +6,7 @@
         "image:cli-tools"
       ],
       "commitMessageTopic": "{{packageName}}",
-      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "groupName": "{{packageName}}",
       "matchFileNames": [
         "images/**"
       ],
