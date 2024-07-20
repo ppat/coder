@@ -2,10 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
     {
-      "description": "stability required dependencies: minor versions (60 days)",
+      "automerge": false,
+      "commitMessageTopic": "{{packageName}}",
+      "description": "stability required dependencies: npm-minor-60d",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
       "matchDatasources": [
-        "github-releases",
-        "pypi"
+        "github-releases"
       ],
       "matchPackageNames": [
         "fluxcd/flux2",
@@ -15,32 +17,54 @@
       "matchUpdateTypes": [
         "minor"
       ],
-      "minimumReleaseAge": "60 days"
+      "minimumReleaseAge": "60 days",
+      "semanticCommitType": "feat"
     },
     {
-      "description": "stability required dependencies: minor versions (90 days)",
+      "automerge": false,
+      "commitMessageTopic": "{{packageName}}",
+      "description": "stability required dependencies: npm-minor-90d",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
       "matchDatasources": [
-        "github-releases",
-        "pypi"
+        "github-releases"
       ],
       "matchPackageNames": [
-        "ansible-core",
         "hashicorp/packer",
         "kubernetes/kubernetes"
       ],
       "matchUpdateTypes": [
         "minor"
       ],
-      "minimumReleaseAge": "90 days"
+      "minimumReleaseAge": "90 days",
+      "semanticCommitType": "feat"
     },
     {
-      "description": "stability required dependencies: major versions (180 days)",
-      "matchDatasources": [
-        "github-releases",
-        "pypi"
+      "automerge": false,
+      "commitMessageTopic": "{{packageName}}",
+      "description": "stability required dependencies: pypi-minor-90d",
+      "groupName": "{{manager}}",
+      "matchManagers": [
+        "pip_requirements"
       ],
       "matchPackageNames": [
-        "ansible-core",
+        "ansible-core"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "90 days",
+      "semanticCommitType": "feat"
+    },
+    {
+      "automerge": false,
+      "commitBody": "BREAKING CHANGE",
+      "commitMessageTopic": "{{packageName}}",
+      "description": "stability required dependencies: npm-major-180d",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
         "fluxcd/flux2",
         "hashicorp/terraform",
         "hashicorp/packer",
@@ -50,10 +74,31 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "180 days"
+      "minimumReleaseAge": "180 days",
+      "semanticCommitType": "feat"
     },
     {
+      "automerge": false,
+      "commitMessageTopic": "{{packageName}}",
+      "description": "stability required dependencies: pypi-major-180d",
+      "groupName": "{{manager}}",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "ansible-core"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "180 days",
+      "semanticCommitType": "feat"
+    },
+    {
+      "automerge": false,
+      "commitMessageTopic": "{{packageName}}",
       "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
+      "groupName": "{{datasource}}-{{depNameSanitized}}",
       "matchDatasources": [
         "docker"
       ],
@@ -63,7 +108,8 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "270 days"
+      "minimumReleaseAge": "270 days",
+      "semanticCommitType": "feat"
     }
   ]
 }
