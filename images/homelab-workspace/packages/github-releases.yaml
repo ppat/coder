@@ -79,7 +79,7 @@
 - name: kubeconform
   repo: https://github.com/yannh/kubeconform
   # renovate: datasource=github-releases depName=yannh/kubeconform
-  tag: "v0.6.6"
+  tag: "v0.6.7"
   asset_regex: "kubeconform-linux-${TARGETARCH}.tar.gz"
 - name: kustomize
   repo: https://github.com/kubernetes-sigs/kustomize
