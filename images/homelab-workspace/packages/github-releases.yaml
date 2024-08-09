@@ -51,7 +51,7 @@
 - name: gh
   repo: https://github.com/cli/cli
   # renovate: datasource=github-releases depName=cli/cli
-  tag: "v2.53.0"
+  tag: "v2.54.0"
   asset_regex: ".*_linux_${TARGETARCH}.tar.gz"
   unarchive_opts: "--strip-components 2"
 - name: hadolint
