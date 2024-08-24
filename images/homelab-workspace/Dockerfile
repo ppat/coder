@@ -275,7 +275,7 @@ WORKDIR /tmp
 
 # Golang (as per official instructions from https://go.dev/doc/install)
 # renovate: datasource=golang-version depName=golang
-ARG GOLANG_VERSION="1.22.5"
+ARG GOLANG_VERSION="1.22.6"
 ENV GOROOT="/usr/local/go"
 ENV PATH="$PATH:$GOROOT/bin"
 RUN --mount=type=tmpfs,target=/tmp \
