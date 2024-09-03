@@ -2,6 +2,43 @@
 
 
 
+## [1.8.0](https://github.com/ppat/coder/compare/v1.7.6...v1.8.0) (2024-09-03)
+
+### ✨ Features
+
+* **cli-tools:** update dandavison/delta (0.17.0 -> 0.18.0) ([#147](https://github.com/ppat/coder/issues/147)) ([415b7da](https://github.com/ppat/coder/commit/415b7da19dad45256c735572d58bcf3e505a6560))
+* **cli-tools:** update hashicorp/terraform (v1.8.5 -> v1.9.1) ([#152](https://github.com/ppat/coder/issues/152)) ([ce5343c](https://github.com/ppat/coder/commit/ce5343c030553337913950f5ad3305de72b0ba90))
+* **cli-tools:** update kubernetes-sigs/kind (v0.23.0 -> v0.24.0) ([#145](https://github.com/ppat/coder/issues/145)) ([c7983ce](https://github.com/ppat/coder/commit/c7983ceaf80453097adee9cb40c6e5766ff431fc))
+* **cli-tools:** update terraform-linters/tflint (v0.52.0 -> v0.53.0) ([#149](https://github.com/ppat/coder/issues/149)) ([42be84a](https://github.com/ppat/coder/commit/42be84a46676a985f3461d988b9a04cc7596d3ec))
+* **cli-tools:** update wilfred/difftastic (0.58.0 -> 0.59.0) ([#126](https://github.com/ppat/coder/issues/126)) ([6c7ba0d](https://github.com/ppat/coder/commit/6c7ba0d6fa224db2ee5cdb3b2463ed680bb38385))
+* **cli-tools:** update wilfred/difftastic (0.59.0 -> 0.60.0) ([#135](https://github.com/ppat/coder/issues/135)) ([77b8478](https://github.com/ppat/coder/commit/77b8478a8c5061cbeaffba47f7a282394e3af4bf))
+* **galaxy-collection:** update galaxy-collection ([#132](https://github.com/ppat/coder/issues/132)) ([ba65beb](https://github.com/ppat/coder/commit/ba65bebe6ea0ee8f678da628452f1e4cf189ee97))
+* **lang-sdk:** update node (v20.15.1 -> v20.16.0) ([#146](https://github.com/ppat/coder/issues/146)) ([a9a02b0](https://github.com/ppat/coder/commit/a9a02b0cc5c1deccb004df005600d4e21ea9b859))
+* **lang-sdk:** update rust-lang/rust (1.79.0 -> 1.80.0) ([#150](https://github.com/ppat/coder/issues/150)) ([fdc3a9a](https://github.com/ppat/coder/commit/fdc3a9aede61e37a638281bc1c8b84aca392e06c))
+* **npm-tools:** update renovate (37.413.5 -> 37.414.1) ([#121](https://github.com/ppat/coder/issues/121)) ([36eaba8](https://github.com/ppat/coder/commit/36eaba8cb46c8b9622b3037bb658c47dfff550e1))
+* **npm-tools:** update renovate (37.414.1 -> 37.440.6) ([#127](https://github.com/ppat/coder/issues/127)) ([be2eb90](https://github.com/ppat/coder/commit/be2eb90db8fce4844554ef5cb581ebbc7beefb37))
+* **pypi-tools:** update pre-commit (3.7.1 -> 3.8.0) ([#155](https://github.com/ppat/coder/issues/155)) ([90be31d](https://github.com/ppat/coder/commit/90be31d0880cd50e723bf2bfcee03194b8b32fc5))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** install critical cli-tools at image build time + rest at agent-startup ([#161](https://github.com/ppat/coder/issues/161)) ([452e01c](https://github.com/ppat/coder/commit/452e01c33bbb1a027212acea880d76bd1b807b9f))
+* **cli-tools:** update dandavison/delta (0.18.0 -> 0.18.1) ([#153](https://github.com/ppat/coder/issues/153)) ([e49e62a](https://github.com/ppat/coder/commit/e49e62ae008627a7b1264102edbab453c381d272))
+* **cli-tools:** update helm/helm (v3.15.3 -> v3.15.4) ([#140](https://github.com/ppat/coder/issues/140)) ([0f6781c](https://github.com/ppat/coder/commit/0f6781cefd2d10b5843bf3348d957701134a5ccc))
+* **cli-tools:** update kubernetes/kubernetes (v1.30.2 -> v1.30.3) ([#120](https://github.com/ppat/coder/issues/120)) ([53854b7](https://github.com/ppat/coder/commit/53854b7394fd3a8dd85a8f6c8235deadd49c854a))
+* **cli-tools:** update kubernetes/kubernetes (v1.30.3 -> v1.30.4) ([#141](https://github.com/ppat/coder/issues/141)) ([8066ad3](https://github.com/ppat/coder/commit/8066ad3c56b42c73795aeff352ec33d617e08293))
+* **cli-tools:** update mikefarah/yq (v4.44.2 -> v4.44.3) ([#133](https://github.com/ppat/coder/issues/133)) ([937452f](https://github.com/ppat/coder/commit/937452fdf5a5a77445041f353044697d00360786))
+* **cli-tools:** update nektos/act (v0.2.64 -> v0.2.65) ([#131](https://github.com/ppat/coder/issues/131)) ([2db844a](https://github.com/ppat/coder/commit/2db844ab2a72eb040f61b41fe6782d8710ddf011))
+* **cli-tools:** update yannh/kubeconform (v0.6.6 -> v0.6.7) ([#130](https://github.com/ppat/coder/issues/130)) ([3d77dc8](https://github.com/ppat/coder/commit/3d77dc8281382b64886b3b274d0aeed10e945327))
+* **lang-sdk:** update golang (1.22.5 -> 1.22.6) ([#138](https://github.com/ppat/coder/issues/138)) ([91ea8bb](https://github.com/ppat/coder/commit/91ea8bb5e24f57925ec74359ef6ff7726ddcdfce))
+* **npm-tools:** update npm ([#117](https://github.com/ppat/coder/issues/117)) ([793d30d](https://github.com/ppat/coder/commit/793d30d2719a50ea99f6fa5149e495635a1f59d0))
+* **pypi-tools:** update ansible-core (2.17.1 -> 2.17.2) ([#123](https://github.com/ppat/coder/issues/123)) ([0f7e6de](https://github.com/ppat/coder/commit/0f7e6de99b66977ebed601ac2ad571e6d8befabe))
+* **pypi-tools:** update ansible-core (2.17.2 -> 2.17.3) ([#144](https://github.com/ppat/coder/issues/144)) ([1d9ed68](https://github.com/ppat/coder/commit/1d9ed68a8ca1dff101d99e1a5e29f330970f8374))
+
+### 📌 Dependencies
+
+* **deps:** update dependency renovate to v37.413.2 ([#103](https://github.com/ppat/coder/issues/103)) ([2664136](https://github.com/ppat/coder/commit/266413615920e4893b34f267c6b3a3fc4ecc6631))
+* **deps:** update tj-actions/changed-files digest to 6b2903b ([#102](https://github.com/ppat/coder/issues/102)) ([1b2d0cf](https://github.com/ppat/coder/commit/1b2d0cff65529f84697c33dcfe80d77803032667))
+
 ## [1.7.6](https://github.com/ppat/coder/compare/v1.7.5...v1.7.6) (2024-07-19)
 
 ### 🐛 Enhancements + Bug Fixes
