@@ -2,6 +2,12 @@
 
 
 
+## [1.8.1](https://github.com/ppat/coder/compare/v1.8.0...v1.8.1) (2024-09-03)
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** fix github-releases install at agent-startup ([#163](https://github.com/ppat/coder/issues/163)) ([aaa9162](https://github.com/ppat/coder/commit/aaa9162b7a30487d4e5eb407b622e7b3a490af8e))
+
 ## [1.8.0](https://github.com/ppat/coder/compare/v1.7.6...v1.8.0) (2024-09-03)
 
 ### ✨ Features
