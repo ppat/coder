@@ -54,6 +54,9 @@ main() {
   echo "Installing npm packages..."
   install_npm_packages /opt/fnm/npm-packages.json 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
+  echo "Installing packages from github-releases..."
+  /opt/coder/bin/install-from-github-release.sh /packages/github-releases.yaml $HOME/.local/bin
+  echo "--------------------------------------------------------------------------------------"
   echo "Maintaining krew plugins..."
   $(dirname ${0})/init-krew-plugins.sh 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"

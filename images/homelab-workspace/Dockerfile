@@ -222,15 +222,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS packages
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-COPY --chown=root:root --chmod=644 packages /packages/${TARGETARCH}
-
-
-# ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-nodejs
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -380,6 +371,36 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/packer /usr/local/sbin/packer && \
     upx /usr/local/sbin/packer
 
+# flux
+# renovate: datasource=github-releases depName=fluxcd/flux2
+ARG FLUX_VERSION="2.3.0"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/flux /usr/local/sbin/flux && \
+    upx /usr/local/sbin/flux
+
+# k9s
+# renovate: datasource=github-releases depName=derailed/k9s
+ARG K9S_VERSION="0.32.5"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/k9s /usr/local/sbin/k9s && \
+    upx /usr/local/sbin/k9s
+
+# krew
+# renovate: datasource=github-releases depName=kubernetes-sigs/krew
+ARG KREW_VERSION="0.4.4"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/kubernetes-sigs/krew/releases/download/v${KREW_VERSION}/krew-linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/krew-linux_${TARGETARCH} /usr/local/sbin/kubectl-krew && \
+    upx /usr/local/sbin/kubectl-krew
+
 # minio-cli
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -387,23 +408,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
     install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
     upx /usr/local/sbin/mc
-
-
-# ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS github-release-downloads
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# install apps from github releases
-# hadolint ignore=SC2155
-RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
-    --mount=type=secret,id=FETCH_GH_TOKEN \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    export FETCH_GH_TOKEN="$(cat /run/secrets/FETCH_GH_TOKEN)" && \
-    /bin/bash /packages/install-from-github-release.sh /packages/github-releases.yaml
 
 
 # ========================================================================================================
@@ -416,9 +420,11 @@ WORKDIR /tmp
 ENV PIPX_HOME=/opt/pipx
 ENV PIPX_BIN_DIR=/opt/pipx/bin
 ENV PATH="$PATH:$PIPX_BIN_DIR"
+
+COPY --chown=root:root --chmod=644 packages /packages
+
 # hadolint ignore=DL3013,SC2086
-RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
-    --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
+RUN --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     mkdir ${PIPX_HOME} && \
@@ -430,8 +436,7 @@ RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packa
 
 # ansible and its dependencies, related apps and collections
 # hadolint ignore=SC2046,SC2016
-RUN --mount=type=bind,from=packages,source=/packages/${TARGETARCH},target=/packages \
-    --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
+RUN --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     # ----------------------------------------------------------------------------------------------------
@@ -468,7 +473,6 @@ COPY --from=python-packages /opt/ansible /opt/ansible
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
-COPY --from=github-release-downloads /usr/local/sbin/* /usr/local/sbin/
 COPY --from=sdk-rust-cargo /usr/local/bin/* /usr/local/sbin/
 COPY --from=sdk-golang /usr/local/bin/* /usr/local/sbin/
 
@@ -497,6 +501,7 @@ COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc.extra /etc/skel/.bash
 
 # coder initialization scripts
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
+COPY --link --chown=root:root --chmod=644 packages/github-releases-${TARGETARCH}.yaml /opt/packages-github-releases.yaml
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
