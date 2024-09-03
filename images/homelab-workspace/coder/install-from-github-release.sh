@@ -2,10 +2,10 @@
 set -euo pipefail
 
 RELEASES_FILE="$1"
-INSTALL_DIR="${2:-"/usr/local/sbin"}"
+INSTALL_DIR="${2:-"~/.local/bin"}"
 RELEASES_TOKEN="${FETCH_GH_TOKEN:-""}"
-OWNER='root'
-GROUP='root'
+OWNER="$(id -u)"
+GROUP="$(id -g)"
 MODE='0755'
 if [[ -z "$RELEASES_FILE" ]]; then
   echo "Path to releases file must be provided.!"
@@ -116,25 +116,6 @@ install_release() {
 
 main() {
   local release_yaml="$1"
-
-  if [[ -z "${TARGETARCH}" ]]; then
-    echo "Target architecture is unknown!"
-    exit 1
-  fi
-  set -o allexport
-  if [[ "${TARGETARCH}" == "amd64" ]]; then
-    export TARGETARCH_ALTERNATE_BOTH="x86_64"
-    export TARGETARCH_ALTERNATE_X86_ONLY="x86_64"
-    export TARGETARCH_ALTERNATE_ARM_ONLY="${TARGETARCH}"
-  elif [[ "${TARGETARCH}" == "arm64" ]]; then
-    export TARGETARCH_ALTERNATE_BOTH="aarch64"
-    export TARGETARCH_ALTERNATE_X86_ONLY="${TARGETARCH}"
-    export TARGETARCH_ALTERNATE_ARM_ONLY="aarch64"
-  fi
-  set +o allexport
-  echo "Target architecturen:"
-  env | sort | grep "^TARGETARCH" | pr -t -o 4
-  echo
 
   # process each github-release
   for item in $(yq -e '.[].name' $release_yaml); do
