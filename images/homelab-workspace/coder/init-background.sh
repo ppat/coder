@@ -37,10 +37,6 @@ install_npm_packages() {
   done
 }
 
-install_github_releases() {
-
-}
-
 main() {
   echo "Starting..."
   echo "--------------------------------------------------------------------------------------"
