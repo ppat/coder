@@ -401,6 +401,16 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/krew-linux_${TARGETARCH} /usr/local/sbin/kubectl-krew && \
     upx /usr/local/sbin/kubectl-krew
 
+# kustomize
+# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
+ARG KUSTOMIZE_VERSION="5.2.1"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/kustomize /usr/local/sbin/kustomize && \
+    upx /usr/local/sbin/kustomize
+
 # minio-cli
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \

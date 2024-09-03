@@ -1,34 +1,56 @@
 # kubectl
-source <(kubectl completion bash)
-alias k=kubectl
-complete -o default -F __start_kubectl k
+if command -v kubectl > /dev/null; then
+  source <(kubectl completion bash)
+  alias k=kubectl
+  complete -o default -F __start_kubectl k
+fi
 
 # helm
-source <(helm completion bash)
+if command -v helm > /dev/null; then
+  source <(helm completion bash)
+fi
 
 # kustomize
-source <(kustomize completion bash)
+if command -v kustomize > /dev/null; then
+  source <(kustomize completion bash)
+fi
 
 # terraform
-complete -C /opt/tfenv/versions/$(ls /opt/tfenv/versions | sort -rn | head -1)/terraform terraform
+if find /opt/tfenv/versions/ -name terraform -type f -executable > /dev/null; then
+  complete -C /opt/tfenv/versions/$(ls /opt/tfenv/versions | sort -rn | head -1)/terraform terraform
+fi
 
 # yq
-source <(yq shell-completion bash)
+if command -v yq > /dev/null; then
+  source <(yq shell-completion bash)
+fi
 
 # poetry
-source <(poetry completions bash)
+if command -v poetry > /dev/null; then
+  source <(poetry completions bash)
+fi
 
 # pip
-source <(pip completion --bash)
+if command -v pip > /dev/null; then
+  source <(pip completion --bash)
+fi
 
 # flux
-source <(flux completion bash)
+if command -v flux > /dev/null; then
+  source <(flux completion bash)
+fi
 
 # gh
-source <(gh completion -s bash)
+if command -v gh > /dev/null; then
+  source <(gh completion -s bash)
+fi
 
 # kind
-source <(kind completion bash)
+if command -v kind > /dev/null; then
+  source <(kind completion bash)
+fi
 
 # mc
-complete -C /usr/local/sbin/mc mc
+if [[ -f /usr/local/sbin/mc ]]; then
+  complete -C /usr/local/sbin/mc mc
+fi

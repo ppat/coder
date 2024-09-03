@@ -63,11 +63,6 @@
   # renovate: datasource=github-releases depName=yannh/kubeconform
   tag: "v0.6.7"
   asset_regex: "kubeconform-linux-amd64.tar.gz"
-- name: kustomize
-  repo: https://github.com/kubernetes-sigs/kustomize
-  # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
-  tag: "v5.2.1"
-  asset_regex: ".*_linux_amd64.tar.gz"
 - name: shellcheck
   repo: https://github.com/koalaman/shellcheck
   # renovate: datasource=github-releases depName=koalaman/shellcheck

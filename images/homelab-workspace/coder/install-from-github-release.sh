@@ -75,6 +75,11 @@ install_release() {
   local package_name="$1"
   local release_yaml="$2"
 
+  if [[ -f $INSTALL_DIR/$package_name ]]; then
+    echo "Already exists... skipping."
+    return
+  fi
+
   # read package configuration from yaml
   local repo="$(yq -e '.[] | select(.name == "'$package_name'") | .repo' $release_yaml)"
   local tag="$(yq -e '.[] | select(.name == "'$package_name'") | .tag' $release_yaml)"
