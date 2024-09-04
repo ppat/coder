@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@bitwarden/cli": "2024.6.1",
-    "renovate": "37.440.6"
+    "@bitwarden/cli": "2024.7.2",
+    "renovate": "37.440.7"
   }
 }
