@@ -362,7 +362,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # packer
 # renovate: datasource=github-releases depName=hashicorp/packer
-ARG PACKER_VERSION="1.10.3"
+ARG PACKER_VERSION="1.11.0"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
