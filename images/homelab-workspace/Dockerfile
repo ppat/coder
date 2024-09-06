@@ -403,7 +403,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # kustomize
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
-ARG KUSTOMIZE_VERSION="5.4.2"
+ARG KUSTOMIZE_VERSION="5.4.3"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
