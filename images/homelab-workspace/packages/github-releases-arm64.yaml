@@ -2,7 +2,7 @@
 - name: act
   repo: https://github.com/nektos/act
   # renovate: datasource=github-releases depName=nektos/act
-  tag: "v0.2.66"
+  tag: "v0.2.67"
   asset_regex: "act_Linux_arm64.tar.gz"
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
