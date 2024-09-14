@@ -77,5 +77,5 @@
 - name: zoxide
   repo: https://github.com/ajeetdsouza/zoxide
   # renovate: datasource=github-releases depName=ajeetdsouza/zoxide
-  tag: "v0.9.4"
+  tag: "v0.9.5"
   asset_regex: ".*-aarch64-unknown-linux-musl.tar.gz"
