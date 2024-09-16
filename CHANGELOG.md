@@ -2,6 +2,35 @@
 
 
 
+## [1.9.0](https://github.com/ppat/coder/compare/v1.8.1...v1.9.0) (2024-09-16)
+
+### ✨ Features
+
+* **cli-tools:** update cli/cli (v2.53.0 -> v2.55.0) ([#169](https://github.com/ppat/coder/issues/169)) ([fe3fb4d](https://github.com/ppat/coder/commit/fe3fb4dcd4f82492105763f4cb2a12d9c9711361))
+* **cli-tools:** update hashicorp/packer (v1.10.3 -> v1.11.0) ([#157](https://github.com/ppat/coder/issues/157)) ([1a30811](https://github.com/ppat/coder/commit/1a3081110851b794da47dff851daded7b28e2f5a))
+* **cli-tools:** update kubernetes-sigs/kustomize (v5.2.1 -> v5.4.2) ([#162](https://github.com/ppat/coder/issues/162)) ([cd65576](https://github.com/ppat/coder/commit/cd6557653c94375a9a4da9c89d5bf1e96f351cb8))
+* **galaxy-collection:** update ansible.posix (1.5.4 -> 1.6.0) ([#179](https://github.com/ppat/coder/issues/179)) ([8f0ac6c](https://github.com/ppat/coder/commit/8f0ac6c5ae02029e13a1ab67410f987c182caba0))
+* **galaxy-collection:** update community.general (9.3.0 -> 9.4.0) ([#173](https://github.com/ppat/coder/issues/173)) ([05f9476](https://github.com/ppat/coder/commit/05f9476e5a10a778ef77b0979c9ac83d0adb401f))
+* **lang-sdk:** update golang (1.22.7 -> 1.23.0) ([#177](https://github.com/ppat/coder/issues/177)) ([b0b267f](https://github.com/ppat/coder/commit/b0b267f9e78e6cc6c9c2f2ff23076ecfc626ba5c))
+* **npm-tools:** update npm ([#151](https://github.com/ppat/coder/issues/151)) ([5db0d5e](https://github.com/ppat/coder/commit/5db0d5eca9aca38354fe89e16123c9c909157eec))
+* **pypi-tools:** update molecule (24.7.0 -> 24.8.0) ([#186](https://github.com/ppat/coder/issues/186)) ([25fa46d](https://github.com/ppat/coder/commit/25fa46d14388293bf33b0be3b1323424a811bfd2))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update ajeetdsouza/zoxide (v0.9.4 -> v0.9.5) ([#184](https://github.com/ppat/coder/issues/184)) ([4e0b215](https://github.com/ppat/coder/commit/4e0b215f349f999acb84a811386aef174a23d867))
+* **cli-tools:** update dandavison/delta (0.18.1 -> 0.18.2) ([#180](https://github.com/ppat/coder/issues/180)) ([a4216ba](https://github.com/ppat/coder/commit/a4216bab5f20d838a2abf94c5140f51dec1f1635))
+* **cli-tools:** update hashicorp/packer (v1.11.0 -> v1.11.2) ([#168](https://github.com/ppat/coder/issues/168)) ([44aa93f](https://github.com/ppat/coder/commit/44aa93f1624d019ada39af7bd4f7272d5ae46568))
+* **cli-tools:** update hashicorp/terraform (v1.9.1 -> v1.9.5) ([#159](https://github.com/ppat/coder/issues/159)) ([acbcb82](https://github.com/ppat/coder/commit/acbcb824bd8f894f2dd7980bad6597cc44ef73bf))
+* **cli-tools:** update kubernetes-sigs/kustomize (v5.4.2 -> v5.4.3) ([#165](https://github.com/ppat/coder/issues/165)) ([1fd67ad](https://github.com/ppat/coder/commit/1fd67adcc244e6e65da0fe0da430fe5d523de2d9))
+* **cli-tools:** update kubernetes/kubernetes (v1.30.4 -> v1.30.5) ([#181](https://github.com/ppat/coder/issues/181)) ([c8aeb7a](https://github.com/ppat/coder/commit/c8aeb7a8968a0b869bd20a138de01f68ab415c16))
+* **cli-tools:** update nektos/act (v0.2.65 -> v0.2.66) ([#160](https://github.com/ppat/coder/issues/160)) ([ca55223](https://github.com/ppat/coder/commit/ca55223a847a43e25ae4505bb19804de956344ca))
+* **cli-tools:** update nektos/act (v0.2.66 -> v0.2.67) ([#175](https://github.com/ppat/coder/issues/175)) ([76a70d6](https://github.com/ppat/coder/commit/76a70d6f7875b2c2e18b8c4bb5417b2ba1dcaee2))
+* **galaxy-collection:** update ansible.utils (5.1.0 -> 5.1.1) ([#167](https://github.com/ppat/coder/issues/167)) ([18199fb](https://github.com/ppat/coder/commit/18199fb49c5b99240c68de848102074d7eff47d0))
+* **lang-sdk:** update golang (1.22.6 -> 1.22.7) ([#176](https://github.com/ppat/coder/issues/176)) ([d34b768](https://github.com/ppat/coder/commit/d34b768beb4f3339c670d2b1290faa4c2c217f0e))
+* **lang-sdk:** update golang (1.23.0 -> 1.23.1) ([#183](https://github.com/ppat/coder/issues/183)) ([fedc335](https://github.com/ppat/coder/commit/fedc33574e9012d5cfbd0b9e7b861e7503b35eb2))
+* **lang-sdk:** update rust-lang/rust (1.80.0 -> 1.80.1) ([#178](https://github.com/ppat/coder/issues/178)) ([ea4e606](https://github.com/ppat/coder/commit/ea4e6065804bcaeb2a5bd9d2b719f700cd89388c))
+* **terraform-provider:** update coder/coder (1.0.1 -> 1.0.2) ([#174](https://github.com/ppat/coder/issues/174)) ([9fa74ad](https://github.com/ppat/coder/commit/9fa74ade58d5a7df23259b84bdf3634d9b140f65))
+
 ## [1.8.1](https://github.com/ppat/coder/compare/v1.8.0...v1.8.1) (2024-09-03)
 
 ### 🐛 Enhancements + Bug Fixes
