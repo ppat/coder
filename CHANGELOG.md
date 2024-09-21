@@ -2,6 +2,23 @@
 
 
 
+## [1.10.0](https://github.com/ppat/coder/compare/v1.9.0...v1.10.0) (2024-09-21)
+
+### ✨ Features
+
+* add release-please npm package ([#191](https://github.com/ppat/coder/issues/191)) ([ea65dfd](https://github.com/ppat/coder/commit/ea65dfdef37adb4ea06f9042b129a03d0fbd78a0))
+* **cli-tools:** update cli/cli (v2.55.0 -> v2.56.0) ([#188](https://github.com/ppat/coder/issues/188)) ([c858fa9](https://github.com/ppat/coder/commit/c858fa9b825eeee1cd6d624175a96079c1d44d11))
+* **cli-tools:** update helm/helm (v3.15.4 -> v3.16.0) ([#195](https://github.com/ppat/coder/issues/195)) ([1ee7749](https://github.com/ppat/coder/commit/1ee77497bdfa20e8e42f713e3a748e03cc50c5d2))
+* **lang-sdk:** update node (v20.16.0 -> v20.17.0) ([#200](https://github.com/ppat/coder/issues/200)) ([bee63fc](https://github.com/ppat/coder/commit/bee63fc9f34f6b3edf4e839bd08732d6539aef0f))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update ajeetdsouza/zoxide (v0.9.5 -> v0.9.6) ([#201](https://github.com/ppat/coder/issues/201)) ([0b61491](https://github.com/ppat/coder/commit/0b6149184e193f0165fcc7a83f605cdb28a4a486))
+* **cli-tools:** update hashicorp/terraform (v1.9.5 -> v1.9.6) ([#197](https://github.com/ppat/coder/issues/197)) ([9d39270](https://github.com/ppat/coder/commit/9d392701f3d12d245ab4f5ff58302eecf4b33c98))
+* **cli-tools:** update helm/helm (v3.16.0 -> v3.16.1) ([#198](https://github.com/ppat/coder/issues/198)) ([05f0e59](https://github.com/ppat/coder/commit/05f0e591309031627ce1fb3a113d11b1476ced3d))
+* **galaxy-collection:** update community.docker (3.12.1 -> 3.12.2) ([#192](https://github.com/ppat/coder/issues/192)) ([d3b96a2](https://github.com/ppat/coder/commit/d3b96a22c0912aa9ad1ed2006ed9c9413f22bdc7))
+* **pypi-tools:** update ansible-core (2.17.3 -> 2.17.4) ([#189](https://github.com/ppat/coder/issues/189)) ([395baaa](https://github.com/ppat/coder/commit/395baaa8ba5316c3154304569df6506c5a3172e2))
+
 ## [1.9.0](https://github.com/ppat/coder/compare/v1.8.1...v1.9.0) (2024-09-16)
 
 ### ✨ Features
