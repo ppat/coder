@@ -7,7 +7,7 @@
 - name: actionlint
   repo: https://github.com/rhysd/actionlint
   # renovate: datasource=github-releases depName=rhysd/actionlint
-  tag: "v1.7.1"
+  tag: "v1.7.2"
   asset_regex: ".*_linux_arm64.tar.gz"
 - name: atuin
   repo: https://github.com/atuinsh/atuin
