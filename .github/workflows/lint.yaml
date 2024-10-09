@@ -64,7 +64,7 @@ jobs:
       uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4
 
     - name: Cache pre-commit hooks
-      uses: actions/cache@2cdf405574d6ef1f33a1d12acccd3ae82f47b3f2 # v4
+      uses: actions/cache@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4
       with:
         path: ~/.cache/pre-commit/
         key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
