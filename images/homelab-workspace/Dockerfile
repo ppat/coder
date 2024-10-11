@@ -352,7 +352,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # helm
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="3.16.1"
+ARG HELM_VERSION="3.16.2"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
