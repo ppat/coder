@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@bitwarden/cli": "2024.8.2",
-    "release-please": "16.12.2",
+    "release-please": "16.13.0",
     "renovate": "37.440.7"
   }
 }
