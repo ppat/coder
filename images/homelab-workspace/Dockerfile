@@ -317,7 +317,7 @@ WORKDIR /tmp
 # renovate: datasource=github-releases depName=tfutils/tfenv
 ARG TFENV_VERSION="3.0.0"
 # renovate: datasource=github-releases depName=hashicorp/terraform
-ARG TERRAFORM_VERSION="1.9.7"
+ARG TERRAFORM_VERSION="1.9.8"
 ENV PATH="${PATH}:/opt/tfenv/bin"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
