@@ -373,7 +373,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # flux
 # renovate: datasource=github-releases depName=fluxcd/flux2
-ARG FLUX_VERSION="2.3.0"
+ARG FLUX_VERSION="2.4.0"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
