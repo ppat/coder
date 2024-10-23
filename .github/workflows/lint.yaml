@@ -45,7 +45,7 @@ jobs:
       run: pipx install poetry==$POETRY_VERSION
       env:
         # renovate: datasource=pypi depName=poetry
-        POETRY_VERSION: "1.8.3"
+        POETRY_VERSION: "1.8.4"
 
     - name: Set up python
       uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3 # v5
@@ -153,7 +153,7 @@ jobs:
         actionlint -shellcheck "shellcheck -c .shellcheckrc"
       env:
         # renovate: datasource=github-releases depName=rhysd/actionlint
-        ACTIONLINT_VERSION: "1.7.1"
+        ACTIONLINT_VERSION: "1.7.3"
 
     - name: commitlint
       if: (success() || failure()) && (github.event_name == 'pull_request')
