@@ -26,7 +26,7 @@
 - name: difft
   repo: https://github.com/Wilfred/difftastic
   # renovate: datasource=github-releases depName=Wilfred/difftastic
-  tag: "0.60.0"
+  tag: "0.61.0"
   asset_regex: "difft-aarch64-unknown-linux-gnu.tar.gz"
   asset_files:
   - source: difft
