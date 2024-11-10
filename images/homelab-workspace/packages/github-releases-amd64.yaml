@@ -18,7 +18,7 @@
 - name: czkawka
   repo: https://github.com/qarmin/czkawka
   # renovate: datasource=github-releases depName=qarmin/czkawka
-  tag: "7.0.0"
+  tag: "8.0.0"
   asset_regex: "linux_czkawka_cli"
   asset_files:
   - source: linux_czkawka_cli
