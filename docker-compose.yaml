@@ -23,7 +23,7 @@ services:
       database:
         condition: service_healthy
   database:
-    image: "postgres:16.4@sha256:91f464e7ba0ad91a106c94cff079fb4384139291b8c0502fd36989cf2c788bbb"
+    image: "postgres:17.1@sha256:163763c8afd28cae69035ce84b12d8180179559c747c0701b3cad17818a0dbc5"
     environment:
       POSTGRES_USER: coder
       POSTGRES_PASSWORD: coder
