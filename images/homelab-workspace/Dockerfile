@@ -280,7 +280,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # kind
 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
-ARG KIND_VERSION="0.24.0"
+ARG KIND_VERSION="0.25.0"
 RUN --mount=type=tmpfs,target=/tmp \
     export GOPATH="/usr/local" && \
     go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
