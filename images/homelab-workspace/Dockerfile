@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM ubuntu:noble@sha256:8a37d68f4f73ebf3d4efafbcf66379bf3728902a8038616808f04e34a9ab63ee AS base
+FROM --platform=$TARGETPLATFORM ubuntu:noble@sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295 AS base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -71,7 +71,7 @@ RUN wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${U
 
 # yq
 # renovate: datasource=github-releases depName=mikefarah/yq
-ARG YQ_VERSION="4.44.3"
+ARG YQ_VERSION="4.44.5"
 RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
     upx /usr/local/sbin/yq && \
@@ -266,7 +266,7 @@ WORKDIR /tmp
 
 # Golang (as per official instructions from https://go.dev/doc/install)
 # renovate: datasource=golang-version depName=golang
-ARG GOLANG_VERSION="1.23.2"
+ARG GOLANG_VERSION="1.23.3"
 ENV GOROOT="/usr/local/go"
 ENV PATH="$PATH:$GOROOT/bin"
 RUN --mount=type=tmpfs,target=/tmp \
@@ -280,7 +280,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # kind
 # renovate: datasource=github-releases depName=kubernetes-sigs/kind
-ARG KIND_VERSION="0.24.0"
+ARG KIND_VERSION="0.25.0"
 RUN --mount=type=tmpfs,target=/tmp \
     export GOPATH="/usr/local" && \
     go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
@@ -296,7 +296,7 @@ WORKDIR /tmp
 
 # Rust / Cargo
 # renovate: datasource=github-releases depName=rust-lang/rust
-ARG RUST_VERSION="1.81.0"
+ARG RUST_VERSION="1.82.0"
 ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
@@ -352,7 +352,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # helm
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="3.16.2"
+ARG HELM_VERSION="3.16.3"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
@@ -383,7 +383,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # k9s
 # renovate: datasource=github-releases depName=derailed/k9s
-ARG K9S_VERSION="0.32.5"
+ARG K9S_VERSION="0.32.6"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
