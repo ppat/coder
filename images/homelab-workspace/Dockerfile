@@ -296,7 +296,7 @@ WORKDIR /tmp
 
 # Rust / Cargo
 # renovate: datasource=github-releases depName=rust-lang/rust
-ARG RUST_VERSION="1.81.0"
+ARG RUST_VERSION="1.82.0"
 ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
