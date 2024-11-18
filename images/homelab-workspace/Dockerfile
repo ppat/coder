@@ -383,7 +383,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # k9s
 # renovate: datasource=github-releases depName=derailed/k9s
-ARG K9S_VERSION="0.32.6"
+ARG K9S_VERSION="0.32.7"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
