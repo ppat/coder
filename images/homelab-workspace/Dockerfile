@@ -254,9 +254,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     echo "NODE_VERSION=$NODE_VERSION" >> /env/fnm.env && \
     echo "$FNM_ROOT" > /env/fnm.path
 
-# npm packages: installed by agent-startup-script
-COPY --link --chown=root:root --chmod=644 packages/npm-packages.json /opt/fnm/npm-packages.json
-
 
 # ========================================================================================================
 FROM --platform=$TARGETPLATFORM base AS sdk-golang
@@ -316,20 +313,16 @@ WORKDIR /tmp
 # tfenv + terraform
 # renovate: datasource=github-releases depName=tfutils/tfenv
 ARG TFENV_VERSION="3.0.0"
-# renovate: datasource=github-releases depName=hashicorp/terraform
-ARG TERRAFORM_VERSION="1.9.8"
 ENV PATH="${PATH}:/opt/tfenv/bin"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
     git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.git /opt/tfenv 2> /dev/null && \
-    tfenv install ${TERRAFORM_VERSION} && \
-    tfenv use ${TERRAFORM_VERSION} && \
-    upx /opt/tfenv/versions/${TERRAFORM_VERSION}/terraform && \
     chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
     mkdir /env && \
-    echo "/opt/tfenv/bin" > /env/terraform.path
+    echo "/opt/tfenv/bin" > /env/terraform.path && \
+    echo 'TFENV_CONFIG_DIR=$HOME/.tfenv' > /env/tfenv_dir.env
 
 
 # ========================================================================================================
@@ -421,53 +414,6 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM system-base AS python-packages
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# python build and lint tools: (poetry, etc)
-ENV PIPX_HOME=/opt/pipx
-ENV PIPX_BIN_DIR=/opt/pipx/bin
-ENV PATH="$PATH:$PIPX_BIN_DIR"
-
-COPY --chown=root:root --chmod=644 packages /packages
-
-# hadolint ignore=DL3013,SC2086
-RUN --mount=type=cache,target=/root/.cache/pip,id=pipx-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=/var/cache/python \
-    --mount=type=tmpfs,target=/tmp \
-    mkdir ${PIPX_HOME} && \
-    for t in $(grep -v '^#' /packages/pipx-package-requirements.txt); do pipx install ${t}; done && \
-    chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME} && \
-    mkdir /env && \
-    echo "$PIPX_BIN_DIR" > /env/pipx.path
-
-# ansible and its dependencies, related apps and collections
-# hadolint ignore=SC2046,SC2016
-RUN --mount=type=cache,target=/root/.cache/pip,id=ansible-cache-${TARGETARCH} \
-    --mount=type=tmpfs,target=/var/cache/python \
-    --mount=type=tmpfs,target=/tmp \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible related apps
-    pipx inject ansible-core --include-apps $(grep -v '^#' /packages/ansible-dependent-app-requirements.txt) && \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible dependent packages
-    pipx inject ansible-core $(grep -v '^#' /packages/ansible-dependency-requirements.txt) && \
-    # ----------------------------------------------------------------------------------------------------
-    # ansible collections
-    mkdir -p /opt/ansible/collections && \
-    ansible-galaxy collection install -p /opt/ansible/collections -r /packages/requirements.yaml && \
-    # ----------------------------------------------------------------------------------------------------
-    chown -R root:coder ${PIPX_HOME} && \
-    chmod -R g+rw ${PIPX_HOME} && \
-    chown -R root:coder /opt/ansible && \
-    find /opt/ansible -type d -exec chmod g+rwx {} + && \
-    echo 'ANSIBLE_COLLECTIONS_PATH="$HOME/.ansible/collections:/opt/ansible/collections:/usr/share/ansible/collections"' > /env/ansible.env
-
-
-# ========================================================================================================
 FROM --platform=$TARGETPLATFORM system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -478,8 +424,6 @@ COPY --from=sdk-nodejs /opt/fnm /opt/fnm
 COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
 COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
-COPY --from=python-packages /opt/pipx /opt/pipx
-COPY --from=python-packages /opt/ansible /opt/ansible
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
@@ -492,7 +436,6 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
     --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
-    --mount=type=bind,from=python-packages,source=/env,target=/env/python-packages \
     --mount=type=tmpfs,target=/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
@@ -511,7 +454,14 @@ COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc.extra /etc/skel/.bash
 
 # coder initialization scripts
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
+
+# various packages: installed by agent-startup-script
 COPY --link --chown=root:root --chmod=644 packages/github-releases-${TARGETARCH}.yaml /opt/packages-github-releases.yaml
+COPY --link --chown=root:root --chmod=644 packages/npm-packages.json /opt/npm-packages.json
+COPY --link --chown=root:root --chmod=644 packages/pipx-package-requirements.txt /opt/pipx-package-requirements.txt
+COPY --link --chown=root:root --chmod=644 packages/ansible-dependency-requirements.txt /opt/ansible-dependency-requirements.txt
+COPY --link --chown=root:root --chmod=644 packages/ansible-dependent-app-requirements.txt /opt/ansible-dependent-app-requirements.txt
+COPY --link --chown=root:root --chmod=644 packages/requirements.yaml /opt/ansible-collections-requirements.yaml
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
