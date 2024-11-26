@@ -2,6 +2,12 @@
 
 
 
+## [1.12.1](https://github.com/ppat/coder/compare/v1.12.0...v1.12.1) (2024-11-26)
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** move installation of various packages from image to init scripts ([#323](https://github.com/ppat/coder/issues/323)) ([ee12fb7](https://github.com/ppat/coder/commit/ee12fb7bc3a5a11329e1fd9d84e01038f095a0ef))
+
 ## [1.12.0](https://github.com/ppat/coder/compare/v1.11.0...v1.12.0) (2024-11-26)
 
 ### ✨ Features
