@@ -92,18 +92,18 @@ FROM --platform=$TARGETPLATFORM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
-# unminimize
-RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
-    --mount=type=tmpfs,target=/var/cache/python \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db && \
-    sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
-    echo -e 'y\ny' | unminimize
+# # unminimize
+# RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
+#     --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
+#     --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
+#     --mount=type=tmpfs,target=/var/cache/python \
+#     --mount=type=tmpfs,target=/tmp \
+#     --mount=type=tmpfs,target=/var/log \
+#     --mount=type=tmpfs,target=/var/tmp \
+#     apt-get update && \
+#     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db && \
+#     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
+#     echo -e 'y\ny' | unminimize
 
 # install docker-engine
 # hadolint ignore=SC1091
