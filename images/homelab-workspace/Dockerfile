@@ -231,7 +231,7 @@ WORKDIR /tmp
 ENV FNM_VERSION="1.38.1"
 ENV FNM_ROOT=/opt/fnm
 # renovate: datasource=node depName=node versioning=node
-ARG NODE_VERSION="20.18.1"
+ARG NODE_VERSION="22.11.0"
 ENV PATH="$PATH:${FNM_ROOT}"
 # hadolint ignore=SC2086
 RUN --mount=type=tmpfs,target=/tmp \
