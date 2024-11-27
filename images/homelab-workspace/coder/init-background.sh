@@ -16,7 +16,7 @@ main() {
   $(dirname ${0})/init-node.sh 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
   echo "Setting up python packages..."
-  $(dirname ${0})/init-pythin.sh 2>&1 | sed -E 's|^(.*)|    \1|g'
+  $(dirname ${0})/init-python.sh 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo "--------------------------------------------------------------------------------------"
   echo "Installing packages from github-releases..."
   $(dirname ${0})/install-from-github-release.sh /opt/packages-github-releases.yaml $HOME/.local/bin

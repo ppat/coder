@@ -32,7 +32,7 @@ main() {
   install_node ${NODE_VERSION:?} 2>&1 | sed -E 's|^(.*)|    \1|g'
   echo
   echo "Installing npm packages..."
-  install_npm_packages /opt/fnm/npm-packages.json 2>&1 | sed -E 's|^(.*)|    \1|g'
+  install_npm_packages /opt/npm-packages.json 2>&1 | sed -E 's|^(.*)|    \1|g'
 }
 
 main
