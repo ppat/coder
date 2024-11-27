@@ -2,6 +2,17 @@
 
 
 
+## [1.13.0](https://github.com/ppat/coder/compare/v1.12.1...v1.13.0) (2024-11-27)
+
+### ✨ Features
+
+* **lang-sdk:** update node (v20.18.1 -> v22.11.0) ([#325](https://github.com/ppat/coder/issues/325)) ([513d803](https://github.com/ppat/coder/commit/513d8031b57a5c06857471e317724240323e422d))
+* **pypi-tools:** update pip_requirements ([#330](https://github.com/ppat/coder/issues/330)) ([06cece0](https://github.com/ppat/coder/commit/06cece034c2e1600a703f7c9a171d47812a98441))
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix typos in init scripts ([#327](https://github.com/ppat/coder/issues/327)) ([4f8eb5e](https://github.com/ppat/coder/commit/4f8eb5eb03c4372b40f69b9817f08ed3ced667d8))
+
 ## [1.12.1](https://github.com/ppat/coder/compare/v1.12.0...v1.12.1) (2024-11-26)
 
 ### 🐛 Enhancements + Bug Fixes
