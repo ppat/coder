@@ -2,6 +2,30 @@
 
 
 
+## [1.14.0](https://github.com/ppat/coder/compare/v1.13.0...v1.14.0) (2024-12-11)
+
+### ✨ Features
+
+* **cli-tools:** update cli/cli (v2.62.0 -> v2.63.0) ([#338](https://github.com/ppat/coder/issues/338)) ([5de42fc](https://github.com/ppat/coder/commit/5de42fccd309262e8a27f665c22114a548db51b4))
+* **galaxy-collection:** update community.general (10.0.1 -> 10.1.0) ([#334](https://github.com/ppat/coder/issues/334)) ([57e2a53](https://github.com/ppat/coder/commit/57e2a530ff20b05186dab9e1a19e1601e8fb35ca))
+* **npm-tools:** update renovate (39.31.3 -> 39.33.0) ([#329](https://github.com/ppat/coder/issues/329)) ([a1e7601](https://github.com/ppat/coder/commit/a1e7601f7679166b555c90352f1811ff1e7b10c5))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update mikefarah/yq (v4.44.5 -> v4.44.6) ([#342](https://github.com/ppat/coder/issues/342)) ([edf79f7](https://github.com/ppat/coder/commit/edf79f7cb2015e699f59556251d4282bb73de6ff))
+* **cli-tools:** update nektos/act (v0.2.69 -> v0.2.70) ([#332](https://github.com/ppat/coder/issues/332)) ([a84975d](https://github.com/ppat/coder/commit/a84975d2dfb397e9b3b95a073585932592938fe9))
+* **cli-tools:** update starship/starship (v1.21.0 -> v1.21.1) ([#351](https://github.com/ppat/coder/issues/351)) ([92faec5](https://github.com/ppat/coder/commit/92faec5a3955970a93aafcf0dc38fa4bc1ca5a20))
+* fix agent startup script ([#352](https://github.com/ppat/coder/issues/352)) ([9e3d280](https://github.com/ppat/coder/commit/9e3d280bd82ca2619e7c4df25b458521db6195fa))
+* **lang-sdk:** update golang (1.23.3 -> 1.23.4) ([#345](https://github.com/ppat/coder/issues/345)) ([ab37445](https://github.com/ppat/coder/commit/ab37445108d878b4066c28a1851a3c1d781f5bac))
+* move init-scripts from coder image to dotfiles ([#350](https://github.com/ppat/coder/issues/350)) ([2256e79](https://github.com/ppat/coder/commit/2256e799eea8f457d51d29ae1eda53f30f432f21))
+* **npm-tools:** update renovate (39.33.0 -> 39.33.1) ([#343](https://github.com/ppat/coder/issues/343)) ([610a3d1](https://github.com/ppat/coder/commit/610a3d182b96cac127f567bf9b93f7fc0e24eae8))
+* **pypi-tools:** update ansible-core (2.18.0 -> 2.18.1) ([#346](https://github.com/ppat/coder/issues/346)) ([34a0cce](https://github.com/ppat/coder/commit/34a0cceb73e39838fddeee4692e471e18bb16486))
+* update digest ubuntu (278628f -> 80dd3c3) ([#336](https://github.com/ppat/coder/issues/336)) ([f09d457](https://github.com/ppat/coder/commit/f09d457418e9c69133630b59fe75b72462775d9e))
+
+### 🛠 Improvements
+
+* fix test ([#353](https://github.com/ppat/coder/issues/353)) ([afabed2](https://github.com/ppat/coder/commit/afabed2a0f1a9c5c8a72094c1522671193f8c997))
+
 ## [1.13.0](https://github.com/ppat/coder/compare/v1.12.1...v1.13.0) (2024-11-27)
 
 ### ✨ Features
