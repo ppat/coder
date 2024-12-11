@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM ubuntu:noble@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab AS base
+FROM ubuntu:noble@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab AS base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -88,7 +88,7 @@ RUN --mount=type=tmpfs,target=/tmp \
     upx /usr/local/sbin/fetch
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS system-base
+FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
@@ -223,7 +223,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS sdk-nodejs
+FROM base AS sdk-nodejs
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -254,7 +254,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS sdk-golang
+FROM base AS sdk-golang
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -284,7 +284,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS sdk-rust-cargo
+FROM base AS sdk-rust-cargo
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -300,7 +300,7 @@ RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS sdk-terraform
+FROM base AS sdk-terraform
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -317,12 +317,11 @@ RUN --mount=type=tmpfs,target=/tmp \
     chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
     mkdir /env && \
-    echo "/opt/tfenv/bin" > /env/terraform.path && \
-    echo 'TFENV_CONFIG_DIR=$HOME/.tfenv' > /env/tfenv_dir.env
+    echo "/opt/tfenv/bin" > /env/terraform.path
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM base AS binary-downloads
+FROM base AS binary-downloads
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
@@ -431,7 +430,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 
 # ========================================================================================================
-FROM --platform=$TARGETPLATFORM system-base
+FROM system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp

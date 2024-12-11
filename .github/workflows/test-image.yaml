@@ -93,6 +93,11 @@ jobs:
         echo "Done"
         echo
 
+        echo "Show home directory..."
+        docker exec $container_name sudo -u root /bin/bash ls -al /home/$test_user
+        echo "Done"
+        echo
+
     - name: Tailscale Disconnect
       if: success() || failure()
       run: sudo -E tailscale logout

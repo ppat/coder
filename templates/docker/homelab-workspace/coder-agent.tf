@@ -4,6 +4,10 @@ resource "coder_agent" "main" {
   startup_script          = var.test_mode ? "/bin/bash --noprofile --norc" : "/bin/bash --noprofile --norc /opt/coder/bin/agent-startup.sh"
   startup_script_behavior = "blocking"
 
+  env = {
+    DOTFILES_REPOSITORY = data.coder_parameter.dotfiles_repo.value
+  }
+
   metadata {
     display_name = "CPU Usage"
     key          = "0_cpu_usage"
