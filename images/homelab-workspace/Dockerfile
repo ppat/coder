@@ -162,6 +162,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       bsdextrautils \
       build-essential \
       cron \
+      direnv \
       dnsutils \
       eza \
       fd-find \
@@ -230,8 +231,6 @@ WORKDIR /tmp
 # renovate: datasource=github-releases depName=Schniz/fnm
 ENV FNM_VERSION="1.38.1"
 ENV FNM_ROOT=/opt/fnm
-# renovate: datasource=node depName=node versioning=node
-ARG NODE_VERSION="22.11.0"
 ENV PATH="$PATH:${FNM_ROOT}"
 # hadolint ignore=SC2086
 RUN --mount=type=tmpfs,target=/tmp \
@@ -251,7 +250,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     upx $FNM_ROOT/fnm && \
     mkdir /env && \
     echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
-    echo "NODE_VERSION=$NODE_VERSION" >> /env/fnm.env && \
     echo "$FNM_ROOT" > /env/fnm.path
 
 
@@ -292,15 +290,12 @@ ARG TARGETARCH
 WORKDIR /tmp
 
 # Rust / Cargo
-# renovate: datasource=github-releases depName=rust-lang/rust
-ARG RUST_VERSION="1.82.0"
 ENV CARGO_HOME="/opt/cargo"
 ENV PATH="$PATH:$CARGO_HOME/bin"
 RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
     mkdir /env && \
     echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
-    echo "RUST_VERSION=$RUST_VERSION" >> /env/rust-cargo.env && \
     echo "$CARGO_HOME/bin" > /env/rust-cargo.path
 
 
@@ -314,6 +309,7 @@ WORKDIR /tmp
 # renovate: datasource=github-releases depName=tfutils/tfenv
 ARG TFENV_VERSION="3.0.0"
 ENV PATH="${PATH}:/opt/tfenv/bin"
+# hadolint ignore=SC2016
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
@@ -404,6 +400,27 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/kustomize /usr/local/sbin/kustomize && \
     upx /usr/local/sbin/kustomize
 
+# starship
+# renovate: datasource=github-releases depName=starship/starship
+ARG STARSHIP_VERSION="1.21.0"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    STARSHIP_ARCH="$(echo $TARGETARCH | sed -e 's|amd64|x86_64|' | sed -e 's|arm64|aarch64|')" && \
+    wget --progress=dot:giga -c "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${STARSHIP_ARCH}-unknown-linux-musl.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/starship /usr/local/sbin/starship && \
+    upx /usr/local/sbin/starship
+
+# gh
+# renovate: datasource=github-releases depName=cli/cli
+ARG GH_VERSION="2.63.2"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 2 -C /tmp gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh && \
+    install -o root -g root -m 0755 /tmp/gh /usr/local/sbin/gh && \
+    upx /usr/local/sbin/gh
+
 # minio-cli
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -449,19 +466,9 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
 
 # copy /etc config files
 COPY --link --chown=root:root --chmod=644 etc/* /etc/
-COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc /etc/skel/.bashrc
-COPY --link --chown=root:root --chmod=644 etc/skel/.bashrc.extra /etc/skel/.bashrc.extra
 
 # coder initialization scripts
 COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
-
-# various packages: installed by agent-startup-script
-COPY --link --chown=root:root --chmod=644 packages/github-releases-${TARGETARCH}.yaml /opt/packages-github-releases.yaml
-COPY --link --chown=root:root --chmod=644 packages/npm-packages.json /opt/npm-packages.json
-COPY --link --chown=root:root --chmod=644 packages/pipx-package-requirements.txt /opt/pipx-package-requirements.txt
-COPY --link --chown=root:root --chmod=644 packages/ansible-dependency-requirements.txt /opt/ansible-dependency-requirements.txt
-COPY --link --chown=root:root --chmod=644 packages/ansible-dependent-app-requirements.txt /opt/ansible-dependent-app-requirements.txt
-COPY --link --chown=root:root --chmod=644 packages/requirements.yaml /opt/ansible-collections-requirements.yaml
 
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 

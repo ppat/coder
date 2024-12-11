@@ -1,7 +1,0 @@
-ansible-core==2.18.1
-cookiecutter==2.6.0
-flux-local==6.0.2
-ipython==8.29.0
-poetry==1.8.4
-pre-commit==4.0.1
-yamllint==1.35.1

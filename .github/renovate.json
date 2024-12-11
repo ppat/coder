@@ -18,26 +18,20 @@
     "group:linters",
     "mergeConfidence:all-badges",
     "github>ppat/renovate-presets:default-commit-message",
+    "github>ppat/renovate-presets:labels-dependency-type",
+    "github>ppat/renovate-presets:min-release-age",
+    "github>ppat/renovate-presets:automerge.json",
     "github>ppat/renovate-presets:ci-dependencies",
     "github>ppat/renovate-presets:ci-dev-tools",
     "github>ppat/renovate-presets:ci-github-actions",
     "github>ppat/coder//.github/renovate/template-terraform-provider",
     "github>ppat/coder//.github/renovate/image-cli-tools",
     "github>ppat/coder//.github/renovate/image-lang-sdk",
-    "github>ppat/coder//.github/renovate/image-npm-tools",
-    "github>ppat/coder//.github/renovate/image-pypi-tools",
-    "github>ppat/coder//.github/renovate/image-galaxy-collection",
-    "github>ppat/coder//.github/renovate/image-ansible",
     "github>ppat/coder//.github/renovate/image-delayed-updates"
   ],
   "internalChecksFilter": "strict",
-  "npm": {
-    "fileMatch": [
-      "images/(.+/)*npm-packages\\.json$"
-    ]
-  },
   "prConcurrentLimit": 20,
-  "prHourlyLimit": 10,
+  "prHourlyLimit": 0,
   "rebaseWhen": "behind-base-branch",
   "timezone": "US/Eastern"
 }

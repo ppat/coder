@@ -1,2 +1,0 @@
-ansible-lint==24.10.0
-molecule==24.9.0
