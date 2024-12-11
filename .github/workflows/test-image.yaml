@@ -94,7 +94,7 @@ jobs:
         echo
 
         echo "Show home directory..."
-        docker exec $container_name sudo -u root /bin/bash ls -al /home/$test_user
+        docker exec $container_name sudo -u root ls -al /home/$test_user
         echo "Done"
         echo
 
