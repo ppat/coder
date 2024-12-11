@@ -21,7 +21,7 @@ fetch_dotfiles() {
 }
 
 setup_dotfiles() {
-  if [[ -z "${DOTFILES_REPOSITORY}" ]]; then
+  if [[ -z "${DOTFILES_REPOSITORY}" || "${DOTFILES_REPOSITORY}" == "none" ]]; then
     echo "Dotfiles repository has not been configured. Skipping..."
     return
   fi
