@@ -5,6 +5,8 @@ set -eo pipefail
 fetch_dotfiles() {
   local dotfiles_repo="$1"
   mkdir -p $HOME/code
+  unset GIT_ASKPASS
+  unset GIT_SSH_COMMAND
   if [[ ! -d $HOME/code/dotfiles ]]; then
     echo "Cloning dotfiles repository..."
     cd $HOME/code
