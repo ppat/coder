@@ -129,12 +129,17 @@ jobs:
 
     - name: Test - create workspace
       id: create-workspace
+      # yamllint disable-line rule:indentation
       run: |
         export WORKSPACE_NAME="${TEMPLATE_NAME}"
         echo "WORKSPACE_NAME=${WORKSPACE_NAME}" >> $GITHUB_ENV
         echo "Create workspace as ${WORKSPACE_NAME}..."
         set -x
-        coder create --template "${TEMPLATE_NAME}" --yes ${WORKSPACE_NAME}
+        coder create \
+          --template "${TEMPLATE_NAME}" \
+          --parameter dotfiles_repository="none" \
+          --yes \
+          ${WORKSPACE_NAME}
 
     - name: Test - check workspace health
       id: check-worskpace-health
