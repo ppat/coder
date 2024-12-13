@@ -18,7 +18,7 @@ env:
   image_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace
   image_cache_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
   image_path: images/homelab-workspace
-  template_path: templates/docker/homelab-workspace
+  template_path: templates/kubernetes/homelab-workspace
   default_branch: main
 
 jobs:
@@ -106,95 +106,95 @@ jobs:
       build_secrets: |
         FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
-  # publish-template:
-  #   needs: [create-release, publish-image]
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+  publish-template:
+    needs: [create-release, publish-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-  #   - name: Tailscale Connect
-  #     uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
-  #     with:
-  #       oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-  #       oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
-  #       tags: tag:github-action-ci-runner
-  #       # renovate: datasource=github-releases depName=tailscale/tailscale
-  #       version: "1.78.1"
+    - name: Tailscale Connect
+      uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
+      with:
+        oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+        oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+        tags: tag:github-action-ci-runner
+        # renovate: datasource=github-releases depName=tailscale/tailscale
+        version: "1.78.1"
 
-  #   - name: Login to Coder
-  #     id: login
-  #     env:
-  #       CODER_URL: "${{ secrets.CODER_URL }}"
-  #     shell: bash
-  #     # yamllint disable-line rule:indentation
-  #     run: |
-  #       while ! curl -fsSL ${CODER_URL} > /dev/null; do
-  #         echo "Waiting for coder service to be ready... sleep 5s!"
-  #         sleep 5
-  #       done
-  #       echo "Coder service is accepting connections..."
-  #       echo
+    - name: Login to Coder
+      id: login
+      env:
+        CODER_URL: "${{ secrets.CODER_URL }}"
+      shell: bash
+      # yamllint disable-line rule:indentation
+      run: |
+        while ! curl -fsSL ${CODER_URL} > /dev/null; do
+          echo "Waiting for coder service to be ready... sleep 5s!"
+          sleep 5
+        done
+        echo "Coder service is accepting connections..."
+        echo
 
-  #       echo "Generating authentication token..."
-  #       export CODER_SESSION_TOKEN=$(curl -X POST ${CODER_URL}/api/v2/users/login \
-  #         -H 'Content-Type: application/json' \
-  #         -H 'Accept: application/json' \
-  #         --data '{"email": "'${{ secrets.CODER_EMAIL }}'", "password": "'${{ secrets.CODER_PASSWORD }}'"}' \
-  #         | jq -r .session_token)
-  #       echo "::add-mask::${CODER_SESSION_TOKEN}"
-  #       if [[ -z "${CODER_SESSION_TOKEN}" || "${CODER_SESSION_TOKEN}" = "null" ]]; then
-  #         echo "Error generating coder authentication token."
-  #         exit 1
-  #       fi
-  #       echo "Authentication token generated."
-  #       echo
-  #       echo "Determining coder version..."
-  #       export CODER_VERSION=$(curl -fsSL ${CODER_URL}/api/v2/buildinfo | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
-  #       echo "Installing coder CLI..."
-  #       curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
-  #       echo
-  #       echo "Logging into Coder..."
-  #       coder login ${CODER_URL}
+        echo "Generating authentication token..."
+        export CODER_SESSION_TOKEN=$(curl -X POST ${CODER_URL}/api/v2/users/login \
+          -H 'Content-Type: application/json' \
+          -H 'Accept: application/json' \
+          --data '{"email": "'${{ secrets.CODER_EMAIL }}'", "password": "'${{ secrets.CODER_PASSWORD }}'"}' \
+          | jq -r .session_token)
+        echo "::add-mask::${CODER_SESSION_TOKEN}"
+        if [[ -z "${CODER_SESSION_TOKEN}" || "${CODER_SESSION_TOKEN}" = "null" ]]; then
+          echo "Error generating coder authentication token."
+          exit 1
+        fi
+        echo "Authentication token generated."
+        echo
+        echo "Determining coder version..."
+        export CODER_VERSION=$(curl -fsSL ${CODER_URL}/api/v2/buildinfo | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
+        echo "Installing coder CLI..."
+        curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
+        echo
+        echo "Logging into Coder..."
+        coder login ${CODER_URL}
 
-  #   - name: Publish template
-  #     id: publish-template
-  #     env:
-  #       TEMPLATE_DIR: ${{ env.template_path }}
-  #       TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version != 'v0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
-  #       WORKSPACE_IMAGE: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.publish-image.outputs.image_tag }}"
-  #     shell: bash
-  #     # yamllint disable-line rule:indentation
-  #     run: |
-  #       if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
-  #         export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
-  #         export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${TEMPLATE_VERSION})"
-  #       else
-  #         export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
-  #         export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
-  #       fi
-  #       echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
-  #       set -x
-  #       coder template push \
-  #         --directory ${TEMPLATE_DIR} \
-  #         --var workspace_image=${WORKSPACE_IMAGE} \
-  #         --var test_mode=false \
-  #         --name ${TEMPLATE_VERSION} \
-  #         --message "${RELEASE_MSG}" \
-  #         --yes \
-  #         ${TEMPLATE_NAME}
-  #       set +x
-  #       echo
-  #       echo "Confirming template has been published..."
-  #       coder templates list --output json > /tmp/templates.json
-  #       export SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'${TEMPLATE_NAME}'")')
-  #       if [[ -z $SELECTED_TEMPLATE ]]; then
-  #         echo "Could not find any template published as $TEMPLATE_NAME."
-  #         exit 1
-  #       fi
-  #       echo "Template has been published successfully."
+    - name: Publish template
+      id: publish-template
+      env:
+        TEMPLATE_DIR: ${{ env.template_path }}
+        TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version != 'v0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
+        WORKSPACE_IMAGE: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.publish-image.outputs.image_tag }}"
+      shell: bash
+      # yamllint disable-line rule:indentation
+      run: |
+        if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
+          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
+          export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${TEMPLATE_VERSION})"
+        else
+          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
+          export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
+        fi
+        echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
+        set -x
+        coder template push \
+          --directory ${TEMPLATE_DIR} \
+          --var workspace_image=${WORKSPACE_IMAGE} \
+          --var test_mode=false \
+          --name ${TEMPLATE_VERSION} \
+          --message "${RELEASE_MSG}" \
+          --yes \
+          ${TEMPLATE_NAME}
+        set +x
+        echo
+        echo "Confirming template has been published..."
+        coder templates list --output json > /tmp/templates.json
+        export SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'${TEMPLATE_NAME}'")')
+        if [[ -z $SELECTED_TEMPLATE ]]; then
+          echo "Could not find any template published as $TEMPLATE_NAME."
+          exit 1
+        fi
+        echo "Template has been published successfully."
 
-  #   - name: Tailscale Disconnect
-  #     if: success() || failure()
-  #     run: sudo -E tailscale logout
+    - name: Tailscale Disconnect
+      if: success() || failure()
+      run: sudo -E tailscale logout

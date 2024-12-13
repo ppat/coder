@@ -106,47 +106,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH}
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
     echo -e 'y\ny' | /usr/bin/unminimize
 
-# install docker-engine
-# hadolint ignore=SC1091
-RUN --mount=type=cache,target=/var/cache/apt,id=sysbase3-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=sysbase3-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=sysbase3-lib-apt-${TARGETARCH} \
-    --mount=type=tmpfs,target=/var/cache/python \
-    --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    # prep apt source for docker
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    chmod a+r /etc/apt/keyrings/docker.gpg && \
-    echo \
-      "deb [arch="${TARGETARCH}" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-      "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-      tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    # install docker
-    apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --yes --no-install-recommends \
-      containerd.io  \
-      docker-ce \
-      docker-ce-cli \
-      docker-ce-rootless-extras \
-      docker-buildx-plugin \
-      docker-compose-plugin \
-    && \
-    # compress really large files (this will shave about 216MB off the size of final image)
-    upx \
-      /usr/bin/containerd \
-      /usr/bin/containerd-shim \
-      /usr/bin/containerd-shim-runc-v1 \
-      /usr/bin/containerd-shim-runc-v2 \
-      /usr/bin/ctr \
-      /usr/bin/docker \
-      /usr/bin/dockerd \
-      /usr/bin/rootlesskit \
-      /usr/bin/runc \
-      /usr/libexec/docker/cli-plugins/docker-buildx  \
-      /usr/libexec/docker/cli-plugins/docker-compose
-
 # system packages
 RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH} \
     --mount=type=cache,target=/var/cache/debconf,id=sysbase4-cache-debconf-${TARGETARCH} \
@@ -467,8 +426,6 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
 ARG CODER_UID="10001"
-RUN useradd --uid ${CODER_UID} --gid ${CODER_GID} --groups sudo,docker --home-dir /home/coder --create-home --shell /bin/bash coder && \
-    echo "coder ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/coder && \
-    chmod 0440 /etc/sudoers.d/coder
+RUN useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder
 USER coder
 WORKDIR /home/coder
