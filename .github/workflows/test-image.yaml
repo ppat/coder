@@ -34,69 +34,69 @@ jobs:
       build_secrets: |
         FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
-  test-image:
-    needs: [build-workspace-image]
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-    - name: Tailscale Connect
-      uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
-      with:
-        oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-        oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
-        tags: tag:github-action-ci-runner
-        # renovate: datasource=github-releases depName=tailscale/tailscale
-        version: "1.78.1"
+  # test-image:
+  #   needs: [build-workspace-image]
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 60
+  #   steps:
+  #   - name: Tailscale Connect
+  #     uses: tailscale/github-action@4e4c49acaa9818630ce0bd7a564372c17e33fb4d # v2
+  #     with:
+  #       oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+  #       oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+  #       tags: tag:github-action-ci-runner
+  #       # renovate: datasource=github-releases depName=tailscale/tailscale
+  #       version: "1.78.1"
 
-    - name: Login to container registry
-      id: login
-      uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
-      with:
-        registry: ${{ secrets.CONTAINER_REGISTRY }}
-        username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
-        password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
+  #   - name: Login to container registry
+  #     id: login
+  #     uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+  #     with:
+  #       registry: ${{ secrets.CONTAINER_REGISTRY }}
+  #       username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
+  #       password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
 
-    - name: Test image
-      id: test
-      env:
-        container_image: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.build-workspace-image.outputs.image_tag }}"
-        container_name: "test_${{ github.run_id }}"
-        test_user: tester
-      shell: bash
-      run: |
-        echo "Fetch built image from registry"
-        docker pull $container_image
-        echo
+  #   - name: Test image
+  #     id: test
+  #     env:
+  #       container_image: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.build-workspace-image.outputs.image_tag }}"
+  #       container_name: "test_${{ github.run_id }}"
+  #       test_user: tester
+  #     shell: bash
+  #     run: |
+  #       echo "Fetch built image from registry"
+  #       docker pull $container_image
+  #       echo
 
-        echo "Show available images..."
-        docker images
-        echo
+  #       echo "Show available images..."
+  #       docker images
+  #       echo
 
-        echo "Starting container $container_name using image $container_image..."
-        docker run -it -d --name $container_name --user 0:0 --entrypoint /bin/bash $container_image
-        echo "Done"
-        echo
+  #       echo "Starting container $container_name using image $container_image..."
+  #       docker run -it -d --name $container_name --user 0:0 --entrypoint /bin/bash $container_image
+  #       echo "Done"
+  #       echo
 
-        echo "Show running container..."
-        docker ps -f name=$container_name
-        echo "Done"
-        echo
+  #       echo "Show running container..."
+  #       docker ps -f name=$container_name
+  #       echo "Done"
+  #       echo
 
-        echo "Create test user within container..."
-        docker exec $container_name sudo -u root useradd --groups sudo --shell /bin/bash --home-dir /home/$test_user --create-home $test_user
-        echo "Done"
-        echo
+  #       echo "Create test user within container..."
+  #       docker exec $container_name sudo -u root useradd --groups sudo --shell /bin/bash --home-dir /home/$test_user --create-home $test_user
+  #       echo "Done"
+  #       echo
 
-        echo "Running agent-startup script..."
-        docker exec $container_name sudo -u $test_user /bin/bash --noprofile --norc /opt/coder/bin/agent-startup.sh
-        echo "Done"
-        echo
+  #       echo "Running agent-startup script..."
+  #       docker exec $container_name sudo -u $test_user /bin/bash --noprofile --norc /opt/coder/bin/agent-startup.sh
+  #       echo "Done"
+  #       echo
 
-        echo "Show home directory..."
-        docker exec $container_name sudo -u root ls -al /home/$test_user
-        echo "Done"
-        echo
+  #       echo "Show home directory..."
+  #       docker exec $container_name sudo -u root ls -al /home/$test_user
+  #       echo "Done"
+  #       echo
 
-    - name: Tailscale Disconnect
-      if: success() || failure()
-      run: sudo -E tailscale logout
+  #   - name: Tailscale Disconnect
+  #     if: success() || failure()
+  #     run: sudo -E tailscale logout

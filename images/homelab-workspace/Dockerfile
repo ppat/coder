@@ -10,7 +10,8 @@ RUN echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >
 
 # Add `coder` group
 # hadolint ignore=DL3059
-RUN groupadd coder
+ARG CODER_GID="10001"
+RUN groupadd --gid ${CODER_GID} coder
 
 # Place all __pycache__ and *.pyc within a location outside of /usr or /opt,
 # - so that it can be easily cleared by the user (as needed)
@@ -92,18 +93,17 @@ FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
-# # unminimize
-# RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
-#     --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
-#     --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
-#     --mount=type=tmpfs,target=/var/cache/python \
-#     --mount=type=tmpfs,target=/tmp \
-#     --mount=type=tmpfs,target=/var/log \
-#     --mount=type=tmpfs,target=/var/tmp \
-#     apt-get update && \
-#     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db && \
-#     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/local/sbin/unminimize && \
-#     echo -e 'y\ny' | unminimize
+# unminimize
+RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
+    --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
+    yes | unminimize
 
 # install docker-engine
 # hadolint ignore=SC1091
@@ -463,12 +463,11 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     # add all environment values from /env/*.env files to /etc/environment
     for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
 
-# copy /etc config files
-COPY --link --chown=root:root --chmod=644 etc/* /etc/
-
-# coder initialization scripts
-COPY --link --chown=root:root --chmod=755 coder/*.sh /opt/coder/bin/
-
 RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
-WORKDIR /
+ARG CODER_UID="10001"
+RUN useradd --uid ${CODER_UID} --gid ${CODER_GID} --groups sudo,docker --home-dir /home/coder --create-home --shell /bin/bash coder && \
+    echo "coder ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/coder && \
+    chmod 0440 /etc/sudoers.d/coder
+USER coder
+WORKDIR /home/coder
