@@ -1,6 +1,6 @@
 module "coder-login" {
   source   = "registry.coder.com/modules/coder-login/coder"
-  version  = "1.0.15"
+  version  = "1.0.25"
   agent_id = coder_agent.main.id
 }
 
