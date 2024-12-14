@@ -103,7 +103,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH}
     --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
-    yes | unminimize
+    sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
+    echo -e 'y\ny' | /usr/bin/unminimize
 
 # install docker-engine
 # hadolint ignore=SC1091
