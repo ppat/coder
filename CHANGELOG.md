@@ -2,6 +2,17 @@
 
 
 
+## [1.15.0](https://github.com/ppat/coder/compare/v1.14.0...v1.15.0) (2024-12-14)
+
+### ✨ Features
+
+* create coder user within image ([#360](https://github.com/ppat/coder/issues/360)) ([b746075](https://github.com/ppat/coder/commit/b7460755a12de4f21c3716d5d6bb333c70ad9598))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update kubernetes/kubernetes (v1.31.3 -> v1.31.4) ([#354](https://github.com/ppat/coder/issues/354)) ([517c6a7](https://github.com/ppat/coder/commit/517c6a7a00e60cadbe9e166fdd9e7e4c59a83173))
+* fix dotfiles fetch ([f5c36e3](https://github.com/ppat/coder/commit/f5c36e30cb1fcf9ec1a335a3f6ecd63dcc75291b))
+
 ## [1.14.0](https://github.com/ppat/coder/compare/v1.13.0...v1.14.0) (2024-12-11)
 
 ### ✨ Features
