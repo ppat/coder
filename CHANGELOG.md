@@ -2,6 +2,16 @@
 
 
 
+## [2.0.0](https://github.com/ppat/coder/compare/v1.15.0...v2.0.0) (2024-12-14)
+
+### ⚠ BREAKING CHANGES
+
+* switch from docker based coder templates to kubernetes based coder template (#361)
+
+### ✨ Features
+
+* switch from docker based coder templates to kubernetes based coder template ([#361](https://github.com/ppat/coder/issues/361)) ([5c4c3a3](https://github.com/ppat/coder/commit/5c4c3a346184841edfb7a93fd4b4b96fc3ab7964))
+
 ## [1.15.0](https://github.com/ppat/coder/compare/v1.14.0...v1.15.0) (2024-12-14)
 
 ### ✨ Features
