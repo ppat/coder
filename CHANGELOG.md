@@ -2,6 +2,13 @@
 
 
 
+## [2.0.2](https://github.com/ppat/coder/compare/v2.0.1...v2.0.2) (2024-12-16)
+
+### 🐛 Enhancements + Bug Fixes
+
+* secret should be readable by fs_group id ([#365](https://github.com/ppat/coder/issues/365)) ([70edc4a](https://github.com/ppat/coder/commit/70edc4ab08fb414a285250904a3e9a6f72c28d71))
+* streamline image by moving additionals installs to dotfiles scripts ([#366](https://github.com/ppat/coder/issues/366)) ([5d12648](https://github.com/ppat/coder/commit/5d12648fb304dc509c6dd2c660bac337e3b1aac1))
+
 ## [2.0.1](https://github.com/ppat/coder/compare/v2.0.0...v2.0.1) (2024-12-16)
 
 ### 🐛 Enhancements + Bug Fixes
