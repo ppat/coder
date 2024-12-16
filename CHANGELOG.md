@@ -2,6 +2,13 @@
 
 
 
+## [2.0.1](https://github.com/ppat/coder/compare/v2.0.0...v2.0.1) (2024-12-16)
+
+### 🐛 Enhancements + Bug Fixes
+
+* update registry.coder.com/modules/coder-login/coder (v1.0.15 -> v1.0.25) ([#362](https://github.com/ppat/coder/issues/362)) ([f8c64e4](https://github.com/ppat/coder/commit/f8c64e47aca19a507788538afa25170fc0f9781c))
+* update script-agent-startup.sh ([#364](https://github.com/ppat/coder/issues/364)) ([461de2b](https://github.com/ppat/coder/commit/461de2b74988a57e1e78473709ce4a0f49fd4a01))
+
 ## [2.0.0](https://github.com/ppat/coder/compare/v1.15.0...v2.0.0) (2024-12-14)
 
 ### ⚠ BREAKING CHANGES
