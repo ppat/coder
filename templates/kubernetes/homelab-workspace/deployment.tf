@@ -77,6 +77,7 @@ resource "kubernetes_deployment" "deployment" {
               name       = "workspace-secrets"
               mount_path = volume_mount.value
               sub_path   = volume_mount.key
+              read_only  = true
             }
           }
           volume_mount {
@@ -120,7 +121,7 @@ resource "kubernetes_deployment" "deployment" {
             secret {
               secret_name  = volume.key
               optional     = true
-              default_mode = "0400"
+              default_mode = "0440"
             }
           }
         }
