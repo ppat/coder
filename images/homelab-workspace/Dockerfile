@@ -29,9 +29,9 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
 # minimum requirements for base image (for supporting builds of subsequent stages)
-RUN --mount=type=cache,target=/var/cache/apt,id=base-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=base-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=base-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -94,9 +94,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
 # unminimize
-RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=sysbase1-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=sysbase1-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -107,9 +107,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase1-cache-apt-${TARGETARCH}
     echo -e 'y\ny' | /usr/bin/unminimize
 
 # system packages
-RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH} \
-    --mount=type=cache,target=/var/cache/debconf,id=sysbase4-cache-debconf-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,id=sysbase4-lib-apt-${TARGETARCH} \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -181,6 +181,14 @@ RUN --mount=type=cache,target=/var/cache/apt,id=sysbase4-cache-apt-${TARGETARCH}
       zsh \
       zstd
 
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    rm -f /etc/apt/apt.conf.d/keep-cache
 
 # ========================================================================================================
 FROM base AS sdk-nodejs
@@ -211,53 +219,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     mkdir /env && \
     echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
     echo "$FNM_ROOT" > /env/fnm.path
-
-
-# ========================================================================================================
-FROM base AS sdk-golang
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# Golang (as per official instructions from https://go.dev/doc/install)
-# renovate: datasource=golang-version depName=golang
-ARG GOLANG_VERSION="1.23.4"
-ENV GOROOT="/usr/local/go"
-ENV PATH="$PATH:$GOROOT/bin"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga "https://go.dev/dl/go${GOLANG_VERSION}.linux-${TARGETARCH}.tar.gz" -O /tmp/golang.tar.gz && \
-    tar -C /usr/local -xzf /tmp/golang.tar.gz && \
-    mkdir /env && \
-    echo "GOROOT=$GOROOT" > /env/golang.env && \
-    echo "$GOROOT/bin" > /env/golang.path
-
-# kind
-# renovate: datasource=github-releases depName=kubernetes-sigs/kind
-ARG KIND_VERSION="0.25.0"
-RUN --mount=type=tmpfs,target=/tmp \
-    export GOPATH="/usr/local" && \
-    go install "sigs.k8s.io/kind@v${KIND_VERSION}" && \
-    upx /usr/local/bin/kind && \
-    unset GOPATH
-
-
-# ========================================================================================================
-FROM base AS sdk-rust-cargo
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# Rust / Cargo
-ENV CARGO_HOME="/opt/cargo"
-ENV PATH="$PATH:$CARGO_HOME/bin"
-RUN --mount=type=cache,target=/root/.rustup,id=rustup-cache-${TARGETARCH} \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs/ | sh -s -- --default-toolchain=none --no-modify-path -y && \
-    mkdir /env && \
-    echo "CARGO_HOME=$CARGO_HOME" > /env/rust-cargo.env && \
-    echo "$CARGO_HOME/bin" > /env/rust-cargo.path
-
 
 # ========================================================================================================
 FROM base AS sdk-terraform
@@ -307,17 +268,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     wget --progress=dot:giga -c "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 1 -C /tmp && \
     install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
     upx /usr/local/sbin/helm
-
-# packer
-# renovate: datasource=github-releases depName=hashicorp/packer
-ARG PACKER_VERSION="1.11.2"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_${TARGETARCH}.zip" -O /tmp/packer.zip && \
-    unzip /tmp/packer.zip && \
-    install -o root -g root -m 0755 /tmp/packer /usr/local/sbin/packer && \
-    upx /usr/local/sbin/packer
 
 # flux
 # renovate: datasource=github-releases depName=fluxcd/flux2
@@ -397,21 +347,15 @@ WORKDIR /tmp
 
 # copy sdks + packages installations
 COPY --from=sdk-nodejs /opt/fnm /opt/fnm
-COPY --from=sdk-golang /usr/local/go /usr/local/go
 COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
-COPY --from=sdk-rust-cargo /opt/cargo /opt/cargo
 
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
-COPY --from=sdk-rust-cargo /usr/local/bin/* /usr/local/sbin/
-COPY --from=sdk-golang /usr/local/bin/* /usr/local/sbin/
 
 # copy environment variables
 # hadolint ignore=SC2086
 RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
-    --mount=type=bind,from=sdk-golang,source=/env,target=/env/sdk-golang \
     --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
-    --mount=type=bind,from=sdk-rust-cargo,source=/env,target=/env/sdk-rust-cargo \
     --mount=type=tmpfs,target=/tmp \
     # ----------------------------------------------------------------------------------------------------
     # join path segments from /env/*.path and add to PATH env var in /etc/environment
@@ -422,8 +366,6 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     # ----------------------------------------------------------------------------------------------------
     # add all environment values from /env/*.env files to /etc/environment
     for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
-
-RUN rm -f /etc/apt/apt.conf.d/keep-cache
 
 ARG CODER_UID="10001"
 RUN useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder
