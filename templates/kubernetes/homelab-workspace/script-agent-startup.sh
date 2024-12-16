@@ -11,7 +11,7 @@ fetch_dotfiles() {
   unset GIT_SSH_COMMAND
   local git_ssh_key="$HOME/.ssh/id_ed25519"
   if [[ -e "$git_ssh_key" ]]; then
-    export 'GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i '$git_ssh_key'"'
+    export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${git_ssh_key}"
   fi
 
   if [[ ! -d $HOME/code/dotfiles ]]; then
