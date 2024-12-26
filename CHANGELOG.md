@@ -2,6 +2,15 @@
 
 
 
+## [2.0.3](https://github.com/ppat/coder/compare/v2.0.2...v2.0.3) (2024-12-26)
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update helm/helm (v3.16.3 -> v3.16.4) ([#369](https://github.com/ppat/coder/issues/369)) ([e9d24be](https://github.com/ppat/coder/commit/e9d24be9d4287cd07d219025ef4be7433dbad6f3))
+* drop unused packages from image ([#372](https://github.com/ppat/coder/issues/372)) ([9890e5f](https://github.com/ppat/coder/commit/9890e5fd38e9a648e9af5d30032d88fcf756cee6))
+* **terraform-provider:** update hashicorp/kubernetes (2.35.0 -> 2.35.1) ([#371](https://github.com/ppat/coder/issues/371)) ([46e4668](https://github.com/ppat/coder/commit/46e4668c7d2b2ccb4a3a324e9a991cf20e03751e))
+* update registry.coder.com/modules/coder-login/coder (v1.0.25 -> v1.0.26) ([#370](https://github.com/ppat/coder/issues/370)) ([43a01bf](https://github.com/ppat/coder/commit/43a01bfc89d2ce83d5b7ec514d27e85061f5463f))
+
 ## [2.0.2](https://github.com/ppat/coder/compare/v2.0.1...v2.0.2) (2024-12-16)
 
 ### 🐛 Enhancements + Bug Fixes
