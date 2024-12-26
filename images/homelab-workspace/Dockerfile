@@ -121,13 +121,11 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       bat \
       bsdextrautils \
       build-essential \
-      cron \
       direnv \
       dnsutils \
       eza \
       fd-find \
       ffmpeg \
-      fish \
       fontconfig \
       fzf \
       gettext \
@@ -170,7 +168,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       sshpass \
       ssh-askpass \
       strace \
-      supervisor \
       sysstat \
       traceroute \
       tmux \
@@ -178,7 +175,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       vim \
       watch \
       zip \
-      zsh \
       zstd
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
