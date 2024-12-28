@@ -291,7 +291,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # gh
 # renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="2.63.2"
+ARG GH_VERSION="2.64.0"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
