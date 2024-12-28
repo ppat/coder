@@ -211,7 +211,6 @@ ARG CODER_GID="10001"
 ARG CODER_UID="10001"
 RUN groupadd --gid ${CODER_GID} coder && \
     useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
-    chown -R root:coder /var/cache/python && \
-    chown -R root:coder /opt/tfenv
+    chown -R root:coder /var/cache/python
 USER coder
 WORKDIR /home/coder
