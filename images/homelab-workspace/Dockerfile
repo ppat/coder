@@ -67,16 +67,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     xz -d /tmp/upx.tar.xz && \
     tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
 
-# fetch (used for installing packages from github release assets)
-# renovate: datasource=github-releases depName=gruntwork-io/fetch
-ARG FETCH_VERSION="0.4.6"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/gruntwork-io/fetch/releases/download/v${FETCH_VERSION}/fetch_linux_${TARGETARCH}" -O /tmp/fetch_linux && \
-    install -o root -g root -m 0755 /tmp/fetch_linux /usr/local/sbin/fetch && \
-    upx /usr/local/sbin/fetch
-
 # ========================================================================================================
 FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -170,55 +160,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     --mount=type=tmpfs,target=/var/tmp \
     rm -f /etc/apt/apt.conf.d/keep-cache
 
-# ========================================================================================================
-FROM base AS sdk-nodejs
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# renovate: datasource=github-releases depName=Schniz/fnm
-ENV FNM_VERSION="1.38.1"
-ENV FNM_ROOT=/opt/fnm
-ENV PATH="$PATH:${FNM_ROOT}"
-# hadolint ignore=SC2086
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    --mount=type=secret,id=FETCH_GH_TOKEN \
-    export FNM_RELEASE_ASSET="$(test "${TARGETARCH}" == "arm64" && echo "fnm-arm64.zip" || echo "fnm-linux.zip")" && \
-    fetch \
-        --repo="https://github.com/Schniz/fnm" \
-        --tag="v${FNM_VERSION}" \
-        --release-asset="${FNM_RELEASE_ASSET}" \
-        --github-oauth-token="$(cat /run/secrets/FETCH_GH_TOKEN)" \
-        /tmp && \
-    unzip $FNM_RELEASE_ASSET && \
-    mkdir -p $FNM_ROOT && \
-    install -o root -g root -m 0755 /tmp/fnm $FNM_ROOT/fnm && \
-    upx $FNM_ROOT/fnm && \
-    mkdir /env && \
-    echo "FNM_ROOT=$FNM_ROOT" > /env/fnm.env && \
-    echo "$FNM_ROOT" > /env/fnm.path
-
-# ========================================================================================================
-FROM base AS sdk-terraform
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-# tfenv + terraform
-# renovate: datasource=github-releases depName=tfutils/tfenv
-ARG TFENV_VERSION="3.0.0"
-ENV PATH="${PATH}:/opt/tfenv/bin"
-# hadolint ignore=SC2016
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.git /opt/tfenv 2> /dev/null && \
-    chmod -R g+rw /opt/tfenv && \
-    mkdir /env && \
-    echo "/opt/tfenv/bin" > /env/terraform.path
-
 
 # ========================================================================================================
 FROM base AS binary-downloads
@@ -263,34 +204,13 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# copy sdks + packages installations
-COPY --from=sdk-nodejs /opt/fnm /opt/fnm
-COPY --from=sdk-terraform /opt/tfenv /opt/tfenv
-
 # copy binaries
 COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
-
-# copy environment variables
-# hadolint ignore=SC2086
-RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
-    --mount=type=bind,from=sdk-terraform,source=/env,target=/env/sdk-terraform \
-    --mount=type=tmpfs,target=/tmp \
-    # ----------------------------------------------------------------------------------------------------
-    # join path segments from /env/*.path and add to PATH env var in /etc/environment
-    for path_file in $(find /env -type f -name *.path | sort); do export PATH="$(cat $path_file):${PATH}"; done && \
-    mv /etc/environment /tmp/env.tmp && \
-    grep -v '^PATH=' /tmp/env.tmp > /etc/environment && \
-    echo 'PATH="'${PATH}'"' >> /etc/environment && \
-    # ----------------------------------------------------------------------------------------------------
-    # add all environment values from /env/*.env files to /etc/environment
-    for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
-
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
 RUN groupadd --gid ${CODER_GID} coder && \
     useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
-    chown -R root:coder /var/cache/python && \
-    chown -R root:coder /opt/tfenv
+    chown -R root:coder /var/cache/python
 USER coder
 WORKDIR /home/coder
