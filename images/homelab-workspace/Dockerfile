@@ -118,25 +118,18 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       autoconf \
       bash-completion \
-      bat \
       bsdextrautils \
       build-essential \
-      direnv \
       dnsutils \
-      eza \
-      fd-find \
       ffmpeg \
       fontconfig \
-      fzf \
       gettext \
       htop \
-      hyperfine \
       inetutils-tools \
       inetutils-syslogd \
       iotop \
       iputils-ping \
       iputils-tracepath \
-      jsonnet \
       ldap-utils \
       less \
       libarchive-dev \
@@ -161,7 +154,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       python3 \
       python3-pip \
       python3-venv \
-      ripgrep \
       rsync \
       screen \
       software-properties-common \
@@ -255,16 +247,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/kubectl /usr/local/sbin/kubectl && \
     upx /usr/local/sbin/kubectl
 
-# helm
-# renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION="3.16.4"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 1 -C /tmp && \
-    install -o root -g root -m 0755 /tmp/helm /usr/local/sbin/helm && \
-    upx /usr/local/sbin/helm
-
 # flux
 # renovate: datasource=github-releases depName=fluxcd/flux2
 ARG FLUX_VERSION="2.4.0"
@@ -274,16 +256,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     wget --progress=dot:giga -c "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/flux /usr/local/sbin/flux && \
     upx /usr/local/sbin/flux
-
-# k9s
-# renovate: datasource=github-releases depName=derailed/k9s
-ARG K9S_VERSION="0.32.7"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/k9s /usr/local/sbin/k9s && \
-    upx /usr/local/sbin/k9s
 
 # krew
 # renovate: datasource=github-releases depName=kubernetes-sigs/krew
@@ -295,16 +267,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/krew-linux_${TARGETARCH} /usr/local/sbin/kubectl-krew && \
     upx /usr/local/sbin/kubectl-krew
 
-# kustomize
-# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.*)$
-ARG KUSTOMIZE_VERSION="5.5.0"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/kustomize /usr/local/sbin/kustomize && \
-    upx /usr/local/sbin/kustomize
-
 # starship
 # renovate: datasource=github-releases depName=starship/starship
 ARG STARSHIP_VERSION="1.21.1"
@@ -315,6 +277,16 @@ RUN --mount=type=tmpfs,target=/tmp \
     wget --progress=dot:giga -c "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${STARSHIP_ARCH}-unknown-linux-musl.tar.gz" -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/starship /usr/local/sbin/starship && \
     upx /usr/local/sbin/starship
+
+# aqua
+# renovate: datasource=github-releases depName=aquaproj/aqua
+ARG AQUA_VERSION="2.40.0"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/aqua /usr/local/sbin/aqua && \
+    upx /usr/local/sbin/aqua
 
 # gh
 # renovate: datasource=github-releases depName=cli/cli
