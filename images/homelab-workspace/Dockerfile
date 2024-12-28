@@ -67,16 +67,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     xz -d /tmp/upx.tar.xz && \
     tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
 
-# yq
-# renovate: datasource=github-releases depName=mikefarah/yq
-ARG YQ_VERSION="4.44.6"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
-    upx /usr/local/sbin/yq
-
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
 ARG FETCH_VERSION="0.4.6"
@@ -236,38 +226,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# kubectl version=latest(intersect(stable-channel(https://github.com/k3s-io/k3s/releases), https://github.com/kubernetes/kubernetes/releases))
-# renovate: datasource=github-releases depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION="1.31.4"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl" -O /tmp/kubectl && \
-    wget --progress=dot:giga "https://dl.k8s.io/v${KUBECTL_VERSION}/bin/linux/${TARGETARCH}/kubectl.sha256" -O /tmp/kubectl.sha256 && \
-    echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check && \
-    install -o root -g root -m 0755 /tmp/kubectl /usr/local/sbin/kubectl && \
-    upx /usr/local/sbin/kubectl
-
-# flux
-# renovate: datasource=github-releases depName=fluxcd/flux2
-ARG FLUX_VERSION="2.4.0"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/flux /usr/local/sbin/flux && \
-    upx /usr/local/sbin/flux
-
-# krew
-# renovate: datasource=github-releases depName=kubernetes-sigs/krew
-ARG KREW_VERSION="0.4.4"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/kubernetes-sigs/krew/releases/download/v${KREW_VERSION}/krew-linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/krew-linux_${TARGETARCH} /usr/local/sbin/kubectl-krew && \
-    upx /usr/local/sbin/kubectl-krew
-
 # starship
 # renovate: datasource=github-releases depName=starship/starship
 ARG STARSHIP_VERSION="1.21.1"
@@ -289,23 +247,14 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/aqua /usr/local/sbin/aqua && \
     upx /usr/local/sbin/aqua
 
-# gh
-# renovate: datasource=github-releases depName=cli/cli
-ARG GH_VERSION="2.63.2"
+# mise-en-place
+# renovate: datasource=github-releases depName=jdx/mise
+ARG MISE_EN_PLACE_VERSION="2024.12.21"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv --strip-components 2 -C /tmp gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh && \
-    install -o root -g root -m 0755 /tmp/gh /usr/local/sbin/gh && \
-    upx /usr/local/sbin/gh
-
-# minio-cli
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    curl -s -q "https://dl.min.io/client/mc/release/linux-${TARGETARCH}/mc" -o /tmp/mc && \
-    install -o root -g root -m 0755 /tmp/mc /usr/local/sbin/mc && \
-    upx /usr/local/sbin/mc
+    curl https://mise.run | MISE_VERSION="v${MISE_EN_PLACE_VERSION}" MISE_INSTALL_PATH=/usr/local/sbin/mise sh && \
+    upx /usr/local/sbin/mise
 
 
 # ========================================================================================================
