@@ -8,11 +8,6 @@ ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 # hadolint ignore=DL3059
 RUN echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment
 
-# Add `coder` group
-# hadolint ignore=DL3059
-ARG CODER_GID="10001"
-RUN groupadd --gid ${CODER_GID} coder
-
 # Place all __pycache__ and *.pyc within a location outside of /usr or /opt,
 # - so that it can be easily cleared by the user (as needed)
 # - so that they need not be built into the image
@@ -20,7 +15,6 @@ RUN groupadd --gid ${CODER_GID} coder
 # and use them within the scope of that statement.
 ENV PYTHONPYCACHEPREFIX=/var/cache/python
 RUN mkdir -p /var/cache/python && \
-    chown -R root:coder /var/cache/python && \
     chmod 775 /var/cache/python && \
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
     find /usr -name __pycache__ -exec rm -rf {} +
@@ -49,7 +43,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
         sudo \
         unzip \
         wget \
-        xz-utils
+        xz-utils && \
+    find /usr -name __pycache__ -exec rm -rf {} +
 
 # generate locales (needed for many applications, specially python)
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
@@ -65,18 +60,22 @@ RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
 # renovate: datasource=github-releases depName=upx/upx
 ARG UPX_VERSION="4.2.4"
 WORKDIR /tmp
-RUN wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
     xz -d /tmp/upx.tar.xz && \
-    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx" && \
-    rm -rf /var/log/* /tmp/* /var/tmp/*
+    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
 
 # yq
 # renovate: datasource=github-releases depName=mikefarah/yq
 ARG YQ_VERSION="4.44.6"
-RUN wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
     install -o root -g root -m 0755 /tmp/yq_linux_${TARGETARCH} /usr/local/sbin/yq && \
-    upx /usr/local/sbin/yq && \
-    rm -rf /tmp/* /var/log/* /var/tmp/*
+    upx /usr/local/sbin/yq
 
 # fetch (used for installing packages from github release assets)
 # renovate: datasource=github-releases depName=gruntwork-io/fetch
@@ -104,7 +103,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
-    echo -e 'y\ny' | /usr/bin/unminimize
+    echo -e 'y\ny' | /usr/bin/unminimize && \
+    find /usr -name __pycache__ -exec rm -rf {} +
 
 # system packages
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
@@ -167,7 +167,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       vim \
       watch \
       zip \
-      zstd
+      zstd \
+      && \
+    find /usr -name __pycache__ -exec rm -rf {} +
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
@@ -223,7 +225,6 @@ RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
     git clone -b "v${TFENV_VERSION}" --depth=1 https://github.com/tfutils/tfenv.git /opt/tfenv 2> /dev/null && \
-    chown -R root:coder /opt/tfenv && \
     chmod -R g+rw /opt/tfenv && \
     mkdir /env && \
     echo "/opt/tfenv/bin" > /env/terraform.path
@@ -335,7 +336,12 @@ RUN --mount=type=bind,from=sdk-nodejs,source=/env,target=/env/sdk-nodejs \
     # add all environment values from /env/*.env files to /etc/environment
     for env_file in $(find /env -type f -name *.env | sort); do cat $env_file >> /etc/environment; done
 
+
+ARG CODER_GID="10001"
 ARG CODER_UID="10001"
-RUN useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder
+RUN groupadd --gid ${CODER_GID} coder && \
+    useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
+    chown -R root:coder /var/cache/python && \
+    chown -R root:coder /opt/tfenv
 USER coder
 WORKDIR /home/coder
