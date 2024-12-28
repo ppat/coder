@@ -2,6 +2,14 @@
 
 
 
+## [2.1.1](https://github.com/ppat/coder/compare/v2.1.0...v2.1.1) (2024-12-28)
+
+### 🐛 Enhancements + Bug Fixes
+
+* drop fnm and tfenv from image as part of switch to mise-en-place ([#379](https://github.com/ppat/coder/issues/379)) ([511e73c](https://github.com/ppat/coder/commit/511e73c024b9f0e3d4a7d777fd6961bf9e04c850))
+* only retain cli-tools needed for baseline workspace (upx, starship, aqua, mise-en-place) ([#378](https://github.com/ppat/coder/issues/378)) ([89b6457](https://github.com/ppat/coder/commit/89b64572dcb4495d1f7aa5a07f7df74f4ba8176b))
+* remove __pycache__ directories from docker image ([#377](https://github.com/ppat/coder/issues/377)) ([ec3296b](https://github.com/ppat/coder/commit/ec3296bb53adf89f2cc7fe5f898cbab2c9216e2c))
+
 ## [2.1.0](https://github.com/ppat/coder/compare/v2.0.3...v2.1.0) (2024-12-28)
 
 ### ✨ Features
