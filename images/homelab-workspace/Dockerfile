@@ -194,7 +194,8 @@ ARG MISE_EN_PLACE_VERSION="2024.12.21"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    curl https://mise.run | MISE_VERSION="v${MISE_EN_PLACE_VERSION}" MISE_INSTALL_PATH=/usr/local/sbin/mise sh && \
+    curl https://mise.run | MISE_VERSION="v${MISE_EN_PLACE_VERSION}" MISE_INSTALL_PATH=/tmp/mise sh && \
+    install -o root -g root -m 0755 /tmp/mise /usr/local/sbin/mise && \
     upx /usr/local/sbin/mise
 
 
