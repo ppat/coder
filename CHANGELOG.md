@@ -2,6 +2,12 @@
 
 
 
+## [2.1.2](https://github.com/ppat/coder/compare/v2.1.1...v2.1.2) (2024-12-28)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix ownership for mise-en-place cli tool ([#380](https://github.com/ppat/coder/issues/380)) ([bae0533](https://github.com/ppat/coder/commit/bae053313772b4fe0f70697cc960381f2bb59e3e))
+
 ## [2.1.1](https://github.com/ppat/coder/compare/v2.1.0...v2.1.1) (2024-12-28)
 
 ### 🐛 Enhancements + Bug Fixes
