@@ -2,6 +2,12 @@
 
 
 
+## [2.1.0](https://github.com/ppat/coder/compare/v2.0.3...v2.1.0) (2024-12-28)
+
+### ✨ Features
+
+* **cli-tools:** switch to using aqua for managing most CLI tools instead of baking them into image ([#376](https://github.com/ppat/coder/issues/376)) ([8c119c3](https://github.com/ppat/coder/commit/8c119c3da7bce07d356b4178369e77b24e6efebf))
+
 ## [2.0.3](https://github.com/ppat/coder/compare/v2.0.2...v2.0.3) (2024-12-26)
 
 ### 🐛 Enhancements + Bug Fixes
