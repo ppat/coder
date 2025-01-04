@@ -79,6 +79,7 @@ jobs:
       shell: bash
       env:
         TRIGGER_EVENT: ${{ github.event_name }}
+        CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       # yamllint disable-line rule:indentation
       run: |
         if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" && -f /tmp/released.version ]]; then
@@ -88,7 +89,7 @@ jobs:
         else
           # a dry-run during CI or a test-publish for manual testing has been triggered.
           echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
-          echo "gitref=refs/heads/$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
+          echo "gitref=refs/heads/$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
         fi
         echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
