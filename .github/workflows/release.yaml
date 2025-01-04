@@ -28,7 +28,7 @@ env:
 
 jobs:
   create-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     # if: github.event.pull_request.merged == true
     outputs:
@@ -41,12 +41,14 @@ jobs:
         token: "${{ secrets.GH_RELEASES_TOKEN }}"
         fetch-depth: 0
 
-    - name: Set up node
-      uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+    - name: Setup mise
+      uses: jdx/mise-action@5083fe46898c414b2475087cc79da59e7da859e8 # v2.1.11
       with:
-        node-version-file: '.node-version'
-        cache: 'npm'
-        cache-dependency-path: 'package-lock.json'
+        # renovate: datasource=github-releases depName=jdx/mise
+        version: "v2025.1.0"
+        install: true
+        cache: true
+        cache_key_prefix: mise-v1
 
     - name: Install node packages
       run: npm ci --no-fund --no-audit
