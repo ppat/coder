@@ -16,7 +16,7 @@ on:
         type: boolean
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -34,6 +34,7 @@ jobs:
     outputs:
       released_sha: ${{ steps.release_info.outputs.sha }}
       released_version: ${{ steps.release_info.outputs.version }}
+      released_gitref: ${{ steps.release_info.outputs.gitref }}
     steps:
     - name: Check out
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -54,18 +55,19 @@ jobs:
       run: npm ci --no-fund --no-audit
 
     - name: Release - dry run
-      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish))
+      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true' ))
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
+        CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       run: |
-        CURRENT_BRANCH=$GITHUB_HEAD_REF
+        echo
         GITHUB_REF=$CURRENT_BRANCH
         set -x
         npx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
 
     - name: Release
-      if: github.event_name == 'workflow_dispatch' && !github.event.inputs.test_publish
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish != 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
       run: |
@@ -77,18 +79,17 @@ jobs:
       shell: bash
       env:
         TRIGGER_EVENT: ${{ github.event_name }}
+        CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       # yamllint disable-line rule:indentation
       run: |
-        if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" ]]; then
+        if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" && -f /tmp/released.version ]]; then
           # an actual release has been triggered.
-          if [[ ! -f /tmp/released.version ]]; then
-            echo "No release occurred... cannot proceed."
-            exit 1
-          fi
           echo "version=v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
+          echo "gitref=refs/tags/v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
         else
-          # release workflow is being tested
+          # a dry-run during CI or a test-publish for manual testing has been triggered.
           echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
+          echo "gitref=refs/heads/$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
         fi
         echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -101,7 +102,7 @@ jobs:
       label_description: "Homelab workspace image"
       # platforms: linux/amd64,linux/arm64
       platforms: linux/amd64
-      source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || format('refs/tags/{0}', needs.create-release.outputs.released_version) }}
+      source_git_ref: ${{ needs.create-release.outputs.released_gitref }}
       timeout_minutes: 180
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
