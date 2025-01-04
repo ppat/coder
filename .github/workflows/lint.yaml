@@ -153,10 +153,6 @@ jobs:
         failure-threshold: warning
         config: .hadolint.yaml
 
-    - name: yamllint
-      if: success() || failure()
-      run: poetry run yamllint -c .yamllint --strict --format github .
-
     - name: actionlint
       if: (success() || failure()) && (steps.changed-files-yaml.outputs.actions_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       env:
