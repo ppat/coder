@@ -9,6 +9,11 @@ on:
     - '.releaserc.js'
     - 'package.json'
   workflow_dispatch:
+    inputs:
+      test_publish:
+        description: "Test Publish"
+        required: true
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,7 +52,7 @@ jobs:
       run: npm ci --no-fund --no-audit
 
     - name: Release - dry run
-      if: github.event_name == 'pull_request'
+      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish))
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
@@ -58,7 +63,7 @@ jobs:
         npx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
 
     - name: Release
-      if: github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'workflow_dispatch' && !github.event.inputs.test_publish
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
       run: |
