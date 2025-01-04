@@ -34,6 +34,7 @@ jobs:
     outputs:
       released_sha: ${{ steps.release_info.outputs.sha }}
       released_version: ${{ steps.release_info.outputs.version }}
+      released_gitref: ${{ steps.release_info.outputs.gitref }}
     steps:
     - name: Check out
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -83,9 +84,11 @@ jobs:
         if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" && -f /tmp/released.version ]]; then
           # an actual release has been triggered.
           echo "version=v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
+          echo "gitref=refs/tags/v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
         else
           # a dry-run during CI or a test-publish for manual testing has been triggered.
           echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
+          echo "gitref=refs/heads/$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
         fi
         echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -98,7 +101,7 @@ jobs:
       label_description: "Homelab workspace image"
       # platforms: linux/amd64,linux/arm64
       platforms: linux/amd64
-      source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || format('refs/tags/{0}', needs.create-release.outputs.released_version) }}
+      source_git_ref: ${{ needs.create-release.outputs.released_gitref }}
       timeout_minutes: 180
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
