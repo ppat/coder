@@ -54,7 +54,7 @@ jobs:
       run: npm ci --no-fund --no-audit
 
     - name: Release - dry run
-      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish))
+      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true' ))
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
@@ -65,7 +65,7 @@ jobs:
         npx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
 
     - name: Release
-      if: github.event_name == 'workflow_dispatch' && !github.event.inputs.test_publish
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish != 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
       run: |
