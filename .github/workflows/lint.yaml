@@ -185,13 +185,13 @@ jobs:
       run: |
         if [[ "${CHANGED_FILES}" == "ALL" ]]; then
           echo "Validating main configuration..."
-        echo ".github/renovate.json:"
+          echo ".github/renovate.json:"
           renovate-config-validator .github/renovate.json | pr -t -o 4
           echo "Validating all 'extends' configuration files..."
-        for rc in $(find .github/renovate -type f -name '*.json' | sort); do
-          echo "${rc}:"
+          for rc in $(find .github/renovate -type f -name '*.json' | sort); do
+            echo "${rc}:"
             renovate-config-validator ${rc} | pr -t -o 4
-        done
+          done
         else
           echo "Validating changed configuration files..."
           for rc in ${CHANGED_FILES}; do
