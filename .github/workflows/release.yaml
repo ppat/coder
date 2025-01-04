@@ -60,7 +60,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
         CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       run: |
-        env | sort
         echo
         GITHUB_REF=$CURRENT_BRANCH
         set -x
