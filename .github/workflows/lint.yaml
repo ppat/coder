@@ -120,6 +120,7 @@ jobs:
       if: (success() || failure()) && (steps.changed-files-yaml.outputs.yaml_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       env:
         CHANGED_FILES: ${{ github.event_name == 'workflow_dispatch' && 'ALL' || steps.changed-files-yaml.outputs.yaml_all_changed_files }}
+      shell: bash
       # yamllint disable-line rule:indentation
       run: |
         if [[ "${CHANGED_FILES}" == "ALL" ]]; then
@@ -132,11 +133,12 @@ jobs:
       if: (success() || failure()) && (steps.changed-files-yaml.outputs.shellscripts_any_changed == 'true' || github.event_name == 'workflow_dispatch')
       env:
         CHANGED_FILES: ${{ github.event_name == 'workflow_dispatch' && 'ALL' || steps.changed-files-yaml.outputs.shellscripts_all_changed_files }}
+      shell: bash
       # yamllint disable-line rule:indentation
       run: |
         if [[ "${CHANGED_FILES}" == "ALL" ]]; then
           set -x
-          find . -type f -name '*.sh' -executable -exec shellcheck --rcfile .shellcheckrc {} +
+          find . -type f -name '*.sh' -not -path './node_modules/*' -executable -exec shellcheck --rcfile .shellcheckrc {} +
           set +x
         else
           set -x
@@ -162,11 +164,11 @@ jobs:
       run: |
         if [[ "${CHANGED_FILES}" == "ALL" ]]; then
           set -x
-          actionlint -shellcheck "${AQUA_ROOT_DIR}/bin/shellcheck --rcfile .shellcheckrc"
+          actionlint -shellcheck "shellcheck --rcfile .shellcheckrc"
           set +x
         else
           set -x
-          actionlint -shellcheck "${AQUA_ROOT_DIR}/bin/shellcheck --rcfile .shellcheckrc" $CHANGED_FILES
+          actionlint -shellcheck "shellcheck --rcfile .shellcheckrc" $CHANGED_FILES
           set +x
         fi
 
