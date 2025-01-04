@@ -2,6 +2,19 @@
 
 
 
+## [2.2.0](https://github.com/ppat/coder/compare/v2.1.2...v2.2.0) (2025-01-04)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.40.0 -> v2.41.0) ([#389](https://github.com/ppat/coder/issues/389)) ([1a2561e](https://github.com/ppat/coder/commit/1a2561e62af2fc56dc67a1981b0adb86fd916155))
+* **cli-tools:** update jdx/mise (v2024.12.24 -> v2025.1.0) ([#390](https://github.com/ppat/coder/issues/390)) ([1b596f8](https://github.com/ppat/coder/commit/1b596f8f611eda28435403cf9e5c0b21b1946343))
+
+### 🐛 Enhancements + Bug Fixes
+
+* clean up coder agent startup script ([#391](https://github.com/ppat/coder/issues/391)) ([d7328b3](https://github.com/ppat/coder/commit/d7328b30bdb4f461151e877359f076c4380b7858))
+* **cli-tools:** update jdx/mise (v2024.12.21 -> v2024.12.22) ([#381](https://github.com/ppat/coder/issues/381)) ([8a28915](https://github.com/ppat/coder/commit/8a28915e50e5675186a4e7edda6c940864981931))
+* **cli-tools:** update jdx/mise (v2024.12.22 -> v2024.12.24) ([#386](https://github.com/ppat/coder/issues/386)) ([afdd4a1](https://github.com/ppat/coder/commit/afdd4a1d9762feb8dd17cdabc9b2e13de7b4ca62))
+
 ## [2.1.2](https://github.com/ppat/coder/compare/v2.1.1...v2.1.2) (2024-12-28)
 
 ### 🐛 Enhancements + Bug Fixes
