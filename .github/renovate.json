@@ -26,7 +26,6 @@
     "github>ppat/renovate-presets:ci-github-actions",
     "github>ppat/coder//.github/renovate/template-terraform-provider",
     "github>ppat/coder//.github/renovate/image-cli-tools",
-    "github>ppat/coder//.github/renovate/image-delayed-updates",
     "github>ppat/coder//.github/renovate/exceptions"
   ],
   "internalChecksFilter": "strict",

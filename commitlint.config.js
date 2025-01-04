@@ -37,14 +37,11 @@ module.exports = {
         'cli-tools',
         'dev-tools',
         'deps',
-        'galaxy-collection',
         'github-actions',
-        'lang-sdk',
-        'npm-tools',
-        'pypi-tools',
         'release',
         'renovate',
-        'terraform-provider'
+        'terraform-provider',
+        'terraform-version'
       ]
     ],
     // 'scope-empty': [2, 'always'],
