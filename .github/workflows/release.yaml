@@ -58,7 +58,10 @@ jobs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
+        TEST_PUBLISH: ${{ github.event.inputs.test_publish }}
       run: |
+        env | sort
+        echo
         CURRENT_BRANCH=$GITHUB_HEAD_REF
         GITHUB_REF=$CURRENT_BRANCH
         set -x
