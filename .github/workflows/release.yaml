@@ -80,15 +80,11 @@ jobs:
         TRIGGER_EVENT: ${{ github.event_name }}
       # yamllint disable-line rule:indentation
       run: |
-        if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" ]]; then
+        if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" && -f /tmp/released.version ]]; then
           # an actual release has been triggered.
-          if [[ ! -f /tmp/released.version ]]; then
-            echo "No release occurred... cannot proceed."
-            exit 1
-          fi
           echo "version=v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
         else
-          # release workflow is being tested
+          # a dry-run during CI or a test-publish for manual testing has been triggered.
           echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
         fi
         echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
