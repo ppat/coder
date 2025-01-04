@@ -2,6 +2,38 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
     {
+      "commitMessageTopic": "terraform",
+      "description": "group terraform upgrades together",
+      "groupName": "terraform-{{newVersion}}",
+      "matchManagers": [
+        "mise",
+        "terraform-version"
+      ],
+      "matchPackageNames": [
+        "hashicorp/terraform",
+        "terraform"
+      ],
+      "semanticCommitScope": "terraform-version"
+    },
+    {
+      "automerge": false,
+      "commitBody": "BREAKING CHANGE",
+      "commitMessageTopic": "{{packageName}}",
+      "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
+      "groupName": "{{packageName}}",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "270 days",
+      "semanticCommitType": "feat"
+    },
+    {
       "allowedVersions": "1.7.4",
       "description": "actionlint > 1.7.4 cannot provide shellcheck arguments",
       "matchPackageNames": [
