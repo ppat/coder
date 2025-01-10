@@ -106,7 +106,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       gettext \
       htop \
       inetutils-tools \
-      inetutils-syslogd \
       iotop \
       iputils-ping \
       iputils-tracepath \
@@ -128,6 +127,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       pipx \
       pkg-config \
       postgresql-client \
+      procps \
       psmisc \
       pv \
       python-is-python3 \
@@ -136,7 +136,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       python3-venv \
       rsync \
       screen \
-      software-properties-common \
       sshpass \
       ssh-askpass \
       strace \
@@ -145,7 +144,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       tmux \
       tzdata \
       vim \
-      watch \
       zip \
       zstd \
       && \
