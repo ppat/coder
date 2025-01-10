@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  image_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace
+  image_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
   image_cache_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
   image_path: images/homelab-workspace
   template_path: templates/kubernetes/homelab-workspace
@@ -107,8 +107,8 @@ jobs:
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
       private_registry_token: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
-      repository_private_registry: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace
-      repository_build_cache: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/homelab-workspace
+      repository_private_registry: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
+      repository_build_cache: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
       tailscale_oauth_client_id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
       tailscale_oauth_secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
       build_secrets: |
@@ -171,7 +171,7 @@ jobs:
       env:
         TEMPLATE_DIR: ${{ env.template_path }}
         TEMPLATE_VERSION: "${{ needs.create-release.outputs.released_version != 'v0.0.0' && needs.create-release.outputs.released_version || needs.create-release.outputs.released_sha }}"
-        WORKSPACE_IMAGE: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/homelab-workspace:${{ needs.publish-image.outputs.image_tag }}"
+        WORKSPACE_IMAGE: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
       shell: bash
       # yamllint disable-line rule:indentation
       run: |
