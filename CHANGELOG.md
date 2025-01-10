@@ -2,6 +2,24 @@
 
 
 
+## [2.3.0](https://github.com/ppat/coder/compare/v2.2.0...v2.3.0) (2025-01-10)
+
+### ✨ Features
+
+* **terraform-version:** update terraform-1.10.3 (1.9.8 -> 1.10.3) ([#396](https://github.com/ppat/coder/issues/396)) ([0b37773](https://github.com/ppat/coder/commit/0b37773d837af03546f4caf740a3ba2884e764b3))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update jdx/mise (v2025.1.0 -> v2025.1.1) ([#398](https://github.com/ppat/coder/issues/398)) ([bad47a8](https://github.com/ppat/coder/commit/bad47a8e1590a4ce2c7a044eb84f66f1319b8e85))
+* **cli-tools:** update jdx/mise (v2025.1.1 -> v2025.1.2) ([#401](https://github.com/ppat/coder/issues/401)) ([49eafb7](https://github.com/ppat/coder/commit/49eafb7e4e43211543f356f8ad30f572f912cdb1))
+* drop unused packages from workspace image ([#402](https://github.com/ppat/coder/issues/402)) ([ab22004](https://github.com/ppat/coder/commit/ab2200409d32af288ce237e2c26a374d47420687))
+* **terraform-version:** update terraform (1.10.3 -> 1.10.4) ([#400](https://github.com/ppat/coder/issues/400)) ([2082570](https://github.com/ppat/coder/commit/20825700ee599be201fce241b7fe4c69dfeae52a))
+* update registry.coder.com/modules/coder-login/coder (v1.0.26 -> v1.0.27) ([#399](https://github.com/ppat/coder/issues/399)) ([0441193](https://github.com/ppat/coder/commit/0441193e1ec27ecdea13edf829bbeeca2c794580))
+
+### 🛠 Improvements
+
+* fix formatting ([4e291f1](https://github.com/ppat/coder/commit/4e291f11f7a39bfa365d44c2c7c3a895f7e9c19f))
+
 ## [2.2.0](https://github.com/ppat/coder/compare/v2.1.2...v2.2.0) (2025-01-04)
 
 ### ✨ Features
