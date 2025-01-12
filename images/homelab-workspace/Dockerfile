@@ -188,7 +188,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # mise-en-place
 # renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_EN_PLACE_VERSION="2025.1.3"
+ARG MISE_EN_PLACE_VERSION="2025.1.4"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
