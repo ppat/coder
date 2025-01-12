@@ -32,13 +32,6 @@
       ],
       "minimumReleaseAge": "270 days",
       "semanticCommitType": "feat"
-    },
-    {
-      "allowedVersions": "1.7.4",
-      "description": "actionlint > 1.7.4 cannot provide shellcheck arguments",
-      "matchPackageNames": [
-        "rhysd/actionlint"
-      ]
     }
   ]
 }
