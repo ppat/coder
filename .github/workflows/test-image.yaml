@@ -15,20 +15,21 @@ concurrency:
 
 jobs:
   build-workspace-image:
-    uses: ppat/images/.github/workflows/build-image-workflow.yaml@main
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@main
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
       label_description: "Homelab workspace image"
       # platforms: linux/amd64,linux/arm64
       platforms: linux/amd64
+      private_registry_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
+      private_registry_build_cache: ${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
       source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || github.ref }}
       timeout_minutes: 180
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
       private_registry_token: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
-      repository_private_registry: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
-      repository_build_cache: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
+      private_registry: ${{ secrets.CONTAINER_REGISTRY }}
       tailscale_oauth_client_id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
       tailscale_oauth_secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
       build_secrets: |
