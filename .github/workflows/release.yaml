@@ -8,6 +8,7 @@ on:
     - '.github/workflows/release.yaml'
     - '.releaserc.js'
     - 'package.json'
+    - 'templates/**'
   workflow_dispatch:
     inputs:
       test_publish:
@@ -179,16 +180,18 @@ jobs:
         if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
           export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${TEMPLATE_VERSION})"
+          export TEST_MODE=false
         else
           export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
           export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
+          export TEST_MODE=true
         fi
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
         coder template push \
           --directory ${TEMPLATE_DIR} \
           --var workspace_image=${WORKSPACE_IMAGE} \
-          --var test_mode=false \
+          --var test_mode=${TEST_MODE} \
           --name ${TEMPLATE_VERSION} \
           --message "${RELEASE_MSG}" \
           --yes \

@@ -1,7 +1,7 @@
 resource "coder_agent" "main" {
   arch                    = "amd64"
   os                      = "linux"
-  startup_script          = var.test_mode ? "/bin/bash --noprofile --norc" : "/bin/bash --noprofile --norc /usr/local/bin/agent-startup.sh"
+  startup_script          = "/bin/bash --noprofile --norc /usr/local/bin/agent-startup.sh"
   startup_script_behavior = "blocking"
 
   env = {
