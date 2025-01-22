@@ -6,12 +6,15 @@ fetch_dotfiles() {
   local dotfiles_repo="$1"
   mkdir -p $HOME/code
 
-  echo "fetch:dotfiles | Configuring env for git..."
   unset GIT_ASKPASS
   unset GIT_SSH_COMMAND
   local git_ssh_key="$HOME/.ssh/id_ed25519"
   if [[ -e "$git_ssh_key" ]]; then
+    echo "fetch:dotfiles | Configuring env for git..."
     export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${git_ssh_key}"
+  else
+    echo "fetch:dotfiles | No git ssh key found, skipping dotfiles fetch!" >&2
+    return
   fi
 
   if [[ ! -d $HOME/code/dotfiles ]]; then
@@ -44,6 +47,8 @@ main() {
   if [[ -e "$HOME/code/dotfiles/install.sh" ]]; then
     cd $HOME/code/dotfiles
     ./install.sh
+  else
+    echo "fetch:dotfiles | No dotfiles to install (see above)!" >&2
   fi
 }
 

@@ -1,16 +1,3 @@
-locals {
-  requested_resources = {
-    requests = {
-      "cpu"    = "250m"
-      "memory" = "1024Mi"
-    }
-    limits = {
-      "cpu"    = data.coder_parameter.resources_cpu.value
-      "memory" = "${data.coder_parameter.resources_memory.value}Gi"
-    }
-  }
-}
-
 resource "kubernetes_deployment" "deployment" {
   count = data.coder_workspace.me.start_count
 
@@ -39,20 +26,42 @@ resource "kubernetes_deployment" "deployment" {
       }
       spec {
         automount_service_account_token = false
+        init_container {
+          name    = "apt-cache-init"
+          image   = var.workspace_image
+          command = ["/bin/bash", "-c", "apt-get update && apt-file update"]
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/lib/apt"
+          }
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/cache/apt"
+          }
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/cache/debconf"
+          }
+          security_context {
+            run_as_user = 0
+          }
+        }
         container {
-          name              = "workspace"
-          command           = ["/bin/bash", "/usr/local/bin/agent-init.sh"]
-          image             = var.workspace_image
-          image_pull_policy = "IfNotPresent"
+          name    = "workspace"
+          command = ["/bin/bash", "/usr/local/bin/agent-init.sh"]
+          image   = var.workspace_image
           env {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
           }
-          dynamic "resources" {
-            for_each = var.test_mode ? {} : { values = local.requested_resources }
-            content {
-              requests = resources.value["requests"]
-              limits   = resources.value["limits"]
+          resources {
+            requests = {
+              "cpu"    = "250m"
+              "memory" = "1024Mi"
+            }
+            limits = {
+              "cpu"    = data.coder_parameter.resources_cpu.value
+              "memory" = "${data.coder_parameter.resources_memory.value}Gi"
             }
           }
           security_context {
@@ -63,13 +72,9 @@ resource "kubernetes_deployment" "deployment" {
             run_as_group               = 10001
             run_as_non_root            = true
           }
-          dynamic "volume_mount" {
-            for_each = var.test_mode ? [] : toset([local.home_directory])
-            content {
-              name       = "home"
-              mount_path = volume_mount.key
-              read_only  = false
-            }
+          volume_mount {
+            mount_path = local.home_directory
+            name       = "home"
           }
           dynamic "volume_mount" {
             for_each = var.test_mode ? {} : local.workspace_secrets
@@ -89,6 +94,18 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = "/usr/local/bin/agent-init.sh"
             name       = "coder-scripts"
             sub_path   = "agent_init_script"
+          }
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/lib/apt"
+          }
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/cache/apt"
+          }
+          volume_mount {
+            name       = "apt-cache"
+            mount_path = "/var/cache/debconf"
           }
         }
         enable_service_links = false
@@ -115,6 +132,15 @@ resource "kubernetes_deployment" "deployment" {
           }
         }
         dynamic "volume" {
+          for_each = var.test_mode ? toset(["home"]) : []
+          content {
+            name = "home"
+            empty_dir {
+              size_limit = "10Gi"
+            }
+          }
+        }
+        dynamic "volume" {
           for_each = var.test_mode ? [] : toset(["coder-workspace-secrets"])
           content {
             name = "workspace-secrets"
@@ -130,6 +156,12 @@ resource "kubernetes_deployment" "deployment" {
           config_map {
             name         = "init-scripts-${data.coder_workspace.me.id}"
             default_mode = "0750"
+          }
+        }
+        volume {
+          name = "apt-cache"
+          empty_dir {
+            size_limit = "5Gi"
           }
         }
       }
