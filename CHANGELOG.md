@@ -2,6 +2,23 @@
 
 
 
+## [2.4.0](https://github.com/ppat/coder/compare/v2.3.0...v2.4.0) (2025-01-22)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.41.0 -> v2.42.2) ([#407](https://github.com/ppat/coder/issues/407)) ([ff9e595](https://github.com/ppat/coder/commit/ff9e595135f01f2d742ec21edf5afb058468d980))
+* **cli-tools:** update starship/starship (v1.21.1 -> v1.22.1) ([#419](https://github.com/ppat/coder/issues/419)) ([e5fed54](https://github.com/ppat/coder/commit/e5fed543594881051ef3b9ef21780544ef2517ba))
+* **terraform-provider:** update coder/coder (2.0.2 -> 2.1.0) ([#373](https://github.com/ppat/coder/issues/373)) ([f0faa83](https://github.com/ppat/coder/commit/f0faa833349cf97d0466c94d8fc281045aff9b8a))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update jdx/mise (v2025.1.2 -> v2025.1.3) ([#406](https://github.com/ppat/coder/issues/406)) ([8927559](https://github.com/ppat/coder/commit/8927559058803aaadd69032239526dfd865cad64))
+* **cli-tools:** update jdx/mise (v2025.1.3 -> v2025.1.4) ([#410](https://github.com/ppat/coder/issues/410)) ([83f8722](https://github.com/ppat/coder/commit/83f8722394159786fe259116bfa896fb2abb22ee))
+* **cli-tools:** update jdx/mise (v2025.1.4 -> v2025.1.5) ([#411](https://github.com/ppat/coder/issues/411)) ([ffb59dc](https://github.com/ppat/coder/commit/ffb59dc459e63196c2b1a970c2c2d9f38a9eb78e))
+* **cli-tools:** update jdx/mise (v2025.1.5 -> v2025.1.7) ([#417](https://github.com/ppat/coder/issues/417)) ([d9fe381](https://github.com/ppat/coder/commit/d9fe3810d2b7e1b65124e70b35ce94c6fe1e4daa))
+* **cli-tools:** update jdx/mise (v2025.1.7 -> v2025.1.9) ([#418](https://github.com/ppat/coder/issues/418)) ([7cb9206](https://github.com/ppat/coder/commit/7cb9206660895287d7974e268473aceb2f41b907))
+* **github-actions:** switch coder image build workflow to be from github-workflows repo ([#420](https://github.com/ppat/coder/issues/420)) ([474ddf3](https://github.com/ppat/coder/commit/474ddf3dbc75e0ab925fd3370ae5a82132fb05b4))
+
 ## [2.3.0](https://github.com/ppat/coder/compare/v2.2.0...v2.3.0) (2025-01-10)
 
 ### ✨ Features
