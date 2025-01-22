@@ -2,6 +2,16 @@
 
 
 
+## [2.5.0](https://github.com/ppat/coder/compare/v2.4.1...v2.5.0) (2025-01-22)
+
+### ✨ Features
+
+* add an init-container to workspace pod to initialize apt-cache ([#424](https://github.com/ppat/coder/issues/424)) ([d3605dc](https://github.com/ppat/coder/commit/d3605dcf920f7345662d815aba1cada33ed94c22))
+
+### 🐛 Enhancements + Bug Fixes
+
+* add more apt packages to workspace image ([#423](https://github.com/ppat/coder/issues/423)) ([e379526](https://github.com/ppat/coder/commit/e379526f24388b6524e9e24fd27ec63fa88f8dfa))
+
 ## [2.4.1](https://github.com/ppat/coder/compare/v2.4.0...v2.4.1) (2025-01-22)
 
 ### 🐛 Enhancements + Bug Fixes
