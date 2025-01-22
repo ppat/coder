@@ -96,10 +96,13 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
+      apt-file \
+      apt-utils \
       bash-completion \
       bc \
       binutils \
       bsdextrautils \
+      coreutils \
       dnsutils \
       fontconfig \
       gettext \
