@@ -2,6 +2,12 @@
 
 
 
+## [2.4.1](https://github.com/ppat/coder/compare/v2.4.0...v2.4.1) (2025-01-22)
+
+### 🐛 Enhancements + Bug Fixes
+
+* streamline the workspace image by dropping unnecessarily large packages (incl. of their transitive dependencies) ([#422](https://github.com/ppat/coder/issues/422)) ([37cf0b8](https://github.com/ppat/coder/commit/37cf0b83605969b23704f3051b17370b4e83dcf6))
+
 ## [2.4.0](https://github.com/ppat/coder/compare/v2.3.0...v2.4.0) (2025-01-22)
 
 ### ✨ Features
