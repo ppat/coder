@@ -96,12 +96,11 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     --mount=type=tmpfs,target=/var/tmp \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
-      autoconf \
       bash-completion \
+      bc \
+      binutils \
       bsdextrautils \
-      build-essential \
       dnsutils \
-      ffmpeg \
       fontconfig \
       gettext \
       htop \
@@ -111,14 +110,12 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       iputils-tracepath \
       ldap-utils \
       less \
-      libarchive-dev \
       libarchive-tools \
       libheif-dev \
       libraw-dev \
-      libssl-dev \
-      libtool \
       lsof \
       lz4 \
+      make \
       nano \
       netcat-openbsd \
       net-tools \
