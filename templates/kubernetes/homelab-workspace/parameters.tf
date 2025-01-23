@@ -58,9 +58,4 @@ data "coder_parameter" "system_packages" {
   icon         = "/icon/ubuntu.svg"
   mutable      = true
   type         = "list(string)"
-
-  validation {
-    regex = "^[a-zA-Z0-9][a-zA-Z0-9-]+$"
-    error = "Package names can only contain alphanumeric characters or hyphens"
-  }
 }
