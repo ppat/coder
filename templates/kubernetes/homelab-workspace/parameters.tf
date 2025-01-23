@@ -52,7 +52,7 @@ data "coder_parameter" "resources_memory" {
 data "coder_parameter" "system_packages" {
   name = "system_packages"
 
-  default      = jsonencode(["gnupg", "nmap"])
+  default      = jsonencode([])
   display_name = "System Packages"
   description  = "Additional system packages to install."
   icon         = "/icon/ubuntu.svg"
