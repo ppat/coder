@@ -27,20 +27,21 @@ resource "kubernetes_deployment" "deployment" {
       spec {
         automount_service_account_token = false
         init_container {
-          name    = "apt-cache-init"
+          name    = "system-update"
+          command = ["/bin/bash", "/system-update-script.sh"]
           image   = var.workspace_image
-          command = ["/bin/bash", "-c", "apt-get update && apt-file update"]
-          volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/lib/apt"
+          env {
+            name  = "SYSTEM_PACKAGES"
+            value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
           }
           volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/cache/apt"
+            mount_path = "/system-update-script.sh"
+            name       = "coder-scripts"
+            sub_path   = "system_update_script"
           }
           volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/cache/debconf"
+            name       = "system"
+            mount_path = "/updated"
           }
           security_context {
             run_as_user = 0
@@ -48,11 +49,19 @@ resource "kubernetes_deployment" "deployment" {
         }
         container {
           name    = "workspace"
-          command = ["/bin/bash", "/usr/local/bin/agent-init.sh"]
+          command = ["/bin/bash", "/workspace-init.sh"]
           image   = var.workspace_image
           env {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
+          }
+          liveness_probe {
+            exec {
+              command = ["/bin/sh", "-c", "pgrep -f \"coder agent\" || exit 1"]
+            }
+            initial_delay_seconds = 5
+            period_seconds        = 60
+            timeout_seconds       = 3
           }
           resources {
             requests = {
@@ -86,26 +95,29 @@ resource "kubernetes_deployment" "deployment" {
             }
           }
           volume_mount {
-            mount_path = "/usr/local/bin/agent-startup.sh"
+            mount_path = "/agent-startup.sh"
             name       = "coder-scripts"
             sub_path   = "agent_startup_script"
           }
           volume_mount {
-            mount_path = "/usr/local/bin/agent-init.sh"
+            mount_path = "/workspace-init.sh"
             name       = "coder-scripts"
-            sub_path   = "agent_init_script"
+            sub_path   = "workspace_init_script"
           }
           volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/lib/apt"
+            mount_path = "/usr"
+            name       = "system"
+            sub_path   = "usr"
           }
           volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/cache/apt"
+            mount_path = "/etc"
+            name       = "system"
+            sub_path   = "etc"
           }
           volume_mount {
-            name       = "apt-cache"
-            mount_path = "/var/cache/debconf"
+            mount_path = "/var"
+            name       = "system"
+            sub_path   = "var"
           }
         }
         enable_service_links = false
@@ -159,9 +171,9 @@ resource "kubernetes_deployment" "deployment" {
           }
         }
         volume {
-          name = "apt-cache"
+          name = "system"
           empty_dir {
-            size_limit = "5Gi"
+            size_limit = "10Gi"
           }
         }
       }
