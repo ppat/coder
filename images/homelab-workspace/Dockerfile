@@ -23,9 +23,9 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
 # minimum requirements for base image (for supporting builds of subsequent stages)
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -37,7 +37,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
         ca-certificates \
         curl \
         git \
-        gnupg \
         jq \
         locales \
         sudo \
@@ -73,9 +72,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
 # unminimize
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -87,9 +86,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # system packages
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
@@ -122,7 +121,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       nano \
       netcat-openbsd \
       net-tools \
-      nmap \
       openssh-client \
       pipx \
       pkg-config \
@@ -149,9 +147,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       && \
     find /usr -name __pycache__ -exec rm -rf {} +
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=shared \
-    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=shared \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
