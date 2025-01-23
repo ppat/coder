@@ -2,6 +2,18 @@
 
 
 
+## [2.6.0](https://github.com/ppat/coder/compare/v2.5.1...v2.6.0) (2025-01-23)
+
+### ✨ Features
+
+* coder deployment's system-init container can install additional user specified system packages ([#426](https://github.com/ppat/coder/issues/426)) ([a7182b6](https://github.com/ppat/coder/commit/a7182b64d58d7b544aa3902be6d64e5fb73493f0))
+
+### 🐛 Enhancements + Bug Fixes
+
+* drop unnecessary packages from workspace image ([#427](https://github.com/ppat/coder/issues/427)) ([3ee63c1](https://github.com/ppat/coder/commit/3ee63c1cf662b6bd8b3b975eab15d4ab83bf39c7))
+* re-enable building arm64 workspace images ([#428](https://github.com/ppat/coder/issues/428)) ([82512fd](https://github.com/ppat/coder/commit/82512fd4a70961b03a7f0e5f2744c8658958dd8a))
+* set default system packages to empty list ([#429](https://github.com/ppat/coder/issues/429)) ([a5fb5c4](https://github.com/ppat/coder/commit/a5fb5c4968825af7bfef68f8659a6b5b505d58a4))
+
 ## [2.5.1](https://github.com/ppat/coder/compare/v2.5.0...v2.5.1) (2025-01-23)
 
 ### 🐛 Enhancements + Bug Fixes
