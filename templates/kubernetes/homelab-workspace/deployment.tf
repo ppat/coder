@@ -119,7 +119,7 @@ resource "kubernetes_deployment" "deployment" {
           run_as_group           = 10001
           run_as_non_root        = true
           fs_group               = 10001
-          fs_group_change_policy = "Always"
+          fs_group_change_policy = "OnRootMismatch"
         }
         dynamic "volume" {
           for_each = var.test_mode ? [] : toset(["coder-workspace-home"])
