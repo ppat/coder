@@ -59,3 +59,11 @@ data "coder_parameter" "system_packages" {
   mutable      = true
   type         = "list(string)"
 }
+
+
+locals {
+  validated_system_packages = (data.coder_parameter.system_packages.value != "") ? [
+    for str in jsondecode(data.coder_parameter.system_packages.value) :
+    str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
+  ] : []
+}
