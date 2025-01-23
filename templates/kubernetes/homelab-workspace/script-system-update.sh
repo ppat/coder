@@ -13,7 +13,7 @@ main() {
   echo "    Packages: $SYSTEM_PACKAGES"
   echo
   if [[ "$SYSTEM_PACKAGES" != "NONE" ]]; then
-    apt-get install --no-install-recommends -yq $SYSTEM_PACKAGES 2>&1 | pr -t -o 4
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -yq $SYSTEM_PACKAGES 2>&1 | pr -t -o 4
   fi
   echo '------------------------------------------------------------'
   echo 'Rsyncing (etc, usr, var) to /updated...'
