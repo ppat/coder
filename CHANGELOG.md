@@ -2,6 +2,12 @@
 
 
 
+## [2.5.1](https://github.com/ppat/coder/compare/v2.5.0...v2.5.1) (2025-01-23)
+
+### 🐛 Enhancements + Bug Fixes
+
+* set fsGroupChangePolicy to OnRootMismatch to speed up workspace start up ([#425](https://github.com/ppat/coder/issues/425)) ([2c5a111](https://github.com/ppat/coder/commit/2c5a11111e306e219c2670b58ef27bda3f606a2e))
+
 ## [2.5.0](https://github.com/ppat/coder/compare/v2.4.1...v2.5.0) (2025-01-22)
 
 ### ✨ Features
