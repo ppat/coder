@@ -27,19 +27,32 @@ resource "kubernetes_deployment" "deployment" {
       spec {
         automount_service_account_token = false
         init_container {
-          name    = "apt-cache-init"
+          name    = "system-init"
+          command = ["/bin/bash", "/system-init-script.sh"]
           image   = var.workspace_image
-          command = ["/bin/bash", "-c", "apt-get update && apt-file update"]
+          env {
+            name  = "SYSTEM_PACKAGES"
+            value = (data.coder_parameter.system_packages.value != "") ? data.coder_parameter.system_packages.value : jsonencode([])
+          }
           volume_mount {
-            name       = "apt-cache"
+            mount_path = "/system-init-script.sh"
+            name       = "coder-scripts"
+            sub_path   = "system_init_script"
+          }
+          volume_mount {
+            name       = "package-cache"
+            mount_path = "/usr-dest"
+          }
+          volume_mount {
+            name       = "package-cache"
             mount_path = "/var/lib/apt"
           }
           volume_mount {
-            name       = "apt-cache"
+            name       = "package-cache"
             mount_path = "/var/cache/apt"
           }
           volume_mount {
-            name       = "apt-cache"
+            name       = "package-cache"
             mount_path = "/var/cache/debconf"
           }
           security_context {
@@ -95,16 +108,20 @@ resource "kubernetes_deployment" "deployment" {
             name       = "coder-scripts"
             sub_path   = "agent_init_script"
           }
+          # volume_mount {
+          #   name       = "package-cache"
+          #   mount_path = "/usr"
+          # }
           volume_mount {
-            name       = "apt-cache"
+            name       = "package-cache"
             mount_path = "/var/lib/apt"
           }
           volume_mount {
-            name       = "apt-cache"
+            name       = "package-cache"
             mount_path = "/var/cache/apt"
           }
           volume_mount {
-            name       = "apt-cache"
+            name       = "package-cache"
             mount_path = "/var/cache/debconf"
           }
         }
@@ -159,9 +176,9 @@ resource "kubernetes_deployment" "deployment" {
           }
         }
         volume {
-          name = "apt-cache"
+          name = "package-cache"
           empty_dir {
-            size_limit = "5Gi"
+            size_limit = "10Gi"
           }
         }
       }

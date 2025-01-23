@@ -48,3 +48,19 @@ data "coder_parameter" "resources_memory" {
     value = "8"
   }
 }
+
+data "coder_parameter" "system_packages" {
+  name = "system_packages"
+
+  default      = jsonencode(["gnupg", "nmap"])
+  display_name = "System Packages"
+  description  = "Additional system packages to install."
+  icon         = "/icon/ubuntu.svg"
+  mutable      = true
+  type         = "list(string)"
+
+  validation {
+    regex = "^[a-zA-Z0-9][a-zA-Z0-9-]+$"
+    error = "Package names can only contain alphanumeric characters or hyphens"
+  }
+}
