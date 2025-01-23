@@ -20,8 +20,7 @@ jobs:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
       label_description: "Homelab workspace image"
-      # platforms: linux/amd64,linux/arm64
-      platforms: linux/amd64
+      platforms: linux/amd64,linux/arm64
       private_registry_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
       private_registry_build_cache: ${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
       source_git_ref: ${{ (github.event_name == 'pull_request') && format('refs/heads/{0}', github.head_ref) || github.ref }}
