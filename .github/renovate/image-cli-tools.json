@@ -31,7 +31,7 @@
       "matchUpdateTypes": [
         "patch"
       ],
-      "minimumReleaseAge": "1 days",
+      "minimumReleaseAge": "7 days",
       "platformAutomerge": true,
       "semanticCommitType": "fix"
     },
@@ -47,7 +47,7 @@
       "matchUpdateTypes": [
         "minor"
       ],
-      "minimumReleaseAge": "7 days",
+      "minimumReleaseAge": "14 days",
       "platformAutomerge": true,
       "semanticCommitType": "feat"
     },
