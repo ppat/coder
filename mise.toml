@@ -1,5 +1,5 @@
 [tools]
-bun = "1.2.0"
+bun = "1.2.1"
 node = "22.13.1"
 terraform = "1.10.5"
 tflint = "0.55.0"
