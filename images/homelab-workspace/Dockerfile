@@ -176,7 +176,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # aqua
 # renovate: datasource=github-releases depName=aquaproj/aqua
-ARG AQUA_VERSION="2.42.2"
+ARG AQUA_VERSION="2.43.0"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
