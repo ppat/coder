@@ -32,6 +32,15 @@
       ],
       "minimumReleaseAge": "270 days",
       "semanticCommitType": "feat"
+    },
+    {
+      "description": "slow down upgrades to these packages to a maximum of once weekly",
+      "matchPackageNames": [
+        "jdx/mise"
+      ],
+      "schedule": [
+        "before 10am on Tuesday"
+      ]
     }
   ]
 }
