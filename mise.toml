@@ -1,8 +1,8 @@
 [tools]
-bun = "1.2.1"
-node = "22.13.1"
+bun = "1.2.3"
+node = "22.14.0"
 terraform = "1.10.5"
-tflint = "0.55.0"
+tflint = "0.55.1"
 
 [settings.npm]
 bun = true
