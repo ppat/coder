@@ -2,6 +2,34 @@
 
 
 
+## [2.7.0](https://github.com/ppat/coder/compare/v2.6.0...v2.7.0) (2025-02-28)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.42.2 -> v2.43.0) ([#445](https://github.com/ppat/coder/issues/445)) ([e4b1564](https://github.com/ppat/coder/commit/e4b156475be7c8f1e31d0a6156a1d19a7b0e8dc4))
+* **cli-tools:** update aquaproj/aqua (v2.43.3 -> v2.44.0) ([#462](https://github.com/ppat/coder/issues/462)) ([dbeadd4](https://github.com/ppat/coder/commit/dbeadd43fa96268d50e94d249bd43d2d8f1fdbcf))
+* **cli-tools:** update jdx/mise (v2025.1.17 -> v2025.2.0) ([#456](https://github.com/ppat/coder/issues/456)) ([f27f8cb](https://github.com/ppat/coder/commit/f27f8cb208275e71325a3a525c5d7b4e4e40214c))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aquaproj/aqua (v2.43.0 -> v2.43.1) ([#447](https://github.com/ppat/coder/issues/447)) ([1e0acbc](https://github.com/ppat/coder/commit/1e0acbc4709b8edb091e17e52023e922020784fe))
+* **cli-tools:** update aquaproj/aqua (v2.43.1 -> v2.43.2) ([#448](https://github.com/ppat/coder/issues/448)) ([39f4b1c](https://github.com/ppat/coder/commit/39f4b1cf9de4cde801d98f51666adb98848ad69d))
+* **cli-tools:** update aquaproj/aqua (v2.43.2 -> v2.43.3) ([#458](https://github.com/ppat/coder/issues/458)) ([cbae327](https://github.com/ppat/coder/commit/cbae32760765fb7d17f4c998289e5bfbe99152b3))
+* **cli-tools:** update aquaproj/aqua (v2.44.0 -> v2.44.1) ([#464](https://github.com/ppat/coder/issues/464)) ([33ea096](https://github.com/ppat/coder/commit/33ea09642cfb94daad896deaae7ebc817ae2e34a))
+* **cli-tools:** update jdx/mise (v2025.1.13 -> v2025.1.14) ([#432](https://github.com/ppat/coder/issues/432)) ([1142d2e](https://github.com/ppat/coder/commit/1142d2e941fff0cad47bf8905ff389db7da3a8e0))
+* **cli-tools:** update jdx/mise (v2025.1.14 -> v2025.1.15) ([#433](https://github.com/ppat/coder/issues/433)) ([6ff4c80](https://github.com/ppat/coder/commit/6ff4c809ea36262a20c15a54649bdcaf25def1ad))
+* **cli-tools:** update jdx/mise (v2025.1.15 -> v2025.1.16) ([#443](https://github.com/ppat/coder/issues/443)) ([0cb6fb6](https://github.com/ppat/coder/commit/0cb6fb619086672b29fdf9ceb6896db8f0f2d5ac))
+* **cli-tools:** update jdx/mise (v2025.1.16 -> v2025.1.17) ([#444](https://github.com/ppat/coder/issues/444)) ([3021e94](https://github.com/ppat/coder/commit/3021e942d5730551b30d8d192be931deae37465c))
+* **cli-tools:** update jdx/mise (v2025.1.9 -> v2025.1.13) ([#431](https://github.com/ppat/coder/issues/431)) ([70c95f7](https://github.com/ppat/coder/commit/70c95f78dee525677f9f702c5046625fa7e5491a))
+* **cli-tools:** update jdx/mise (v2025.2.0 -> v2025.2.3) ([#457](https://github.com/ppat/coder/issues/457)) ([a55e460](https://github.com/ppat/coder/commit/a55e460bd7c01c7ea92bb4c5b82e93f571460491))
+* **cli-tools:** update jdx/mise (v2025.2.3 -> v2025.2.4) ([#459](https://github.com/ppat/coder/issues/459)) ([d0fd675](https://github.com/ppat/coder/commit/d0fd6757bdaf6e080842d05d7ece248a775dbc41))
+* **cli-tools:** update jdx/mise (v2025.2.4 -> v2025.2.5) ([#460](https://github.com/ppat/coder/issues/460)) ([abe5d6d](https://github.com/ppat/coder/commit/abe5d6d37e51fbaffa17950b6cfe42a6d5f9d0c5))
+* **cli-tools:** update jdx/mise (v2025.2.5 -> v2025.2.6) ([#461](https://github.com/ppat/coder/issues/461)) ([44d2b49](https://github.com/ppat/coder/commit/44d2b49568005151b6f83c0b4d3358afa5a7f2e6))
+* **terraform-provider:** update coder/coder (2.1.0 -> 2.1.2) ([#421](https://github.com/ppat/coder/issues/421)) ([ad6b721](https://github.com/ppat/coder/commit/ad6b7211a3f3a915792649adf35449bcd11004b8))
+* **terraform-provider:** update coder/coder (2.1.2 -> 2.1.3) ([#446](https://github.com/ppat/coder/issues/446)) ([3b61a30](https://github.com/ppat/coder/commit/3b61a3017b225c80d808eade892274854c1b7c1d))
+* **terraform-version:** update terraform-1.10.5 (1.10.4 -> 1.10.5) ([#430](https://github.com/ppat/coder/issues/430)) ([067f42f](https://github.com/ppat/coder/commit/067f42f4b608c8c3bde2217edd9f66825d72e65c))
+* update digest ubuntu (80dd3c3 -> 7229784) ([#442](https://github.com/ppat/coder/issues/442)) ([1c17aec](https://github.com/ppat/coder/commit/1c17aeccd7427b7afd029e5d51edcc194752f394))
+
 ## [2.6.0](https://github.com/ppat/coder/compare/v2.5.1...v2.6.0) (2025-01-23)
 
 ### ✨ Features
