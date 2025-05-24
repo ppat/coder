@@ -57,7 +57,7 @@ RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
 
 # upx
 # renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="4.2.4"
+ARG UPX_VERSION="5.0.0"
 WORKDIR /tmp
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
