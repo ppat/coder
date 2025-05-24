@@ -165,7 +165,7 @@ WORKDIR /tmp
 
 # starship
 # renovate: datasource=github-releases depName=starship/starship
-ARG STARSHIP_VERSION="1.22.1"
+ARG STARSHIP_VERSION="1.23.0"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
