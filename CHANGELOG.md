@@ -2,6 +2,25 @@
 
 
 
+## [2.8.0](https://github.com/ppat/coder/compare/v2.7.0...v2.8.0) (2025-05-25)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.44.1 -> v2.45.0) ([#474](https://github.com/ppat/coder/issues/474)) ([9a533ba](https://github.com/ppat/coder/commit/9a533ba8a7230610fe1a9a3b8b390fca2c281607))
+* **cli-tools:** update aquaproj/aqua (v2.45.0 -> v2.51.1) ([#484](https://github.com/ppat/coder/issues/484)) ([e91091f](https://github.com/ppat/coder/commit/e91091fc0f7a59d2b9fd0454773fa759eb7c8998))
+* **cli-tools:** update jdx/mise (v2025.2.8 -> v2025.5.3) ([#483](https://github.com/ppat/coder/issues/483)) ([0a22e5d](https://github.com/ppat/coder/commit/0a22e5d8a5eee8d6cda36fdbd2c5382d0d75a4ec))
+* **cli-tools:** update starship/starship (v1.22.1 -> v1.23.0) ([#503](https://github.com/ppat/coder/issues/503)) ([8d3ca4d](https://github.com/ppat/coder/commit/8d3ca4d32ac147395972c8e4cadee1e45b5a4e56))
+* **terraform-provider:** update coder/coder (2.1.3 -> 2.4.1) ([#504](https://github.com/ppat/coder/issues/504)) ([beb86b1](https://github.com/ppat/coder/commit/beb86b112a708a64e361214eae06fb83201b4bca))
+* **terraform-provider:** update hashicorp/kubernetes (2.35.1 -> 2.37.0) ([#511](https://github.com/ppat/coder/issues/511)) ([4de2de3](https://github.com/ppat/coder/commit/4de2de3e3bdc8215555484458bdd75bf96a17533))
+* **terraform-version:** update terraform-1.11.0 (1.10.5 -> 1.11.0) ([#472](https://github.com/ppat/coder/issues/472)) ([39d0a84](https://github.com/ppat/coder/commit/39d0a84b2c6d1ce2090b86dd4339b3786d195355))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aquaproj/aqua (v2.51.1 -> v2.51.2) ([#512](https://github.com/ppat/coder/issues/512)) ([e94d545](https://github.com/ppat/coder/commit/e94d5451bcc50b3a0cedaf6f8333001f0ad4a939))
+* **cli-tools:** update jdx/mise (v2025.2.6 -> v2025.2.8) ([#470](https://github.com/ppat/coder/issues/470)) ([fee9293](https://github.com/ppat/coder/commit/fee9293fa9e9838f86bf8859de5e55745c1acbe1))
+* **terraform-version:** update terraform-1.11.1 (1.11.0 -> 1.11.1) ([#473](https://github.com/ppat/coder/issues/473)) ([8716689](https://github.com/ppat/coder/commit/871668943945260384dd30e236d772562c325c7a))
+* update digest ubuntu (7229784 -> 6015f66) ([#493](https://github.com/ppat/coder/issues/493)) ([d8dfe8c](https://github.com/ppat/coder/commit/d8dfe8c430b1aae66788d5ac20aa7881360d8960))
+
 ## [2.7.0](https://github.com/ppat/coder/compare/v2.6.0...v2.7.0) (2025-02-28)
 
 ### ✨ Features
