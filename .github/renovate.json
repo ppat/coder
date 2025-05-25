@@ -3,12 +3,12 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
+      "managerFilePatterns": [
         "(^|/).+\\.ya?ml$",
         "(^|/)Dockerfile$"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-\/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?(\\s+extractVersion=(?<extractVersion>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
+        "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?(\\s+extractVersion=(?<extractVersion>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }
@@ -25,6 +25,9 @@
     "github>ppat/coder//.github/renovate/exceptions"
   ],
   "internalChecksFilter": "strict",
+  "labels": [
+    "pr-type:renovate"
+  ],
   "prConcurrentLimit": 20,
   "prHourlyLimit": 0,
   "rebaseWhen": "behind-base-branch",
