@@ -69,8 +69,6 @@ jobs:
           TEMPLATE_CHANGES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep '^templates/' || true)
           # Otherwise only validate affected templates
           TF_DIRS=$(echo "$TEMPLATE_CHANGES" | grep -o 'templates/[^/]*' | sort | uniq | tr -d ' ' | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "Template-specific changes detected, validating only affected workspaces"
-          fi
         else
           TF_DIRS="[]"
           echo "No Terraform changes detected"
