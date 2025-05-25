@@ -23,6 +23,7 @@ jobs:
       shellscripts_all_changed_files: ${{ steps.changed-files-yaml.outputs.shellscripts_all_changed_files}}
       terraform_any_changed: ${{ steps.changed-files-yaml.outputs.terraform_any_changed }}
       terraform_all_changed_files: ${{ steps.changed-files-yaml.outputs.terraform_all_changed_files}}
+      terraform_dirs: ${{ steps.determine-tf-dirs.outputs.dirs }}
       yaml_any_changed: ${{ steps.changed-files-yaml.outputs.yaml_any_changed }}
       yaml_all_changed_files: ${{ steps.changed-files-yaml.outputs.yaml_all_changed_files}}
     runs-on: ubuntu-24.04
@@ -54,6 +55,25 @@ jobs:
           - '.tflint.hcl'
           yaml:
           - '**.yaml'
+
+    - name: Determine Terraform directories to validate
+      id: determine-tf-dirs
+      # yamllint disable-line rule:indentation
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          # For workflow_dispatch, validate all terraform directories
+          TF_DIRS=$(find templates/ -maxdepth 2 -mindepth 2 -type d -not -name '.*' 2>/dev/null | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
+        elif [[ "${{ steps.changed-files-yaml.outputs.terraform_any_changed }}" == "true" ]]; then
+          # For pull requests, check which files changed
+          CHANGED_FILES="${{ steps.changed-files-yaml.outputs.terraform_all_changed_files }}"
+          TEMPLATE_CHANGES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep '^templates/' || true)
+          # Otherwise only validate affected templates
+          TF_DIRS=$(echo "$TEMPLATE_CHANGES" | grep -o 'templates/[^/]*' | sort | uniq | tr -d ' ' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+        else
+          TF_DIRS="[]"
+          echo "No Terraform changes detected"
+        fi
+        echo "dirs=$TF_DIRS" >> $GITHUB_OUTPUT
 
   commit-messages:
     if: ${{ github.event_name == 'pull_request' }}
@@ -107,6 +127,7 @@ jobs:
     uses: ppat/github-workflows/.github/workflows/lint-terraform.yaml@main
     with:
       git_ref: ${{ github.head_ref || github.ref }}
+      tf_dirs: ${{ needs.detect-changes.outputs.terraform_dirs }}
 
   yaml:
     needs: [detect-changes]
