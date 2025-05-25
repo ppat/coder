@@ -2,6 +2,13 @@
 
 
 
+## [2.8.1](https://github.com/ppat/coder/compare/v2.8.0...v2.8.1) (2025-05-25)
+
+### 🐛 Enhancements + Bug Fixes
+
+* **terraform-provider:** update coder/coder (2.4.1 -> 2.4.2) ([#514](https://github.com/ppat/coder/issues/514)) ([4933170](https://github.com/ppat/coder/commit/49331701ca27076820cdb39472dd0c530c30864a))
+* **terraform-provider:** update hashicorp/kubernetes (2.37.0 -> 2.37.1) ([#515](https://github.com/ppat/coder/issues/515)) ([8397dcf](https://github.com/ppat/coder/commit/8397dcf771908d1fd8ec5967c29f012e27570224))
+
 ## [2.8.0](https://github.com/ppat/coder/compare/v2.7.0...v2.8.0) (2025-05-25)
 
 ### ✨ Features
