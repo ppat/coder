@@ -2,6 +2,12 @@
 
 
 
+## [2.10.1](https://github.com/ppat/coder/compare/v2.10.0...v2.10.1) (2025-05-26)
+
+### 🐛 Enhancements + Bug Fixes
+
+* remove coder agent start up script as fetching dotfiles is now done by chezmoi ([#521](https://github.com/ppat/coder/issues/521)) ([d4b21eb](https://github.com/ppat/coder/commit/d4b21eba1bc3ab3ecd023b328890a85f0b0cb624))
+
 ## [2.10.0](https://github.com/ppat/coder/compare/v2.9.0...v2.10.0) (2025-05-26)
 
 ### ✨ Features
