@@ -1,14 +1,6 @@
 resource "coder_agent" "main" {
   arch                    = "amd64"
   os                      = "linux"
-  startup_script          = "/bin/bash --noprofile --norc /agent-startup.sh"
-  startup_script_behavior = "blocking"
-
-  env = {
-    DOTFILES_REPOSITORY = data.coder_parameter.dotfiles_repo.value
-    GIT_EMAIL           = data.coder_workspace_owner.me.email
-    GIT_NAME            = data.coder_workspace_owner.me.full_name
-  }
 
   metadata {
     display_name = "CPU Usage"

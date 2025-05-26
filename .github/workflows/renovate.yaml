@@ -58,10 +58,6 @@ jobs:
               "matchHost": "ghcr.io",
               "username": "${{ github.repository_owner }}",
               "password": "${{ steps.app-token.outputs.token }}"
-            },
-            {
-              "hostType": "terraform-module",
-              "matchHost": "registry.coder.com"
             }
           ]
         RENOVATE_PLATFORM: 'github'
