@@ -2,6 +2,12 @@
 
 
 
+## [2.9.0](https://github.com/ppat/coder/compare/v2.8.1...v2.9.0) (2025-05-26)
+
+### ✨ Features
+
+* mount a subpath of home volume to coder home directory ([#518](https://github.com/ppat/coder/issues/518)) ([33ae588](https://github.com/ppat/coder/commit/33ae58859a59d520745ab1bc9405235dd3144022))
+
 ## [2.8.1](https://github.com/ppat/coder/compare/v2.8.0...v2.8.1) (2025-05-25)
 
 ### 🐛 Enhancements + Bug Fixes
