@@ -138,8 +138,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       ssh-askpass \
       strace \
       sysstat \
-      traceroute \
       tmux \
+      traceroute \
+      tree \
       tzdata \
       vim \
       zip \
