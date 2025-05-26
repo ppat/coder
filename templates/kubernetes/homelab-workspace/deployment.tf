@@ -84,6 +84,11 @@ resource "kubernetes_deployment" "deployment" {
           volume_mount {
             mount_path = local.home_directory
             name       = "home"
+            sub_path   = data.coder_workspace.me.name
+          }
+          volume_mount {
+            mount_path = "/home/all"
+            name       = "home"
           }
           dynamic "volume_mount" {
             for_each = var.test_mode ? {} : local.workspace_secrets
