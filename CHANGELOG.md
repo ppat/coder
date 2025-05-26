@@ -2,6 +2,13 @@
 
 
 
+## [2.10.0](https://github.com/ppat/coder/compare/v2.9.0...v2.10.0) (2025-05-26)
+
+### ✨ Features
+
+* add chezmoi to coder image ([#519](https://github.com/ppat/coder/issues/519)) ([f26ad96](https://github.com/ppat/coder/commit/f26ad96cfe42e906e6e41be968842bc4455f8ca5))
+* add system package - tree ([#520](https://github.com/ppat/coder/issues/520)) ([4ba7df3](https://github.com/ppat/coder/commit/4ba7df3c95363257a5a8e58da3fe53c22562ad8c))
+
 ## [2.9.0](https://github.com/ppat/coder/compare/v2.8.1...v2.9.0) (2025-05-26)
 
 ### ✨ Features
