@@ -1,13 +1,3 @@
-data "coder_parameter" "dotfiles_repo" {
-  name = "dotfiles_repository"
-
-  default      = "git@github.com:ppat/dotfiles.git"
-  display_name = "Dotfiles Repository"
-  icon         = "/icon/dotfiles.svg"
-  mutable      = true
-  type         = "string"
-}
-
 data "coder_parameter" "resources_cpu" {
   name = "resources_cpu"
 
