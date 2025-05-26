@@ -196,7 +196,7 @@ RUN --mount=type=tmpfs,target=/tmp \
 
 # chezmoi
 # renovate: datasource=github-releases depName=twpayne/chezmoi
-ARG CHEZMOI_VERSION="2.65.2"
+ARG CHEZMOI_VERSION="2.62.5"
 RUN --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
