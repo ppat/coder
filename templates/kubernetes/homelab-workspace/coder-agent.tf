@@ -1,6 +1,6 @@
 resource "coder_agent" "main" {
-  arch                    = "amd64"
-  os                      = "linux"
+  arch = "amd64"
+  os   = "linux"
 
   metadata {
     display_name = "CPU Usage"
