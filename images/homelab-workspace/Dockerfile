@@ -194,6 +194,15 @@ RUN --mount=type=tmpfs,target=/tmp \
     install -o root -g root -m 0755 /tmp/mise /usr/local/sbin/mise && \
     upx /usr/local/sbin/mise
 
+# chezmoi
+# renovate: datasource=github-releases depName=twpayne/chezmoi
+ARG CHEZMOI_VERSION="2.62.5"
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget --progress=dot:giga -c "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
+    install -o root -g root -m 0755 /tmp/chezmoi /usr/local/sbin/chezmoi && \
+    upx /usr/local/sbin/chezmoi
 
 # ========================================================================================================
 FROM system-base
