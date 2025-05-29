@@ -46,16 +46,6 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/upx/upx/v5.0.1/upx-5.0.1-amd64_linux.tar.xz",
-      "checksum": "25AFBF685163A04E336D94565EF8E6970B0B2736F4C9A6F2EBC446623C08B75F",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/upx/upx/v5.0.1/upx-5.0.1-arm64_linux.tar.xz",
-      "checksum": "7B9F0634C8B7BCE06D88811C85686050BA29534E40371F23D062115176CC7A07",
-      "algorithm": "sha256"
-    },
-    {
       "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.373.0/registry.yaml",
       "checksum": "FDF48415E2BF395B7BCA932B27D29CCD53722E798A434318FADF097FF788A381",
       "algorithm": "sha256"

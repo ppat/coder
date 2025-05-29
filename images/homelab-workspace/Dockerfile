@@ -55,6 +55,17 @@ ENV LANG=en_US.UTF-8
 RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment
 
+# upx
+# renovate: datasource=github-releases depName=upx/upx
+ARG UPX_VERSION="4.2.4"
+WORKDIR /tmp
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
+    xz -d /tmp/upx.tar.xz && \
+    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
+
 # ========================================================================================================
 FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
