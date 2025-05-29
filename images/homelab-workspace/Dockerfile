@@ -55,17 +55,6 @@ ENV LANG=en_US.UTF-8
 RUN echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment
 
-# upx
-# renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="4.2.4"
-WORKDIR /tmp
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
-    xz -d /tmp/upx.tar.xz && \
-    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
-
 # ========================================================================================================
 FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -164,46 +153,24 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# starship
-# renovate: datasource=github-releases depName=starship/starship
-ARG STARSHIP_VERSION="1.23.0"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    STARSHIP_ARCH="$(echo $TARGETARCH | sed -e 's|amd64|x86_64|' | sed -e 's|arm64|aarch64|')" && \
-    wget --progress=dot:giga -c "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-${STARSHIP_ARCH}-unknown-linux-musl.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/starship /usr/local/sbin/starship && \
-    upx /usr/local/sbin/starship
+# renovate: datasource=github-releases depName=aquaproj/aqua-installer
+ARG AQUA_INSTALLER_VERSION="4.0.0"
+RUN curl -sSfL -O https://raw.githubusercontent.com/aquaproj/aqua-installer/v${AQUA_INSTALLER_VERSION}/aqua-installer && \
+    chmod +x aqua-installer
 
-# aqua
 # renovate: datasource=github-releases depName=aquaproj/aqua
 ARG AQUA_VERSION="2.51.2"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/aqua /usr/local/sbin/aqua && \
-    upx /usr/local/sbin/aqua
+RUN ./aqua-installer -v v${AQUA_VERSION}
 
-# mise-en-place
-# renovate: datasource=github-releases depName=jdx/mise
-ARG MISE_EN_PLACE_VERSION="2025.5.3"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    curl https://mise.run | MISE_VERSION="v${MISE_EN_PLACE_VERSION}" MISE_INSTALL_PATH=/tmp/mise sh && \
-    install -o root -g root -m 0755 /tmp/mise /usr/local/sbin/mise && \
-    upx /usr/local/sbin/mise
+ENV PATH=/root/.local/share/aquaproj-aqua/bin:$PATH
+ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
+COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
-# chezmoi
-# renovate: datasource=github-releases depName=twpayne/chezmoi
-ARG CHEZMOI_VERSION="2.62.5"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget --progress=dot:giga -c "https://github.com/twpayne/chezmoi/releases/download/v${CHEZMOI_VERSION}/chezmoi_${CHEZMOI_VERSION}_linux_${TARGETARCH}.tar.gz" -O - | tar -xzv -C /tmp && \
-    install -o root -g root -m 0755 /tmp/chezmoi /usr/local/sbin/chezmoi && \
-    upx /usr/local/sbin/chezmoi
+# hadolint ignore=SC2046
+RUN aqua install --all && \
+    mkdir -p /dist && \
+    aqua cp -o /dist $(find /root/.local/share/aquaproj-aqua/bin -type l -executable -not -name upx -exec basename {} \;) && \
+    upx $(find /dist  -type f -executable)
 
 # ========================================================================================================
 FROM system-base
@@ -212,7 +179,7 @@ ARG TARGETARCH
 WORKDIR /tmp
 
 # copy binaries
-COPY --from=binary-downloads /usr/local/sbin/* /usr/local/sbin/
+COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sbin/
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
