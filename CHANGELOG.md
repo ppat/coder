@@ -2,6 +2,12 @@
 
 
 
+## [2.10.2](https://github.com/ppat/coder/compare/v2.10.1...v2.10.2) (2025-05-29)
+
+### 🐛 Enhancements + Bug Fixes
+
+* use aqua to install necessary binaries in coder image ([#523](https://github.com/ppat/coder/issues/523)) ([3f4828a](https://github.com/ppat/coder/commit/3f4828a972d0b0ee83561523ec0d0dc812efe000))
+
 ## [2.10.1](https://github.com/ppat/coder/compare/v2.10.0...v2.10.1) (2025-05-26)
 
 ### 🐛 Enhancements + Bug Fixes
