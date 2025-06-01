@@ -2,7 +2,7 @@
 bun = "1.2.15"
 node = "22.16.0"
 terraform = "1.12.1"
-tflint = "0.57.0"
+tflint = "0.58.0"
 
 [settings.npm]
 bun = true
