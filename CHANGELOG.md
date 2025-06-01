@@ -2,6 +2,16 @@
 
 
 
+## [2.11.0](https://github.com/ppat/coder/compare/v2.10.2...v2.11.0) (2025-06-01)
+
+### ✨ Features
+
+* **terraform-version:** update terraform-1.12.1 (1.11.1 -> 1.12.1) ([#527](https://github.com/ppat/coder/issues/527)) ([438bbe6](https://github.com/ppat/coder/commit/438bbe6edbdeb09aeee706b8af8ad9e812c4a8e0))
+
+### 🐛 Enhancements + Bug Fixes
+
+* relocate mounted secrets ([#531](https://github.com/ppat/coder/issues/531)) ([759b7d9](https://github.com/ppat/coder/commit/759b7d9ba456316cd4f577b1025f85a083447709))
+
 ## [2.10.2](https://github.com/ppat/coder/compare/v2.10.1...v2.10.2) (2025-05-29)
 
 ### 🐛 Enhancements + Bug Fixes
