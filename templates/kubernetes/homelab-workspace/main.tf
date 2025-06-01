@@ -23,9 +23,9 @@ locals {
 
   workspace_secrets = {
     "github_auth_token"  = "${local.home_directory}/.secret/github_token"
-    "github_public_key"  = "${local.home_directory}/.ssh/id_ed25519.pub"
-    "github_private_key" = "${local.home_directory}/.ssh/id_ed25519"
-    "kubeconfig_nas"     = "${local.home_directory}/.kube/conf.d/nas"
-    "kubeconfig_homelab" = "${local.home_directory}/.kube/conf.d/homelab"
+    "github_public_key"  = "${local.home_directory}/.secret/id_ed25519.pub"
+    "github_private_key" = "${local.home_directory}/.secret/id_ed25519"
+    "kubeconfig_nas"     = "${local.home_directory}/.secret/kubeconfig_nas"
+    "kubeconfig_homelab" = "${local.home_directory}/.secret/kubeconfig_homelab"
   }
 }
