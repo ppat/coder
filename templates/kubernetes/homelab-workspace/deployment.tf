@@ -90,15 +90,6 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = "/home/all"
             name       = "home"
           }
-          dynamic "volume_mount" {
-            for_each = var.test_mode ? {} : local.workspace_secrets
-            content {
-              name       = "workspace-secrets"
-              mount_path = volume_mount.value
-              sub_path   = volume_mount.key
-              read_only  = true
-            }
-          }
           volume_mount {
             mount_path = "/agent-startup.sh"
             name       = "coder-scripts"
@@ -154,17 +145,6 @@ resource "kubernetes_deployment" "deployment" {
             name = "home"
             empty_dir {
               size_limit = "10Gi"
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = var.test_mode ? [] : toset(["coder-workspace-secrets"])
-          content {
-            name = "workspace-secrets"
-            secret {
-              secret_name  = volume.key
-              optional     = true
-              default_mode = "0440"
             }
           }
         }
