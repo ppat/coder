@@ -2,6 +2,12 @@
 
 
 
+## [2.11.1](https://github.com/ppat/coder/compare/v2.11.0...v2.11.1) (2025-06-01)
+
+### 🐛 Enhancements + Bug Fixes
+
+* do not mount workspace secrets and set defaults for system packages parameter ([#532](https://github.com/ppat/coder/issues/532)) ([a650020](https://github.com/ppat/coder/commit/a65002024caddcee0f31eb6125b651d47bc1fbc2))
+
 ## [2.11.0](https://github.com/ppat/coder/compare/v2.10.2...v2.11.0) (2025-06-01)
 
 ### ✨ Features
