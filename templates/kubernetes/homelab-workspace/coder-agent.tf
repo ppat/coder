@@ -2,7 +2,7 @@ resource "coder_agent" "main" {
   arch                    = "amd64"
   os                      = "linux"
   startup_script          = "/bin/bash --noprofile --norc /agent-startup.sh"
-  startup_script_behavior = "blocking"  
+  startup_script_behavior = "blocking"
 
   metadata {
     display_name = "CPU Usage"
