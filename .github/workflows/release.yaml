@@ -130,7 +130,7 @@ jobs:
         oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
         tags: tag:github-action-ci-runner
         # renovate: datasource=github-releases depName=tailscale/tailscale
-        version: "1.82.0"
+        version: "1.84.0"
 
     - name: Login to Coder
       id: login
