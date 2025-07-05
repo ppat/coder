@@ -165,7 +165,7 @@ ARG TARGETARCH
 WORKDIR /tmp
 
 # renovate: datasource=github-releases depName=aquaproj/aqua-installer
-ARG AQUA_INSTALLER_VERSION="4.0.0"
+ARG AQUA_INSTALLER_VERSION="4.0.2"
 RUN curl -sSfL -O https://raw.githubusercontent.com/aquaproj/aqua-installer/v${AQUA_INSTALLER_VERSION}/aqua-installer && \
     chmod +x aqua-installer
 
