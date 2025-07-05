@@ -89,9 +89,9 @@ jobs:
     uses: ppat/github-workflows/.github/workflows/lint-commit-messages.yaml@v0.1.1
     with:
       git_ref: ${{ github.head_ref }}
-      fetch_depth: ${{ github.event.pull_request.commits }}
-      from: ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }}
-      to: ${{ github.event.pull_request.head.sha }}
+      fetch_depth: ${{ github.event.pull_request.commits || 0 }}
+      from: ${{ github.event.pull_request.head.sha || 'HEAD' }}~${{ github.event.pull_request.commits || '1' }}
+      to: ${{ github.event.pull_request.head.sha || 'HEAD' }}
 
   github-actions:
     needs: [detect-changes]
