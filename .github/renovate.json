@@ -4,8 +4,8 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "(^|/).+\\.ya?ml$",
-        "(^|/)Dockerfile$"
+        "/(^|/).+\\.ya?ml$/",
+        "/(^|/)Dockerfile$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-.]+?)\\s+depName=(?<depName>[a-zA-Z0-9-/]+?)(\\s+repository=(?<registryUrl>[^\\s]+?))?(\\s+versioning=(?<versioning>[^\\s]+?))?(\\s+extractVersion=(?<extractVersion>[^\\s]+?))?\\s*\\n.+[\\:\\=]\\s?\"v?(?<currentValue>[^\\s]+)\""
@@ -17,9 +17,9 @@
     "config:best-practices",
     "group:linters",
     "mergeConfidence:all-badges",
-    "github>ppat/renovate-presets",
-    "github>ppat/renovate-presets:dev-tools",
-    "github>ppat/renovate-presets:github-actions",
+    "github>ppat/renovate-presets#v0.0.2",
+    "github>ppat/renovate-presets:dev-tools#v0.0.2",
+    "github>ppat/renovate-presets:github-actions#v0.0.2",
     "github>ppat/coder//.github/renovate/template-terraform-provider",
     "github>ppat/coder//.github/renovate/image-cli-tools",
     "github>ppat/coder//.github/renovate/exceptions"

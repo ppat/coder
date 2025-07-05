@@ -96,7 +96,7 @@ jobs:
 
   publish-image:
     needs: [create-release]
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@main
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@v0.1.1
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
@@ -130,7 +130,7 @@ jobs:
         oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
         tags: tag:github-action-ci-runner
         # renovate: datasource=github-releases depName=tailscale/tailscale
-        version: "1.82.5"
+        version: "1.82.0"
 
     - name: Login to Coder
       id: login

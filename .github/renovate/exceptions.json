@@ -41,6 +41,13 @@
       "schedule": [
         "before 10am on Tuesday"
       ]
+    },
+    {
+      "allowedVersions": "!/1.84.[1-2]+$/",
+      "description": "tailscale v1.84.x binary is missing for some architectures",
+      "matchPackageNames": [
+        "tailscale/tailscale"
+      ]
     }
   ]
 }
