@@ -2,6 +2,23 @@
 
 
 
+## [2.12.0](https://github.com/ppat/coder/compare/v2.11.1...v2.12.0) (2025-07-06)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.51.2 -> v2.53.3) ([#554](https://github.com/ppat/coder/issues/554)) ([7601376](https://github.com/ppat/coder/commit/7601376fa5bf520c4a80d669a0d4798556544eff))
+* **cli-tools:** update upx/upx (v4.2.4 -> v5.0.1) ([#555](https://github.com/ppat/coder/issues/555)) ([7574b55](https://github.com/ppat/coder/commit/7574b552b735e5ef156e9c64d6a3b5f1c6d08ef0))
+* **terraform-provider:** update coder/coder (2.4.2 -> 2.5.2) ([#522](https://github.com/ppat/coder/issues/522)) ([5b8071a](https://github.com/ppat/coder/commit/5b8071a7f95c2250c0577f0ed3f32ca630d282e0))
+* **terraform-provider:** update coder/coder (2.5.3 -> 2.7.0) ([#542](https://github.com/ppat/coder/issues/542)) ([ddf8b1b](https://github.com/ppat/coder/commit/ddf8b1b64d88d66cecac9159396a0369d5b1907d))
+* **terraform-provider:** update coder/coder (2.7.0 -> 2.8.0) ([#559](https://github.com/ppat/coder/issues/559)) ([8b935b1](https://github.com/ppat/coder/commit/8b935b1853ce6192eea0ab5790c6bdaa1ad3a361))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aquaproj/aqua-installer (v4.0.0 -> v4.0.2) ([#552](https://github.com/ppat/coder/issues/552)) ([e616c83](https://github.com/ppat/coder/commit/e616c834ac8ad095df2126e9154e3fd0f1c900bd))
+* **terraform-provider:** update coder/coder (2.5.2 -> 2.5.3) ([#533](https://github.com/ppat/coder/issues/533)) ([19028b5](https://github.com/ppat/coder/commit/19028b52f88a3f85da20b5d1b6627d7f43e73162))
+* update digest ubuntu (6015f66 -> b59d215) ([#534](https://github.com/ppat/coder/issues/534)) ([05e99b8](https://github.com/ppat/coder/commit/05e99b8ae715432f18b929642f830f88d55ed71c))
+* update digest ubuntu (b59d215 -> 440dcf6) ([#550](https://github.com/ppat/coder/issues/550)) ([9c94b83](https://github.com/ppat/coder/commit/9c94b832981645fb13afb9e6de593cb5cf0101e4))
+
 ## [2.11.1](https://github.com/ppat/coder/compare/v2.11.0...v2.11.1) (2025-06-01)
 
 ### 🐛 Enhancements + Bug Fixes
