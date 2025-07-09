@@ -47,7 +47,7 @@ jobs:
       uses: jdx/mise-action@13abe502c30c1559a5c37dff303831bab82c9402 # v2.2.3
       with:
         # renovate: datasource=github-releases depName=jdx/mise
-        version: "v2025.5.6"
+        version: "v2025.7.0"
         install: true
         cache: true
         cache_key_prefix: mise-v1
