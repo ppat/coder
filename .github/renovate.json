@@ -27,10 +27,10 @@
     "github>ppat/renovate-presets#v0.0.3",
     "github>ppat/renovate-presets:dev-tools#v0.0.3",
     "github>ppat/renovate-presets:github-actions#v0.0.3",
-    "github>ppat/coder//.github/renovate/aqua-cli-tools",
-    "github>ppat/coder//.github/renovate/aqua-registry",
     "github>ppat/coder//.github/renovate/template-terraform-provider",
     "github>ppat/coder//.github/renovate/image-cli-tools",
+    "github>ppat/coder//.github/renovate/aqua-cli-tools",
+    "github>ppat/coder//.github/renovate/aqua-registry",
     "github>ppat/coder//.github/renovate/exceptions"
   ],
   "internalChecksFilter": "strict",
