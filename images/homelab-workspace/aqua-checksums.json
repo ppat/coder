@@ -6,6 +6,11 @@
       "algorithm": "sha256"
     },
     {
+      "id": "github_release/github.com/bitwarden/clients/cli-v2025.6.1/bw-linux-2025.6.1.zip",
+      "checksum": "6BACF4151842EBCBFE6801770453A9302E8F658F7219D07E1313C007D8B80AC6",
+      "algorithm": "sha256"
+    },
+    {
       "id": "github_release/github.com/bitwarden/sdk-sm/bws-v1.0.0/bws-aarch64-unknown-linux-gnu-1.0.0.zip",
       "checksum": "20A3DCB9E3CE7716A1DC3C0E1C76CEA9D5E2BF75094CBB5AAD54CED4304929CB",
       "algorithm": "sha256"
@@ -26,6 +31,16 @@
       "algorithm": "sha256"
     },
     {
+      "id": "github_release/github.com/jdx/mise/v2025.7.21/mise-v2025.7.21-linux-arm64-musl.tar.gz",
+      "checksum": "7787AC7BD5D5177D9405137C81E1E2D2DBE33064657EF98930DE0D7B4231C646",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/jdx/mise/v2025.7.21/mise-v2025.7.21-linux-x64-musl.tar.gz",
+      "checksum": "01E91080E9BE67B8742F44EE89B41AB89ADD474136FDD90143B9BEAA344B44A9",
+      "algorithm": "sha256"
+    },
+    {
       "id": "github_release/github.com/starship/starship/v1.23.0/starship-aarch64-unknown-linux-musl.tar.gz",
       "checksum": "D37040138C68B5F3334BBE16D4615F0A83829DEEBECC5D014E779C302E8270D8",
       "algorithm": "sha256"
@@ -43,6 +58,16 @@
     {
       "id": "github_release/github.com/twpayne/chezmoi/v2.62.5/chezmoi_2.62.5_linux_arm64.pkg.tar.zst",
       "checksum": "FC99B082D249C0E3010569E46CE7A1AC3CDA179200375E0ADA9AF56996F8B001",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/twpayne/chezmoi/v2.63.1/chezmoi_2.63.1_linux-glibc_amd64.tar.gz",
+      "checksum": "611A450E44C95CB124AF586C7D6690E6DCFC035737BCF78B5533166A57C1C414",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/twpayne/chezmoi/v2.63.1/chezmoi_2.63.1_linux_arm64.pkg.tar.zst",
+      "checksum": "510C2DC2D091532F54A1B9ECB97AFDA7B7A07B4C8420E7B6293BEAE0845733F0",
       "algorithm": "sha256"
     },
     {
