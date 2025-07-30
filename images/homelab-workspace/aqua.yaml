@@ -14,4 +14,4 @@ packages:
 - name: bitwarden/sdk-sm@bws-v1.0.0
 - name: jdx/mise@v2025.5.15
 - name: starship/starship@v1.23.0
-- name: twpayne/chezmoi@v2.62.5
+- name: twpayne/chezmoi@v2.63.0
