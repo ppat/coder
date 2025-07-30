@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build-workspace-image:
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@dc55978a6b8efbc82d89b78caa1f41647a02da3c # v0.1.1
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@cb285d6ad5b04e96daba7a39cce99d1235415523 # v1.1.1
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"

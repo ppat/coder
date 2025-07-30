@@ -43,17 +43,35 @@ jobs:
         token: "${{ secrets.GH_RELEASES_TOKEN }}"
         fetch-depth: 0
 
+    - name: Cache mise
+      uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+      with:
+        path: ~/.local/share/mise
+        key: mise-${{runner.os}}-${{runner.arch}}-${{hashFiles('mise.toml')}}
+        restore-keys: |
+          mise-${{runner.os}}-${{runner.arch}}-
+
+    - name: Setup default mise configuration
+      # yamllint disable-line rule:indentation
+      run: |
+        mkdir -p ~/.config/mise
+        ln -s $GITHUB_WORKSPACE/mise.toml ~/.config/mise/config.toml
+
     - name: Setup mise
-      uses: jdx/mise-action@5cb1df66ed5e1fb3c670ea0b62fd17a76979826a # v2.3.1
+      uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+      env:
+        MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         # renovate: datasource=github-releases depName=jdx/mise
-        version: "v2025.5.6"
+        version: "v2025.7.29"
         install: true
-        cache: true
-        cache_key_prefix: mise-v1
+        cache: false
+        log_level: info
+        working_directory: ${{ github.workspace }}
 
     - name: Install node packages
-      run: npm ci --no-fund --no-audit
+      shell: bash
+      run: bun install --frozen-lockfile
 
     - name: Release - dry run
       if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true' ))
@@ -65,7 +83,7 @@ jobs:
         echo
         GITHUB_REF=$CURRENT_BRANCH
         set -x
-        npx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
+        bunx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
 
     - name: Release
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish != 'true'
@@ -73,7 +91,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
       run: |
         set -x
-        npx semantic-release
+        bunx semantic-release
 
     - name: Output release info
       id: release_info
@@ -96,7 +114,7 @@ jobs:
 
   publish-image:
     needs: [create-release]
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@dc55978a6b8efbc82d89b78caa1f41647a02da3c # v0.1.1
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@cb285d6ad5b04e96daba7a39cce99d1235415523 # v1.1.1
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"

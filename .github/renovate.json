@@ -13,13 +13,22 @@
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }
   ],
+  "configMigration": true,
+  "dependencyDashboard": true,
   "extends": [
-    "config:best-practices",
-    "group:linters",
+    ":ignoreModulesAndTests",
+    "abandonments:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    "mergeConfidence:age-confidence-badges",
     "mergeConfidence:all-badges",
+    "github>aquaproj/aqua-renovate-config#2.8.2",
+    "github>suzuki-shunsuke/renovate-config:yaml-language-server#3.2.2",
     "github>ppat/renovate-presets#v0.0.3",
     "github>ppat/renovate-presets:dev-tools#v0.0.3",
     "github>ppat/renovate-presets:github-actions#v0.0.3",
+    "github>ppat/coder//.github/renovate/aqua-cli-tools",
+    "github>ppat/coder//.github/renovate/aqua-registry",
     "github>ppat/coder//.github/renovate/template-terraform-provider",
     "github>ppat/coder//.github/renovate/image-cli-tools",
     "github>ppat/coder//.github/renovate/exceptions"
@@ -28,8 +37,13 @@
   "labels": [
     "pr-type:renovate"
   ],
-  "prConcurrentLimit": 20,
+  "prConcurrentLimit": 0,
   "prHourlyLimit": 0,
+  "printConfig": true,
   "rebaseWhen": "behind-base-branch",
+  "suppressNotifications": [
+    "prEditedNotification",
+    "prIgnoreNotification"
+  ],
   "timezone": "US/Eastern"
 }
