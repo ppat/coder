@@ -5,8 +5,8 @@ name: update-aqua-checksum
 on:
   pull_request:
     paths:
-    - 'aqua.yaml'
-    - 'aqua-checksums.json'
+    - 'images/homelab-workspace/aqua.yaml'
+    - 'images/homelab-workspace/aqua-checksums.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
