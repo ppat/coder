@@ -29,3 +29,6 @@ cover/
 
 # node
 node_modules/
+
+# mise
+.vscode/mise-tools/
