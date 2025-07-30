@@ -2,6 +2,27 @@
 
 
 
+## [2.13.0](https://github.com/ppat/coder/compare/v2.12.0...v2.13.0) (2025-07-30)
+
+### ✨ Features
+
+* update conventional-changelog-conventionalcommits (8.0.0 -> 9.0.0) ([#587](https://github.com/ppat/coder/issues/587)) ([cf95476](https://github.com/ppat/coder/commit/cf95476a22a649cc7f85a4d076a11138f5c03061))
+* update conventional-changelog-conventionalcommits (9.0.0 -> 9.1.0) ([#590](https://github.com/ppat/coder/issues/590)) ([5969bb7](https://github.com/ppat/coder/commit/5969bb74804dcdf8b205f6ed99194e252775465c))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **aqua-registry:** update aqua registry: aquaproj/aqua-registry (v4.373.0 -> v4.391.0) ([#584](https://github.com/ppat/coder/issues/584)) ([5dd9a91](https://github.com/ppat/coder/commit/5dd9a91c7274aef897931bd8cbeadf96740ffe9b))
+* **cli-tools:** update aquaproj/aqua (v2.53.3 -> v2.53.4) ([#571](https://github.com/ppat/coder/issues/571)) ([eb4ad7d](https://github.com/ppat/coder/commit/eb4ad7dcc4aa15a8f428fe0a9c2f65ae28837690))
+* **cli-tools:** update aquaproj/aqua (v2.53.4 -> v2.53.5) ([#573](https://github.com/ppat/coder/issues/573)) ([62be419](https://github.com/ppat/coder/commit/62be419045c24eb17eb8a40972b04ad4f208b95e))
+* **cli-tools:** update aquaproj/aqua (v2.53.5 -> v2.53.6) ([#576](https://github.com/ppat/coder/issues/576)) ([cd97000](https://github.com/ppat/coder/commit/cd97000bcf309111799854fe8b9fd756b16c5d16))
+* **cli-tools:** update cli-tools ([#594](https://github.com/ppat/coder/issues/594)) ([5fe8925](https://github.com/ppat/coder/commit/5fe89255601e2aeadf856f633e9335f68c6b74c1))
+* **cli-tools:** update upx/upx (v5.0.1 -> v5.0.2) ([#574](https://github.com/ppat/coder/issues/574)) ([5ebe435](https://github.com/ppat/coder/commit/5ebe4355031cb2135bba7ee1ff8e8f5d255ee6c0))
+* improve docker image build ([#596](https://github.com/ppat/coder/issues/596)) ([2ad9cd7](https://github.com/ppat/coder/commit/2ad9cd75c6f7664c70540a5880cb99764195617a))
+* update digest ubuntu (440dcf6 -> c4570d2) ([#569](https://github.com/ppat/coder/issues/569)) ([a8c2e5b](https://github.com/ppat/coder/commit/a8c2e5b345dd94ae510eff1713777290c03ee7ae))
+* update digest ubuntu (c4570d2 -> a08e551) ([#570](https://github.com/ppat/coder/issues/570)) ([c318a65](https://github.com/ppat/coder/commit/c318a651f517499a9911953bda41592701ba4c31))
+* update ppat/renovate-presets (v0.0.2 -> v0.0.3) ([#581](https://github.com/ppat/coder/issues/581)) ([f4dcf29](https://github.com/ppat/coder/commit/f4dcf295cddc4dab644ac0079ccdc03cc5987821))
+* update semantic-release (24.2.5 -> 24.2.7) ([#583](https://github.com/ppat/coder/issues/583)) ([872cdf4](https://github.com/ppat/coder/commit/872cdf435c9769e2173767401bde097219612ba5))
+
 ## [2.12.0](https://github.com/ppat/coder/compare/v2.11.1...v2.12.0) (2025-07-06)
 
 ### ✨ Features
