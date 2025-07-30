@@ -1,11 +1,6 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2025.4.0/bw-linux-2025.4.0.zip",
-      "checksum": "10A9C1389CC18AF474E2D78CBBDACB497805E8BDF926767C07A8504BE412C60E",
-      "algorithm": "sha256"
-    },
-    {
       "id": "github_release/github.com/bitwarden/clients/cli-v2025.6.1/bw-linux-2025.6.1.zip",
       "checksum": "6BACF4151842EBCBFE6801770453A9302E8F658F7219D07E1313C007D8B80AC6",
       "algorithm": "sha256"
@@ -18,16 +13,6 @@
     {
       "id": "github_release/github.com/bitwarden/sdk-sm/bws-v1.0.0/bws-x86_64-unknown-linux-gnu-1.0.0.zip",
       "checksum": "9077FB7B336A62ABC8194728FEA8753AFAD8B0BAA3A18723FC05FC02FDB53568",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/jdx/mise/v2025.5.15/mise-v2025.5.15-linux-arm64-musl.tar.gz",
-      "checksum": "92C1B5C8D08A5BAEED69BA425E91BD0629BABF7D2E4667C619F9FCCE64BA7EC6",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/jdx/mise/v2025.5.15/mise-v2025.5.15-linux-x64-musl.tar.gz",
-      "checksum": "50F272DD29BFFCAB29DAA2FEA8C6FDBBC670CECA402456A53C72EA946083F919",
       "algorithm": "sha256"
     },
     {
@@ -51,16 +36,6 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.62.5/chezmoi_2.62.5_linux-glibc_amd64.tar.gz",
-      "checksum": "A8A8DC36FF5B84889E855793DABDEE45F93D747E6D795F12D443CA9359F30775",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.62.5/chezmoi_2.62.5_linux_arm64.pkg.tar.zst",
-      "checksum": "FC99B082D249C0E3010569E46CE7A1AC3CDA179200375E0ADA9AF56996F8B001",
-      "algorithm": "sha256"
-    },
-    {
       "id": "github_release/github.com/twpayne/chezmoi/v2.63.1/chezmoi_2.63.1_linux-glibc_amd64.tar.gz",
       "checksum": "611A450E44C95CB124AF586C7D6690E6DCFC035737BCF78B5533166A57C1C414",
       "algorithm": "sha256"
@@ -68,11 +43,6 @@
     {
       "id": "github_release/github.com/twpayne/chezmoi/v2.63.1/chezmoi_2.63.1_linux_arm64.pkg.tar.zst",
       "checksum": "510C2DC2D091532F54A1B9ECB97AFDA7B7A07B4C8420E7B6293BEAE0845733F0",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.373.0/registry.yaml",
-      "checksum": "FDF48415E2BF395B7BCA932B27D29CCD53722E798A434318FADF097FF788A381",
       "algorithm": "sha256"
     },
     {
