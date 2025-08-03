@@ -32,7 +32,7 @@ jobs:
   create-release:
     uses: ppat/github-workflows/.github/workflows/release-semantic.yaml@a80b8b7c502f0db4fc8d81cef2a2d60d3d6cb017 # v2.0.0
     with:
-      dry_run: ${{ (github.event_name == 'pull_request') || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true' )) }}
+      dry_run: ${{ (github.event_name == 'pull_request') || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true') }}
       release_branch: ${{ github.head_ref || github.ref_name }}
     secrets:
       app_id: ${{ secrets.HOMELAB_BOT_APP_ID }}
