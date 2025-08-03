@@ -30,92 +30,17 @@ env:
 
 jobs:
   create-release:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    # if: github.event.pull_request.merged == true
-    outputs:
-      released_sha: ${{ steps.release_info.outputs.sha }}
-      released_version: ${{ steps.release_info.outputs.version }}
-      released_gitref: ${{ steps.release_info.outputs.gitref }}
-    steps:
-    - name: Check out
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      with:
-        token: "${{ secrets.GH_RELEASES_TOKEN }}"
-        fetch-depth: 0
-
-    - name: Cache mise
-      uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
-      with:
-        path: ~/.local/share/mise
-        key: mise-${{runner.os}}-${{runner.arch}}-${{hashFiles('mise.toml')}}
-        restore-keys: |
-          mise-${{runner.os}}-${{runner.arch}}-
-
-    - name: Setup default mise configuration
-      # yamllint disable-line rule:indentation
-      run: |
-        mkdir -p ~/.config/mise
-        ln -s $GITHUB_WORKSPACE/mise.toml ~/.config/mise/config.toml
-
-    - name: Setup mise
-      uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
-      env:
-        MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        # renovate: datasource=github-releases depName=jdx/mise
-        version: "v2025.7.30"
-        install: true
-        cache: false
-        log_level: info
-        working_directory: ${{ github.workspace }}
-
-    - name: Install node packages
-      shell: bash
-      run: bun install --frozen-lockfile
-
-    - name: Release - dry run
-      if: (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true' ))
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
-        CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-      run: |
-        echo
-        GITHUB_REF=$CURRENT_BRANCH
-        set -x
-        bunx semantic-release --dry-run --no-ci --branches $CURRENT_BRANCH
-
-    - name: Release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish != 'true'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN }}
-      run: |
-        set -x
-        bunx semantic-release
-
-    - name: Output release info
-      id: release_info
-      shell: bash
-      env:
-        TRIGGER_EVENT: ${{ github.event_name }}
-        CURRENT_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-      # yamllint disable-line rule:indentation
-      run: |
-        if [[ "${TRIGGER_EVENT}" == "workflow_dispatch" && -f /tmp/released.version ]]; then
-          # an actual release has been triggered.
-          echo "version=v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
-          echo "gitref=refs/tags/v$(cat /tmp/released.version)" >> "$GITHUB_OUTPUT"
-        else
-          # a dry-run during CI or a test-publish for manual testing has been triggered.
-          echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
-          echo "gitref=refs/heads/$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
-        fi
-        echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+    uses: ppat/github-workflows/.github/workflows/release-semantic.yaml@a80b8b7c502f0db4fc8d81cef2a2d60d3d6cb017 # v2.0.0
+    with:
+      dry_run: ${{ (github.event_name == 'pull_request') || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true') }}
+      release_branch: ${{ github.head_ref || github.ref_name }}
+    secrets:
+      app_id: ${{ secrets.HOMELAB_BOT_APP_ID }}
+      app_private_key: ${{ secrets.HOMELAB_BOT_APP_PRIVATE_KEY }}
 
   publish-image:
     needs: [create-release]
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@dccb17f16ff79cb9e9310fc511ed1b57a8d15ce5 # v1.1.2
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@a80b8b7c502f0db4fc8d81cef2a2d60d3d6cb017 # v2.0.0
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
