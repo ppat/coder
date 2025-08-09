@@ -66,6 +66,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      with:
+        fetch-depth: 1
+        persist-credentials: false
 
     - name: Tailscale Connect
       uses: tailscale/github-action@6986d2c82a91fbac2949fe01f5bab95cf21b5102 # v3
