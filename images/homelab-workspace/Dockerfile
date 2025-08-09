@@ -145,7 +145,7 @@ COPY aqua.yaml aqua-checksums.json /etc/aqua/
 # renovate: datasource=github-releases depName=aquaproj/aqua-installer
 ARG AQUA_INSTALLER_VERSION="4.0.2"
 # renovate: datasource=github-releases depName=aquaproj/aqua
-ARG AQUA_VERSION="2.53.7"
+ARG AQUA_VERSION="2.53.8"
 
 # hadolint ignore=SC2046
 RUN curl -sSfL -O https://raw.githubusercontent.com/aquaproj/aqua-installer/v${AQUA_INSTALLER_VERSION}/aqua-installer && \
