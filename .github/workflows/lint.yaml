@@ -106,7 +106,6 @@ jobs:
       git_ref: ${{ github.head_ref || github.ref }}
       files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).docker_all_changed_files }}
       hadolint_config: .hadolint.yaml
-      verbose: true
       failure_threshold: info
 
   pre-commit:
