@@ -5,17 +5,13 @@ ARG TARGETARCH
 # Place all __pycache__ and *.pyc within a location outside of /usr or /opt,
 # - so that it can be easily cleared by the user (as needed)
 # - so that they need not be built into the image
-# This is done early on as the next RUN statement installs python3 along with several packages that depend on python
-# and use them within the scope of that statement.
 ENV PYTHONPYCACHEPREFIX=/var/cache/python
-
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
-    chmod 775 /var/cache/python && \
     # enable caching of apt packages
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
@@ -34,14 +30,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
     LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 locale-gen en_US.UTF-8 && \
-    # update environment variables (that we need to persist across build stages) in /etc/environment
-    # - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
-    echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment && \
-    echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
-    # - Make typing unicode characters in the terminal work.
-    echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
-    echo 'LANG=en_US.UTF-8' >> /etc/environment && \
-    # Clean pycache created during install
+    # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # ========================================================================================================
@@ -57,12 +46,12 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    # unminimize
+    # need unminimized variants of tools in coder workspace image
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
     echo -e 'y\ny' | /usr/bin/unminimize && \
-    # system packages
+    # install system packages needed within coder workspace image
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       apt-file \
       apt-transport-https \
@@ -119,7 +108,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       zip \
       zstd \
       && \
-    rm -f /etc/apt/apt.conf.d/keep-cache && \
+    # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # ========================================================================================================
@@ -135,18 +124,41 @@ COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
 # renovate: datasource=github-releases depName=aquaproj/aqua
 ARG AQUA_VERSION="2.53.8"
-# hadolint ignore=SC2046
 RUN --mount=type=tmpfs,target=/tmp \
-    curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
-    curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
-    grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
-    sha256sum -c aqua_artifact_checksum.txt && \
-    tar xzf aqua_linux_amd64.tar.gz aqua && \
+    --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
+    mkdir -p $AQUA_ROOT_DIR/bin && \
+    # Check if aqua exists and version matches
+    if [ -f "$AQUA_ROOT_DIR/bin/aqua" ]; then \
+        CURRENT_VERSION=$($AQUA_ROOT_DIR/bin/aqua --version 2>/dev/null | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' || echo "unknown"); \
+        if [ "$CURRENT_VERSION" = "$AQUA_VERSION" ]; then \
+            echo "aqua v$AQUA_VERSION already cached, skipping download"; \
+        else \
+            echo "aqua version mismatch: current=$CURRENT_VERSION, required=$AQUA_VERSION" && \
+            NEED_DOWNLOAD=true; \
+        fi; \
+    else \
+        echo "aqua not found in cache, downloading..." && \
+        NEED_DOWNLOAD=true; \
+    fi && \
+    # Download and install aqua if needed
+    if [ "$NEED_DOWNLOAD" = "true" ]; then \
+        curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
+        curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
+        grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
+        sha256sum -c aqua_artifact_checksum.txt && \
+        tar xzf "aqua_linux_${TARGETARCH}.tar.gz" aqua && \
+        mv ./aqua $AQUA_ROOT_DIR/bin/aqua && \
+        chmod +x $AQUA_ROOT_DIR/bin/aqua && \
+        echo "aqua v$AQUA_VERSION installed successfully"; \
+    fi
+
+# hadolint ignore=SC2046
+RUN --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
     mkdir -p /dist && \
-    mv ./aqua /dist/aqua && \
-    /dist/aqua install --all && \
-    /dist/aqua cp -o /dist $(find $AQUA_ROOT_DIR/bin -type l -not -name upx -exec basename {} \;) && \
-    $AQUA_ROOT_DIR/bin/upx $(find /dist -type f -executable)
+    aqua install --all && \
+    aqua cp -o /dist $(find $AQUA_ROOT_DIR/bin -type l -not -name upx -exec basename {} \; | sort) && \
+    cp $AQUA_ROOT_DIR/bin/aqua /dist/aqua && \
+    upx $(find /dist -type f -executable)
 
 # ========================================================================================================
 FROM system-base
@@ -157,12 +169,26 @@ WORKDIR /tmp
 # copy binaries from aqua based binary install stage
 COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sbin/
 
+# Instead of utilizing ENV statements, we make use of /etc/environment file to make the requisite
+# environment variables available to all users of this image (primarily 'root' and 'coder')
+RUN \
+    # update environment variables (that we need to persist across build stages) in /etc/environment
+    # - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
+    echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment && \
+    echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
+    # - Make typing unicode characters in the terminal work.
+    echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
+    echo 'LANG=en_US.UTF-8' >> /etc/environment && \
+    # package installation is now complete, users of resulting image need not to cache downloaded packages
+    rm -f /etc/apt/apt.conf.d/keep-cache && \
+
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
 RUN groupadd --gid ${CODER_GID} coder && \
     useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
     mkdir -p /var/cache/python && \
     # enable both root user and coder group to maintain/cleanup PYTHONPYCACHEPREFIX dir
-    chown -R root:coder /var/cache/python
+    chown -R root:coder /var/cache/python && \
+    chmod 775 /var/cache/python
 USER coder
 WORKDIR /home/coder
