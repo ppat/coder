@@ -106,7 +106,6 @@ jobs:
       git_ref: ${{ github.head_ref || github.ref }}
       files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).docker_all_changed_files }}
       hadolint_config: .hadolint.yaml
-      failure_threshold: info
 
   pre-commit:
     uses: ppat/github-workflows/.github/workflows/lint-pre-commit.yaml@a80b8b7c502f0db4fc8d81cef2a2d60d3d6cb017 # v2.0.0

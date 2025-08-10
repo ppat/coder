@@ -118,10 +118,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
 ENV AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
 ENV PATH=$AQUA_ROOT_DIR/bin:$PATH
-COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
 # renovate: datasource=github-releases depName=aquaproj/aqua
 ARG AQUA_VERSION="2.53.8"
@@ -153,6 +151,9 @@ RUN --mount=type=tmpfs,target=/tmp \
         echo "aqua v$AQUA_VERSION installed successfully"; \
     fi
 
+ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
+COPY aqua.yaml aqua-checksums.json /etc/aqua/
+
 # hadolint ignore=SC2046
 RUN --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
     mkdir -p /dist && \
@@ -172,16 +173,12 @@ COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sb
 
 # Instead of utilizing ENV statements, we make use of /etc/environment file to make the requisite
 # environment variables available to all users of this image (primarily 'root' and 'coder')
-RUN \
-    # update environment variables (that we need to persist across build stages) in /etc/environment
-    # - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
-    echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment && \
+# - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
+# - Make typing unicode characters in the terminal work (w/ LC_ALL + LANG).
+RUN echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment && \
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
-    # - Make typing unicode characters in the terminal work.
     echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
-    echo 'LANG=en_US.UTF-8' >> /etc/environment && \
-    # package installation is now complete, users of resulting image need not to cache downloaded packages
-    rm -f /etc/apt/apt.conf.d/keep-cache
+    echo 'LANG=en_US.UTF-8' >> /etc/environment
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
@@ -190,6 +187,9 @@ RUN groupadd --gid "${CODER_GID}" coder && \
     mkdir -p /var/cache/python && \
     # enable both root user and coder group to maintain/cleanup PYTHONPYCACHEPREFIX dir
     chown -R root:coder /var/cache/python && \
-    chmod 775 /var/cache/python
+    chmod 775 /var/cache/python && \
+    # package installation is now complete, users of resulting image need not cache downloaded packages
+    rm -f /etc/apt/apt.conf.d/keep-cache
+
 USER coder
 WORKDIR /home/coder
