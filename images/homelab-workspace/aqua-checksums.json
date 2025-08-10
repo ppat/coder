@@ -1,11 +1,6 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2025.6.1/bw-linux-2025.6.1.zip",
-      "checksum": "6BACF4151842EBCBFE6801770453A9302E8F658F7219D07E1313C007D8B80AC6",
-      "algorithm": "sha256"
-    },
-    {
       "id": "github_release/github.com/bitwarden/clients/cli-v2025.7.0/bw-linux-2025.7.0.zip",
       "checksum": "B0BDAAA1F77D8DBF304E37403FA57A54AA1DAFBE7C660D120AD67F286C174ADF",
       "algorithm": "sha256"
@@ -18,16 +13,6 @@
     {
       "id": "github_release/github.com/bitwarden/sdk-sm/bws-v1.0.0/bws-x86_64-unknown-linux-gnu-1.0.0.zip",
       "checksum": "9077FB7B336A62ABC8194728FEA8753AFAD8B0BAA3A18723FC05FC02FDB53568",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/jdx/mise/v2025.7.21/mise-v2025.7.21-linux-arm64-musl.tar.gz",
-      "checksum": "7787AC7BD5D5177D9405137C81E1E2D2DBE33064657EF98930DE0D7B4231C646",
-      "algorithm": "sha256"
-    },
-    {
-      "id": "github_release/github.com/jdx/mise/v2025.7.21/mise-v2025.7.21-linux-x64-musl.tar.gz",
-      "checksum": "01E91080E9BE67B8742F44EE89B41AB89ADD474136FDD90143B9BEAA344B44A9",
       "algorithm": "sha256"
     },
     {
@@ -61,18 +46,8 @@
       "algorithm": "sha256"
     },
     {
-      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.391.0/registry.yaml",
-      "checksum": "5FB62C26F3970A5CB2B324C1930F5042EED9B4F315CADE2FF7A45438C834932B858D23716516FEBAD9162E88A77BA8542F5FEE5CA6026C11F69FF71BE70EA895",
-      "algorithm": "sha512"
-    },
-    {
-      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.396.0/registry.yaml",
-      "checksum": "4D4906B4D3EDABCAC738262DF9A3B392418EA51DE48D0F71776C751235D910BF497954537DC5BAF44F2F68EF27F58283C89EC584A217E39DA0705D7E89B7CAEB",
-      "algorithm": "sha512"
-    },
-    {
       "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.397.0/registry.yaml",
-      "checksum": "65AB083807B839F5FEF5570C2692A1B1E26DB26D035634E1E3CE7B6F9DE4C548A8846DA8C0A756D31C267E1A82A981F4D9FE2C865C22D67E55A10EBF09AE0212",
+      "checksum": "D1DF243740112760AA0F76C8EB71B124BB6E4D2BF75F352322252E8A53C8ED2CC4A6A9A533C9281A42CF019046EF7BE91932C9590AD765FF997A258F1A8DA222",
       "algorithm": "sha512"
     }
   ]
