@@ -22,17 +22,14 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     # minimum requirements for base image (for supporting builds of subsequent stages)
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends \
-        apt-transport-https \
         bash \
         ca-certificates \
+        coreutils \
         curl \
-        git \
         jq \
         locales \
-        sudo \
         unzip \
-        wget \
-        xz-utils && \
+        && \
     # generate locales (needed for many applications, specially python)
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
@@ -46,17 +43,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     echo 'LANG=en_US.UTF-8' >> /etc/environment && \
     # Clean pycache created during install
     find /usr -name __pycache__ -exec rm -rf {} +
-
-# upx
-# renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="5.0.2"
-WORKDIR /tmp
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=tmpfs,target=/var/log \
-    --mount=type=tmpfs,target=/var/tmp \
-    wget  --progress=dot:giga "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-${TARGETARCH}_linux.tar.xz" -O /tmp/upx.tar.xz && \
-    xz -d /tmp/upx.tar.xz && \
-    tar xvf upx.tar -C /usr/local/sbin --strip-components 1 "upx-${UPX_VERSION}-${TARGETARCH}_linux/upx"
 
 # ========================================================================================================
 FROM base AS system-base
@@ -79,15 +65,16 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     # system packages
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       apt-file \
+      apt-transport-https \
       apt-utils \
       bash-completion \
       bc \
       binutils \
       bsdextrautils \
-      coreutils \
       dnsutils \
       fontconfig \
       gettext \
+      git \
       htop \
       inetutils-tools \
       iotop \
@@ -120,12 +107,15 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       sshpass \
       ssh-askpass \
       strace \
+      sudo \
       sysstat \
       tmux \
       traceroute \
       tree \
       tzdata \
       vim \
+      wget \
+      xz-utils \
       zip \
       zstd \
       && \
@@ -138,23 +128,25 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-ENV PATH=/root/.local/share/aquaproj-aqua/bin:$PATH
 ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
+ENV AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
+ENV PATH=$AQUA_ROOT_DIR/bin:$PATH
 COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
-# renovate: datasource=github-releases depName=aquaproj/aqua-installer
-ARG AQUA_INSTALLER_VERSION="4.0.2"
 # renovate: datasource=github-releases depName=aquaproj/aqua
 ARG AQUA_VERSION="2.53.8"
-
 # hadolint ignore=SC2046
-RUN curl -sSfL -O https://raw.githubusercontent.com/aquaproj/aqua-installer/v${AQUA_INSTALLER_VERSION}/aqua-installer && \
-    chmod +x aqua-installer && \
-    ./aqua-installer -v v${AQUA_VERSION} && \
-    aqua install --all && \
+RUN --mount=type=tmpfs,target=/tmp \
+    curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
+    curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
+    grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
+    sha256sum -c aqua_artifact_checksum.txt && \
+    tar xzf aqua_linux_amd64.tar.gz aqua && \
     mkdir -p /dist && \
-    aqua cp -o /dist $(find /root/.local/share/aquaproj-aqua/bin -type l -executable -not -name upx -exec basename {} \;) && \
-    upx $(find /dist  -type f -executable)
+    mv ./aqua /dist/aqua && \
+    /dist/aqua install --all && \
+    /dist/aqua cp -o /dist $(find $AQUA_ROOT_DIR/bin -type l -not -name upx -exec basename {} \;) && \
+    $AQUA_ROOT_DIR/bin/upx $(find /dist -type f -executable)
 
 # ========================================================================================================
 FROM system-base
@@ -162,7 +154,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
 
-# copy binaries
+# copy binaries from aqua based binary install stage
 COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sbin/
 
 ARG CODER_GID="10001"
@@ -170,6 +162,7 @@ ARG CODER_UID="10001"
 RUN groupadd --gid ${CODER_GID} coder && \
     useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
     mkdir -p /var/cache/python && \
+    # enable both root user and coder group to maintain/cleanup PYTHONPYCACHEPREFIX dir
     chown -R root:coder /var/cache/python
 USER coder
 WORKDIR /home/coder
