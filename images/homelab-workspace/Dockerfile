@@ -181,7 +181,7 @@ RUN \
     echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment && \
     # package installation is now complete, users of resulting image need not to cache downloaded packages
-    rm -f /etc/apt/apt.conf.d/keep-cache && \
+    rm -f /etc/apt/apt.conf.d/keep-cache
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
