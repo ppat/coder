@@ -24,6 +24,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
         curl \
         jq \
         locales \
+        openssl \
         unzip \
         && \
     # generate locales (needed for many applications, specially python)
@@ -184,8 +185,8 @@ RUN \
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
-RUN groupadd --gid ${CODER_GID} coder && \
-    useradd --uid ${CODER_UID} --gid ${CODER_GID} --home-dir /home/coder --create-home --shell /bin/bash coder && \
+RUN groupadd --gid "${CODER_GID}" coder && \
+    useradd --uid "${CODER_UID}" --gid "${CODER_GID}" --home-dir /home/coder --create-home --shell /bin/bash coder && \
     mkdir -p /var/cache/python && \
     # enable both root user and coder group to maintain/cleanup PYTHONPYCACHEPREFIX dir
     chown -R root:coder /var/cache/python && \
