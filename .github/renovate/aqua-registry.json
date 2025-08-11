@@ -16,7 +16,7 @@
       "matchPackageNames": [
         "aquaproj/aqua-registry"
       ],
-      "semanticCommitScope": "aqua-registry",
+      "semanticCommitScope": "cli-tools",
       "separateMajorMinor": true,
       "separateMinorPatch": false,
       "separateMultipleMajor": true,
