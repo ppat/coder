@@ -8,6 +8,10 @@ install_homebrew() {
   export HOMEBREW_CELLAR="${brew_prefix}/Cellar"
   export HOMEBREW_NO_ANALYTICS=1
   export PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:$PATH"
+  # init container runs as root but homebrew doesn't support running as root
+  # we don't want to give any users within the coder workspace the ability to sudo, so this is a workaround
+  # see: https://github.com/Homebrew/install/blob/7e3a5202cd6d783a2464e387433c4c72acdb0f49/install.sh#L366
+  touch /.dockerenv
   HOME="/home/${brew_user}" NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 

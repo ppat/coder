@@ -27,17 +27,17 @@ resource "kubernetes_deployment" "deployment" {
       spec {
         automount_service_account_token = false
         init_container {
-          name    = "system-update"
-          command = ["/bin/bash", "/init-container-script.sh"]
+          name    = "prepare-workspace"
+          command = ["/bin/bash", "/prepare-workspace-script.sh"]
           image   = var.workspace_image
           env {
             name  = "SYSTEM_PACKAGES"
             value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
           }
           volume_mount {
-            mount_path = "/init-container-script.sh"
+            mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
-            sub_path   = "init_container_script"
+            sub_path   = "prepare_workspace"
           }
           volume_mount {
             mount_path = "/home/linuxbrew/.linuxbrew"
