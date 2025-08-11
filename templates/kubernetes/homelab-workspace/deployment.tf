@@ -34,6 +34,10 @@ resource "kubernetes_deployment" "deployment" {
             name  = "SYSTEM_PACKAGES"
             value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
           }
+          env {
+            name  = "HOMEBREW_PREFIX"
+            value = local.homebrew_directory
+          }
           volume_mount {
             mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"

@@ -1,11 +1,9 @@
 #!/bin/bash
-set -eo pipefail
+set -euo pipefail
 
 install_homebrew() {
-  local brew_prefix="$1"
-  local brew_user="$2"
-  export HOMEBREW_PREFIX="${brew_prefix}"
-  export HOMEBREW_CELLAR="${brew_prefix}/Cellar"
+  local brew_user="$1"
+  export HOMEBREW_CELLAR="${HOMEBREW_PREFIX}/Cellar"
   export HOMEBREW_NO_ANALYTICS=1
   export PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:$PATH"
   # init container runs as root but homebrew doesn't support running as root
@@ -16,20 +14,19 @@ install_homebrew() {
 }
 
 setup_homebrew() {
-  local brew_prefix="/home/linuxbrew/.linuxbrew"
   local brew_user="coder"
   echo '------------------------------------------------------------'
   echo 'Checking for brew installation...'
-  local brew_file_count=$(find ${brew_prefix} -maxdepth 3 -type f | wc -l)
+  local brew_file_count=$(find "${HOMEBREW_PREFIX}" -maxdepth 3 -type f | wc -l)
   if [[ "${brew_file_count}" -gt "0" ]]; then
     echo 'Brew installation already exists... skipping.'
   else
     echo 'No existing brew installation, proceeding w/ installation...'
-    install_homebrew "${brew_prefix}" "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
+    install_homebrew "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   fi
   echo '------------------------------------------------------------'
   echo "Making brew installation available to ${brew_user} user..."
-  chown -R ${brew_user}:root /home/linuxbrew
+  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")
   chown -R ${brew_user}:root "/home/${brew_user}/.cache/Homebrew"
   echo '------------------------------------------------------------'
   echo 'Done'
