@@ -188,7 +188,10 @@ RUN groupadd --gid "${CODER_GID}" coder && \
     # enable both root user and coder group to maintain/cleanup PYTHONPYCACHEPREFIX dir
     chown -R root:coder /var/cache/python && \
     chmod 775 /var/cache/python && \
-    # package installation is now complete, users of resulting image need not cache downloaded packages
+    # enable installing homebrew if needed (w/ write access to homebrew dir allowed by both root and coder users)
+    mkdir -p /home/linuxbrew/.linuxbrew && \
+    chmod 775 /home/linuxbrew/.linuxbrew && \
+    # package installation is complete, users of resulting image need not cache downloaded packages
     rm -f /etc/apt/apt.conf.d/keep-cache
 
 USER coder
