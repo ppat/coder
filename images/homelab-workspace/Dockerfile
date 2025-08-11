@@ -120,43 +120,26 @@ WORKDIR /tmp
 
 ENV AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
 ENV PATH=$AQUA_ROOT_DIR/bin:$PATH
-
-# renovate: datasource=github-releases depName=aquaproj/aqua
-ARG AQUA_VERSION="2.53.8"
-RUN --mount=type=tmpfs,target=/tmp \
-    --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
-    mkdir -p $AQUA_ROOT_DIR/bin && \
-    # Check if aqua exists and version matches
-    if [ -f "$AQUA_ROOT_DIR/bin/aqua" ]; then \
-        CURRENT_VERSION=$($AQUA_ROOT_DIR/bin/aqua --version 2>/dev/null | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' || echo "unknown"); \
-        if [ "$CURRENT_VERSION" = "$AQUA_VERSION" ]; then \
-            echo "aqua v$AQUA_VERSION already cached, skipping download"; \
-        else \
-            echo "aqua version mismatch: current=$CURRENT_VERSION, required=$AQUA_VERSION" && \
-            NEED_DOWNLOAD=true; \
-        fi; \
-    else \
-        echo "aqua not found in cache, downloading..." && \
-        NEED_DOWNLOAD=true; \
-    fi && \
-    # Download and install aqua if needed
-    if [ "$NEED_DOWNLOAD" = "true" ]; then \
-        curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
-        curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
-        grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
-        sha256sum -c aqua_artifact_checksum.txt && \
-        tar xzf "aqua_linux_${TARGETARCH}.tar.gz" aqua && \
-        mv ./aqua $AQUA_ROOT_DIR/bin/aqua && \
-        chmod +x $AQUA_ROOT_DIR/bin/aqua && \
-        echo "aqua v$AQUA_VERSION installed successfully"; \
-    fi
-
 ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
 COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
+# renovate: datasource=github-releases depName=aquaproj/aqua
+ARG AQUA_VERSION="2.53.8"
 # hadolint ignore=SC2046
 RUN --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
+    --mount=type=tmpfs,target=/tmp \
+    mkdir -p $AQUA_ROOT_DIR/bin && \
     mkdir -p /dist && \
+    # Download and install aqua
+    curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
+    curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
+    grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
+    sha256sum -c aqua_artifact_checksum.txt && \
+    tar xzf "aqua_linux_${TARGETARCH}.tar.gz" aqua && \
+    mv ./aqua $AQUA_ROOT_DIR/bin/aqua && \
+    chmod +x $AQUA_ROOT_DIR/bin/aqua && \
+    echo "aqua v$AQUA_VERSION installed successfully" && \
+    # Install packages w/ aqua as defined in aqua.yaml
     aqua install --all && \
     aqua cp -o /dist $(find $AQUA_ROOT_DIR/bin -type l -not -name upx -exec basename {} \; | sort) && \
     cp $AQUA_ROOT_DIR/bin/aqua /dist/aqua && \

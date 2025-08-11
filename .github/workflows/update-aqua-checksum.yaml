@@ -23,6 +23,7 @@ jobs:
       git_ref: ${{ github.head_ref || github.ref_name }}
       aqua_dirs: |
         images/homelab-workspace
+      prune: true
     secrets:
       app_id: ${{ secrets.HOMELAB_BOT_APP_ID }}
       app_private_key: ${{ secrets.HOMELAB_BOT_APP_PRIVATE_KEY }}
