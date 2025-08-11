@@ -9,6 +9,7 @@ on:
     - '.releaserc.js'
     - 'package.json'
     - 'bun.lock'
+    - 'images/homelab-workspace/**'
     - 'templates/**'
   workflow_dispatch:
     inputs:

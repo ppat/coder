@@ -19,5 +19,6 @@ locals {
     "app.kubernetes.io/name" = lower(data.coder_workspace.me.name)
   }
 
-  home_directory = "/home/coder"
+  home_directory     = "/home/coder"
+  homebrew_directory = "/home/linuxbrew/.linuxbrew"
 }

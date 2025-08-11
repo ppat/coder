@@ -27,17 +27,26 @@ resource "kubernetes_deployment" "deployment" {
       spec {
         automount_service_account_token = false
         init_container {
-          name    = "system-update"
-          command = ["/bin/bash", "/system-update-script.sh"]
+          name    = "prepare-workspace"
+          command = ["/bin/bash", "/prepare-workspace-script.sh"]
           image   = var.workspace_image
           env {
             name  = "SYSTEM_PACKAGES"
             value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
           }
+          env {
+            name  = "HOMEBREW_PREFIX"
+            value = local.homebrew_directory
+          }
           volume_mount {
-            mount_path = "/system-update-script.sh"
+            mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
-            sub_path   = "system_update_script"
+            sub_path   = "prepare_workspace_script"
+          }
+          volume_mount {
+            mount_path = "/home/linuxbrew/.linuxbrew"
+            name       = "home"
+            sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
           }
           volume_mount {
             name       = "system"
@@ -85,6 +94,11 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = local.home_directory
             name       = "home"
             sub_path   = data.coder_workspace.me.name
+          }
+          volume_mount {
+            mount_path = "/home/linuxbrew/.linuxbrew"
+            name       = "home"
+            sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
           }
           volume_mount {
             mount_path = "/home/all"

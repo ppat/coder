@@ -8,8 +8,8 @@ resource "kubernetes_config_map" "workspace_scripts" {
   }
 
   data = {
-    agent_startup_script  = file("${path.cwd}/script-agent-startup.sh")
-    system_update_script  = file("${path.cwd}/script-system-update.sh")
-    workspace_init_script = coder_agent.main.init_script
+    agent_startup_script     = file("${path.cwd}/script-agent-startup.sh")
+    prepare_workspace_script = file("${path.cwd}/script-prepare-workspace.sh")
+    workspace_init_script    = coder_agent.main.init_script
   }
 }
