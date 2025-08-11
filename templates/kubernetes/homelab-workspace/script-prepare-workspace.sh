@@ -27,8 +27,8 @@ prepare_homebrew() {
     echo "Creating cache directory..."
     mkdir -p "${HOMEBREW_CACHE}"
   fi
-  chown -R ${brew_user}:root "${HOMEBREW_CACHE}"  
-  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")   
+  chown -R ${brew_user}:root "${HOMEBREW_CACHE}"
+  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")
 }
 
 setup_homebrew() {

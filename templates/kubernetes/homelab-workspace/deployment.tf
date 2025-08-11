@@ -42,7 +42,7 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = local.home_directory
             name       = "home"
             sub_path   = data.coder_workspace.me.name
-          }          
+          }
           volume_mount {
             mount_path = local.homebrew_directory
             name       = "home"
