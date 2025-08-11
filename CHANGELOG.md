@@ -2,6 +2,12 @@
 
 
 
+## [2.14.2](https://github.com/ppat/coder/compare/v2.14.1...v2.14.2) (2025-08-11)
+
+### 🐛 Enhancements + Bug Fixes
+
+* fix homebrew installation issues ([ececff8](https://github.com/ppat/coder/commit/ececff84d801cec75cb81738a0071fbfb0ab02dc))
+
 ## [2.14.1](https://github.com/ppat/coder/compare/v2.14.0...v2.14.1) (2025-08-11)
 
 ### 🐛 Enhancements + Bug Fixes
