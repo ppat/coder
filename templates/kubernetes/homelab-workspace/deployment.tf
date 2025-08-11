@@ -37,7 +37,7 @@ resource "kubernetes_deployment" "deployment" {
           volume_mount {
             mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
-            sub_path   = "prepare_workspace"
+            sub_path   = "prepare_workspace_script"
           }
           volume_mount {
             mount_path = "/home/linuxbrew/.linuxbrew"
