@@ -2,6 +2,25 @@
 
 
 
+## [2.14.0](https://github.com/ppat/coder/compare/v2.13.0...v2.14.0) (2025-08-11)
+
+### ✨ Features
+
+* install homebrew within workspace on start up ([#614](https://github.com/ppat/coder/issues/614)) ([9dbef74](https://github.com/ppat/coder/commit/9dbef74978dfe1effefa127fad5ab16ad9d8cdb3))
+* **terraform-provider:** update coder/coder (2.8.0 -> 2.9.0) ([#610](https://github.com/ppat/coder/issues/610)) ([9c51cf5](https://github.com/ppat/coder/commit/9c51cf5f12948706ae7283b68ec39ac1eac12665))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **aqua-registry:** update aqua registry: aquaproj/aqua-registry (v4.396.0 -> v4.397.0) ([#609](https://github.com/ppat/coder/issues/609)) ([d397013](https://github.com/ppat/coder/commit/d3970135085e43a65fe06960166d40ee4bf5321d))
+* **cli-tools:** update aquaproj/aqua (v2.53.6 -> v2.53.7) ([#604](https://github.com/ppat/coder/issues/604)) ([819179c](https://github.com/ppat/coder/commit/819179c0be4538b777958e554b9bcdd8b8b0fc61))
+* **cli-tools:** update aquaproj/aqua (v2.53.7 -> v2.53.8) ([#607](https://github.com/ppat/coder/issues/607)) ([fb6c134](https://github.com/ppat/coder/commit/fb6c13492464cac1257bfc520371c21acf09220d))
+* **cli-tools:** update cli-tools ([#600](https://github.com/ppat/coder/issues/600)) ([0fe6ac3](https://github.com/ppat/coder/commit/0fe6ac379a066e38bcb7a6ece0cb7b2e5c25a9d2))
+* fix aqua checksums and prune ([#612](https://github.com/ppat/coder/issues/612)) ([03fef23](https://github.com/ppat/coder/commit/03fef233ba447eeea5491e59f1a00083f6117973))
+* streamline + tune coder workspace image ([#613](https://github.com/ppat/coder/issues/613)) ([19f3c0c](https://github.com/ppat/coder/commit/19f3c0cd4e4e9f511d2d63a7a4aad16c68256c3c))
+* **terraform-version:** update terraform-1.12.2 (1.12.1 -> 1.12.2) ([#608](https://github.com/ppat/coder/issues/608)) ([c69561a](https://github.com/ppat/coder/commit/c69561a4aadbf90e57d28caa7c70157473919cbe))
+* update aqua registry: aquaproj/aqua-registry (v4.391.0 -> v4.396.0) ([#599](https://github.com/ppat/coder/issues/599)) ([bea171f](https://github.com/ppat/coder/commit/bea171f0273cd73dfe5495967c2ea1776d4f0574))
+* update aqua registry: aquaproj/aqua-registry (v4.397.0 -> v4.399.0) ([#616](https://github.com/ppat/coder/issues/616)) ([acbbd1f](https://github.com/ppat/coder/commit/acbbd1fe39fa4d15ebf18e55d40247c74adb1b39))
+
 ## [2.13.0](https://github.com/ppat/coder/compare/v2.12.0...v2.13.0) (2025-07-30)
 
 ### ✨ Features
