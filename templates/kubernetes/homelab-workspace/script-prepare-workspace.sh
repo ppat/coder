@@ -10,6 +10,8 @@ install_homebrew() {
   # we don't want to give any users within the coder workspace the ability to sudo, so this is a workaround
   # see: https://github.com/Homebrew/install/blob/7e3a5202cd6d783a2464e387433c4c72acdb0f49/install.sh#L366
   touch /.dockerenv
+  # create cache dir if it does not exist
+  mkdir -p "/home/${brew_user}/.cache/Homebrew"
   HOME="/home/${brew_user}" NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
