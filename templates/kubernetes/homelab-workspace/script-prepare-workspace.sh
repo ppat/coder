@@ -10,20 +10,44 @@ install_homebrew() {
   # we don't want to give any users within the coder workspace the ability to sudo, so this is a workaround
   # see: https://github.com/Homebrew/install/blob/7e3a5202cd6d783a2464e387433c4c72acdb0f49/install.sh#L366
   touch /.dockerenv
-  # create cache dir if it does not exist
-  mkdir -p "/home/${brew_user}/.cache/Homebrew"
   HOME="/home/${brew_user}" NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+}
+
+cleanup_homebrew() {
+  echo "Cleaning up..."
+  echo "    Cache..."
+  find "${HOMEBREW_CACHE}/" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; || true
+  echo "    Prefix..."
+  find "${HOMEBREW_PREFIX}/" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; || true
+}
+
+prepare_homebrew() {
+  echo "Creating directories and setting permissions..."
+  if [[ ! -d "${HOMEBREW_CACHE}" ]]; then
+    echo "Creating cache directory..."
+    mkdir -p "${HOMEBREW_CACHE}"
+  fi
+  chown -R ${brew_user}:root "${HOMEBREW_CACHE}"  
+  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")   
 }
 
 setup_homebrew() {
   local brew_user="coder"
+  export HOMEBREW_CACHE="/home/${brew_user}/.cache/Homebrew"
+
   echo '------------------------------------------------------------'
   echo 'Checking for brew installation...'
   local brew_file_count=$(find "${HOMEBREW_PREFIX}" -maxdepth 3 -type f | wc -l)
-  if [[ "${brew_file_count}" -gt "0" ]]; then
+  if [[ "${brew_file_count}" -gt "0" && -f "${HOMEBREW_PREFIX}/bin/brew" ]]; then
     echo 'Brew installation already exists... skipping.'
   else
     echo 'No existing brew installation, proceeding w/ installation...'
+    echo '------------------------------------------------------------'
+    echo 'Preparing for homebrew...'
+    cleanup_homebrew 2>&1 | sed -E -n 's|^|    |p'
+    prepare_homebrew 2>&1 | sed -E -n 's|^|    |p'
+    echo '------------------------------------------------------------'
+    echo 'Starting homebrew installation...'
     install_homebrew "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   fi
   echo '------------------------------------------------------------'
@@ -60,6 +84,7 @@ setup_system_packages() {
 main() {
   echo "Setting up system packages..."
   setup_system_packages | sed -E -n 's|^|    |p'
+  echo
   echo "Setting up homebrew..."
   setup_homebrew | sed -E -n 's|^|    |p'
 }

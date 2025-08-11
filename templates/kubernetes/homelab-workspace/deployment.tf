@@ -39,14 +39,19 @@ resource "kubernetes_deployment" "deployment" {
             value = local.homebrew_directory
           }
           volume_mount {
+            mount_path = local.home_directory
+            name       = "home"
+            sub_path   = data.coder_workspace.me.name
+          }          
+          volume_mount {
+            mount_path = local.homebrew_directory
+            name       = "home"
+            sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
+          }
+          volume_mount {
             mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
             sub_path   = "prepare_workspace_script"
-          }
-          volume_mount {
-            mount_path = "/home/linuxbrew/.linuxbrew"
-            name       = "home"
-            sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
           }
           volume_mount {
             name       = "system"
@@ -96,7 +101,7 @@ resource "kubernetes_deployment" "deployment" {
             sub_path   = data.coder_workspace.me.name
           }
           volume_mount {
-            mount_path = "/home/linuxbrew/.linuxbrew"
+            mount_path = local.homebrew_directory
             name       = "home"
             sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
           }
