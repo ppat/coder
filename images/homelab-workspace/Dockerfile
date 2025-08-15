@@ -124,7 +124,7 @@ ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
 COPY aqua.yaml aqua-checksums.json /etc/aqua/
 
 # renovate: datasource=github-releases depName=aquaproj/aqua
-ARG AQUA_VERSION="2.53.8"
+ARG AQUA_VERSION="2.53.9"
 # hadolint ignore=SC2046
 RUN --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
     --mount=type=tmpfs,target=/tmp \
