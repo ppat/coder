@@ -1,8 +1,8 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2025.7.0/bw-linux-2025.7.0.zip",
-      "checksum": "B0BDAAA1F77D8DBF304E37403FA57A54AA1DAFBE7C660D120AD67F286C174ADF",
+      "id": "github_release/github.com/bitwarden/clients/cli-v2025.8.0/bw-linux-2025.8.0.zip",
+      "checksum": "DF089584225DD4170E2C3FF04E9A09B43BB4070F46FDD1DA958BB883B529BBE0",
       "algorithm": "sha256"
     },
     {
@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.8.11/mise-v2025.8.11-linux-arm64-musl.tar.gz",
-      "checksum": "EB9B0218A5F381AB453FF09C1CA757D166FE8C8C30F141046291D7CDBF603053",
+      "id": "github_release/github.com/jdx/mise/v2025.8.20/mise-v2025.8.20-linux-arm64-musl.tar.gz",
+      "checksum": "A6985F603382FEDA3FF78DE0D4028F125E67A76721D84F6E2A6757F3743D92F0",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.8.11/mise-v2025.8.11-linux-x64-musl.tar.gz",
-      "checksum": "57F9F013D89EDFCF82885FC3B5A29ECFA610AA4F0F647A90238B42FB8D82AB99",
+      "id": "github_release/github.com/jdx/mise/v2025.8.20/mise-v2025.8.20-linux-x64-musl.tar.gz",
+      "checksum": "07014B3E452A884C2D3332CAEEFFBD46DF0B08D21CE1514D04FC8BDC3BFF5CA8",
       "algorithm": "sha256"
     },
     {
