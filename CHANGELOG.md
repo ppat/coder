@@ -2,6 +2,31 @@
 
 
 
+## [2.15.0](https://github.com/ppat/coder/compare/v2.14.2...v2.15.0) (2025-08-24)
+
+### ✨ Features
+
+* **terraform-provider:** update hashicorp/kubernetes (2.37.1 -> 2.38.0) ([#626](https://github.com/ppat/coder/issues/626)) ([ed1829d](https://github.com/ppat/coder/commit/ed1829d8d75e92913ae5161de7ed52e7ec126dbd))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.399.0 -> v4.400.0) ([#625](https://github.com/ppat/coder/issues/625)) ([043c87d](https://github.com/ppat/coder/commit/043c87d335a0d7fd2166e07d03e6684d0ef45dbf))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.400.0 -> v4.402.0) ([#627](https://github.com/ppat/coder/issues/627)) ([12a2821](https://github.com/ppat/coder/commit/12a282192f9a3d7ea86c7c82ba8fa92ab3cd62bd))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.402.0 -> v4.403.0) ([#628](https://github.com/ppat/coder/issues/628)) ([6016850](https://github.com/ppat/coder/commit/6016850c1be469f81957bc6dd40418e6ce910352))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.403.0 -> v4.404.0) ([#632](https://github.com/ppat/coder/issues/632)) ([fa71c5d](https://github.com/ppat/coder/commit/fa71c5d65168b94c377b3e1b1ac37a8e52b0ff50))
+* **cli-tools:** update aquaproj/aqua (v2.53.8 -> v2.53.9) ([#623](https://github.com/ppat/coder/issues/623)) ([45b6d78](https://github.com/ppat/coder/commit/45b6d78fb601713fd122930e24dab8d0aa039dc3))
+* **cli-tools:** update cli-tools ([#624](https://github.com/ppat/coder/issues/624)) ([2713409](https://github.com/ppat/coder/commit/2713409ed5cfe958f1a4f2d403ec1e42ccad2d96))
+* **cli-tools:** update cli-tools ([#633](https://github.com/ppat/coder/issues/633)) ([3d0930b](https://github.com/ppat/coder/commit/3d0930b4c6ed857468770e3457e2469f4df26e4c))
+* **cli-tools:** update jdx/mise (v2025.7.31 -> v2025.8.4) ([#619](https://github.com/ppat/coder/issues/619)) ([704592b](https://github.com/ppat/coder/commit/704592b8f29e3b91f36675d3e72e4aa4f8933cf4))
+* **cli-tools:** update jdx/mise (v2025.8.8 -> v2025.8.11) ([#631](https://github.com/ppat/coder/issues/631)) ([841de5f](https://github.com/ppat/coder/commit/841de5fcafe9b4674bcc7fb4865055a7733eecae))
+* update @semantic-release/github (11.0.3 -> 11.0.4) ([#618](https://github.com/ppat/coder/issues/618)) ([179ac22](https://github.com/ppat/coder/commit/179ac22b2ff6b052e428f493c6e367a7a760d436))
+* update digest ubuntu (a08e551 -> 7c06e91) ([#620](https://github.com/ppat/coder/issues/620)) ([b2d9bb7](https://github.com/ppat/coder/commit/b2d9bb7b07c55dd13ac2032afb1c77bbea8bc234))
+* update ppat/renovate-presets (v0.0.3 -> v0.0.4) ([#630](https://github.com/ppat/coder/issues/630)) ([c20d0a8](https://github.com/ppat/coder/commit/c20d0a88a7a172b4b20f1b002f0bc32b84a160dd))
+
+### 🛠 Improvements
+
+* fix misc formatting issues ([#617](https://github.com/ppat/coder/issues/617)) ([aeb8163](https://github.com/ppat/coder/commit/aeb81634a38754b9f3cdc7dda308b8c8dc6f3f43))
+
 ## [2.14.2](https://github.com/ppat/coder/compare/v2.14.1...v2.14.2) (2025-08-11)
 
 ### 🐛 Enhancements + Bug Fixes
