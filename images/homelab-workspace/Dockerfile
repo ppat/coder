@@ -62,6 +62,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       binutils \
       bsdextrautils \
       dnsutils \
+      file \
       fontconfig \
       gettext \
       git \
