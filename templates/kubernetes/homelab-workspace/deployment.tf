@@ -58,7 +58,8 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = "/updated"
           }
           security_context {
-            run_as_user = 0
+            run_as_user               = 0
+            read_only_root_filesystem = false
           }
         }
         container {
@@ -89,7 +90,7 @@ resource "kubernetes_deployment" "deployment" {
           }
           security_context {
             allow_privilege_escalation = false
-            read_only_root_filesystem  = false
+            read_only_root_filesystem  = true
             privileged                 = false
             run_as_user                = 10001
             run_as_group               = 10001

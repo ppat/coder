@@ -31,6 +31,16 @@ prepare_homebrew() {
   chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")
 }
 
+ensure_permissions() {
+  local brew_user="$1"
+  echo "Making brew installation available to both ${brew_user} user and root..."
+  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")
+  chown -R ${brew_user}:root "${HOMEBREW_CACHE}"
+  echo "Ensuring ${brew_user} user retains ownership of top level directories within their home..."
+  chown ${brew_user}:${brew_user} /home/${brew_user}
+  chown ${brew_user}:${brew_user} /home/${brew_user}/.cache
+}
+
 setup_homebrew() {
   local brew_user="coder"
   export HOMEBREW_CACHE="/home/${brew_user}/.cache/Homebrew"
@@ -51,9 +61,8 @@ setup_homebrew() {
     install_homebrew "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   fi
   echo '------------------------------------------------------------'
-  echo "Making brew installation available to ${brew_user} user..."
-  chown -R ${brew_user}:root $(dirname "${HOMEBREW_PREFIX}")
-  chown -R ${brew_user}:root "/home/${brew_user}/.cache/Homebrew"
+  echo "Ensuring directory permissions..."
+  ensure_permissions "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   echo '------------------------------------------------------------'
   echo 'Done'
 }
