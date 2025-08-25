@@ -61,7 +61,8 @@ setup_homebrew() {
     install_homebrew "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   fi
   echo '------------------------------------------------------------'
-  ensure_permissions
+  echo "Ensuring directory permissions..."
+  ensure_permissions "${brew_user}" 2>&1 | sed -E -n 's|^|    |p'
   echo '------------------------------------------------------------'
   echo 'Done'
 }

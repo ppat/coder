@@ -58,7 +58,7 @@ resource "kubernetes_deployment" "deployment" {
             mount_path = "/updated"
           }
           security_context {
-            run_as_user = 0
+            run_as_user               = 0
             read_only_root_filesystem = false
           }
         }
