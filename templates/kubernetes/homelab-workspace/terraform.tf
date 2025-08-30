@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = "2.10.0"
+      version = "2.10.1"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
