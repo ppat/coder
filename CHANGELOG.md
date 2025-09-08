@@ -2,6 +2,26 @@
 
 
 
+## [2.16.0](https://github.com/ppat/coder/compare/v2.15.0...v2.16.0) (2025-09-08)
+
+### ✨ Features
+
+* schedule coder workspace on preferred nodes when possible ([#645](https://github.com/ppat/coder/issues/645)) ([a96a5ed](https://github.com/ppat/coder/commit/a96a5edd02a1affdeb30d8145de4160755660577))
+* **terraform-provider:** update coder/coder (2.9.0 -> 2.10.0) ([#636](https://github.com/ppat/coder/issues/636)) ([cd0ac75](https://github.com/ppat/coder/commit/cd0ac75a7e4528ec6db79334201eec897b9970f3))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.404.0 -> v4.406.0) ([#641](https://github.com/ppat/coder/issues/641)) ([158c302](https://github.com/ppat/coder/commit/158c302d3fa5cd60e9eb9f93d3175f1368a8a4fb))
+* **cli-tools:** update cli-tools ([#642](https://github.com/ppat/coder/issues/642)) ([82cd523](https://github.com/ppat/coder/commit/82cd523ae636fa582fcf4ad7398bf1ee4a440795))
+* coder requires agent init script requires /tmp to be writable ([320a9c8](https://github.com/ppat/coder/commit/320a9c826bacc519ef2e049fa9f34c89368174df))
+* ensure system wide path for all users includes brew path ([#646](https://github.com/ppat/coder/issues/646)) ([f64f39b](https://github.com/ppat/coder/commit/f64f39bffea5f06c69e54d027c91503a0ae2f928))
+* fix coder user home directory permissions ([#634](https://github.com/ppat/coder/issues/634)) ([a9a3608](https://github.com/ppat/coder/commit/a9a3608ebec961c7660436047ae5f1c4226ee510))
+* **terraform-provider:** update coder/coder (2.10.0 -> 2.10.1) ([#637](https://github.com/ppat/coder/issues/637)) ([dbb6b9a](https://github.com/ppat/coder/commit/dbb6b9a0c998e5a36765e7d31ce42e10b13edb9c))
+* **terraform-version:** update terraform (non-major) ([#635](https://github.com/ppat/coder/issues/635)) ([93257f7](https://github.com/ppat/coder/commit/93257f7736fd6ae9f1021b4ce947ff64391c0ef9))
+* **terraform-version:** update terraform (non-major) ([#639](https://github.com/ppat/coder/issues/639)) ([3e3df05](https://github.com/ppat/coder/commit/3e3df0514144e754614196a119d9528b0f3bbb66))
+* update digest ubuntu (7c06e91 -> f3b7f1b) ([#640](https://github.com/ppat/coder/issues/640)) ([ae26866](https://github.com/ppat/coder/commit/ae26866ea5e04dbac1ed3585069de92eaa36a128))
+* update digest ubuntu (f3b7f1b -> 9cbed75) ([#643](https://github.com/ppat/coder/issues/643)) ([6f7c225](https://github.com/ppat/coder/commit/6f7c22506d30b4143307fd4656a4c7578f628bfc))
+
 ## [2.15.0](https://github.com/ppat/coder/compare/v2.14.2...v2.15.0) (2025-08-24)
 
 ### ✨ Features
