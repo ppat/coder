@@ -42,7 +42,7 @@ data "coder_parameter" "resources_memory" {
 data "coder_parameter" "preferred_nodes" {
   name = "preferred_nodes"
 
-  default      = jsonencode(["beelink-ser8-1"])
+  default      = jsonencode([])
   display_name = "Preferred Nodes"
   description  = "Prefer scheduling on one of these nodes"
   icon         = "/icon/k8s.svg"
