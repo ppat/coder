@@ -39,12 +39,23 @@ data "coder_parameter" "resources_memory" {
   }
 }
 
+data "coder_parameter" "preferred_nodes" {
+  name = "preferred_nodes"
+
+  default      = jsonencode(["beelink-ser8-1"])
+  display_name = "Preferred Nodes"
+  description  = "Prefer scheduling on one of these nodes"
+  icon         = "/icon/k8s.svg"
+  mutable      = true
+  type         = "list(string)"
+}
+
 data "coder_parameter" "system_packages" {
   name = "system_packages"
 
-  default      = jsonencode([""])
+  default      = jsonencode(["build-essential"])
   display_name = "System Packages"
-  description  = "Additional system packages to install."
+  description  = "Additional system packages to install"
   icon         = "/icon/ubuntu.svg"
   mutable      = true
   type         = "list(string)"
@@ -54,6 +65,10 @@ data "coder_parameter" "system_packages" {
 locals {
   validated_system_packages = (data.coder_parameter.system_packages.value != "") ? [
     for str in jsondecode(data.coder_parameter.system_packages.value) :
+    str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
+  ] : []
+  validated_preferred_nodes = (data.coder_parameter.preferred_nodes.value != "") ? [
+    for str in jsondecode(data.coder_parameter.preferred_nodes.value) :
     str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
   ] : []
 }

@@ -25,6 +25,23 @@ resource "kubernetes_deployment" "deployment" {
         labels = merge(local.common_labels, local.pod_labels)
       }
       spec {
+        dynamic "affinity" {
+          for_each = length(local.validated_preferred_nodes) > 0 ? toset(["kubernetes.io/hostname"]) : []
+          content {
+            node_affinity {
+              preferred_during_scheduling_ignored_during_execution {
+                preference {
+                  match_expressions {
+                    key      = affinity.key
+                    operator = "In"
+                    values   = local.validated_preferred_nodes
+                  }
+                }
+                weight = 1
+              }
+            }
+          }
+        }
         automount_service_account_token = false
         init_container {
           name    = "prepare-workspace"
