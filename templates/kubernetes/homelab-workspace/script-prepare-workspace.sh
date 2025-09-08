@@ -90,12 +90,28 @@ setup_system_packages() {
   echo 'Done'
 }
 
+prepare_environment() {
+  echo '------------------------------------------------------------'
+  grep -v '^PATH=' /etc/environment > /tmp/environment.bak
+  local existing_system_path="$(grep '^PATH=' /etc/environment | cut -d'=' -f2)"
+  local updated_system_path="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${existing_system_path}"
+  echo PATH=${updated_system_path} >> /tmp/environment.bak
+  sort /tmp/environment.bak > /updated/etc/environment
+  rm /tmp/environment.bak
+  cat /updated/etc/environment
+  echo '------------------------------------------------------------'
+  echo 'Done'
+}
+
 main() {
   echo "Setting up system packages..."
   setup_system_packages | sed -E -n 's|^|    |p'
   echo
   echo "Setting up homebrew..."
   setup_homebrew | sed -E -n 's|^|    |p'
+  echo
+  echo "Setting up workspace environment variables..."
+  prepare_environment | sed -E -n 's|^|    |p'
 }
 
 main

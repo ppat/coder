@@ -159,7 +159,7 @@ COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sb
 # environment variables available to all users of this image (primarily 'root' and 'coder')
 # - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
 # - Make typing unicode characters in the terminal work (w/ LC_ALL + LANG).
-RUN echo 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' > /etc/environment && \
+RUN echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /etc/environment && \
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
     echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment
