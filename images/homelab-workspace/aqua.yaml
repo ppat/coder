@@ -8,7 +8,7 @@ checksum:
   - linux/arm64
 registries:
 - type: standard
-  ref: v4.407.2 # renovate: depName=aquaproj/aqua-registry
+  ref: v4.407.3 # renovate: depName=aquaproj/aqua-registry
 packages:
 - name: bitwarden/clients@cli-v2025.8.0
 - name: bitwarden/sdk-sm@bws-v1.0.0
