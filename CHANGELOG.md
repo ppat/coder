@@ -2,6 +2,44 @@
 
 
 
+## [2.17.0](https://github.com/ppat/coder/compare/v2.16.0...v2.17.0) (2025-10-04)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.53.11 -> v2.54.1) ([#665](https://github.com/ppat/coder/issues/665)) ([4f1b6b0](https://github.com/ppat/coder/commit/4f1b6b0f5378401ed88a3ab7ce85c96cd77bb25d))
+* **terraform-provider:** update coder/coder (2.10.1 -> 2.11.0) ([#676](https://github.com/ppat/coder/issues/676)) ([427fcc5](https://github.com/ppat/coder/commit/427fcc5dace750df14ce5a10c5d7fc664323d112))
+* update aquaproj/aqua-renovate-config (2.8.2 -> 2.9.0) ([#662](https://github.com/ppat/coder/issues/662)) ([fc34763](https://github.com/ppat/coder/commit/fc34763a5dfcf9fda8d293563ce33eca6c2ff5f9))
+* update suzuki-shunsuke/renovate-config (3.2.2 -> 3.3.0) ([#650](https://github.com/ppat/coder/issues/650)) ([fc82398](https://github.com/ppat/coder/commit/fc82398f93109f8e74a7915ff45c46b02a8b9e66))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.406.0 -> v4.407.2) ([#644](https://github.com/ppat/coder/issues/644)) ([0f8eb9d](https://github.com/ppat/coder/commit/0f8eb9dee0ddaf70b73e48c5f95cd35905210462))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.407.2 -> v4.407.3) ([#647](https://github.com/ppat/coder/issues/647)) ([abed607](https://github.com/ppat/coder/commit/abed6070ff58069093d9f1bd89312893b96785d6))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.407.3 -> v4.409.0) ([#648](https://github.com/ppat/coder/issues/648)) ([e86698f](https://github.com/ppat/coder/commit/e86698f7d0ca740598b246fd07742f6c6c5a01f0))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.409.0 -> v4.409.1) ([#656](https://github.com/ppat/coder/issues/656)) ([2658059](https://github.com/ppat/coder/commit/265805980a0ed9e879940da18acb4cedb5c9751a))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.409.1 -> v4.411.0) ([#658](https://github.com/ppat/coder/issues/658)) ([8484231](https://github.com/ppat/coder/commit/84842319e41ecc5e43fc992d3df62520acdd48e5))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.411.0 -> v4.411.1) ([#661](https://github.com/ppat/coder/issues/661)) ([990a329](https://github.com/ppat/coder/commit/990a3297260e9295c442f97b73c0f13d42563b50))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.411.1 -> v4.414.0) ([#666](https://github.com/ppat/coder/issues/666)) ([16d61c9](https://github.com/ppat/coder/commit/16d61c9f590c054ff923b9c79665554aecae9398))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.414.0 -> v4.417.0) ([#674](https://github.com/ppat/coder/issues/674)) ([f106b6d](https://github.com/ppat/coder/commit/f106b6d0bce8b518d2a16136e5e929743b6130b0))
+* **cli-tools:** update aquaproj/aqua (v2.53.9 -> v2.53.11) ([#649](https://github.com/ppat/coder/issues/649)) ([e32434b](https://github.com/ppat/coder/commit/e32434b03449b922c6a84852f3310d40f502e87d))
+* **cli-tools:** update cli-tools ([#657](https://github.com/ppat/coder/issues/657)) ([e7b8db2](https://github.com/ppat/coder/commit/e7b8db2c8145423a49fbf5da5e6927b37bbcacfd))
+* **cli-tools:** update cli-tools ([#667](https://github.com/ppat/coder/issues/667)) ([eb39fbb](https://github.com/ppat/coder/commit/eb39fbbc6acd99e55985c2b8c86f4549d1a49b73))
+* **cli-tools:** update cli-tools ([#672](https://github.com/ppat/coder/issues/672)) ([e97174d](https://github.com/ppat/coder/commit/e97174d9c911caa5af71143eaed7d370711a6485))
+* **cli-tools:** update jdx/mise (v2025.9.15 -> v2025.9.16) ([#671](https://github.com/ppat/coder/issues/671)) ([a6445b1](https://github.com/ppat/coder/commit/a6445b1ade4a32e16eff44556428c73b8366a4da))
+* **cli-tools:** update jdx/mise (v2025.9.9 -> v2025.9.12) ([#663](https://github.com/ppat/coder/issues/663)) ([481a282](https://github.com/ppat/coder/commit/481a2821a1d94f007b166017702c5ae039c7561b))
+* **dev-tools:** update hadolint/hadolint (non-major) ([#652](https://github.com/ppat/coder/issues/652)) ([7195b16](https://github.com/ppat/coder/commit/7195b16a9055087c353fb0c6a65012dab00c7db2))
+* **dev-tools:** update hadolint/hadolint (non-major) ([#673](https://github.com/ppat/coder/issues/673)) ([7471ca4](https://github.com/ppat/coder/commit/7471ca462fa87fda14b95299ddb874b525737d35))
+* **dev-tools:** update pre-commit/pre-commit-hooks (major) ([#653](https://github.com/ppat/coder/issues/653)) ([d386beb](https://github.com/ppat/coder/commit/d386beb66c13587f93f7e6e85caaa9580e6a5b5a))
+* **dev-tools:** update tailscale/tailscale (v1.86.2 -> v1.88.1) ([#659](https://github.com/ppat/coder/issues/659)) ([4132474](https://github.com/ppat/coder/commit/4132474e7b7495fa5f70a92aa38104648170f49c))
+* **dev-tools:** update tailscale/tailscale (v1.88.1 -> v1.88.3) ([#668](https://github.com/ppat/coder/issues/668)) ([36e71b0](https://github.com/ppat/coder/commit/36e71b01f22b1e81088df531c4c50398c7b0953b))
+* **github-actions:** update digest tailscale/github-action (84a3f23 -> 6cae46e) ([#669](https://github.com/ppat/coder/issues/669)) ([8f2608d](https://github.com/ppat/coder/commit/8f2608d789af0a12611765cf54867d53badf97d6))
+* **github-actions:** update ppat/github-workflows (v2.0.3 -> v2.1.1) ([#664](https://github.com/ppat/coder/issues/664)) ([cd7aec2](https://github.com/ppat/coder/commit/cd7aec2993215f4e30ee39b6314bb18251c2f7a6))
+* **terraform-version:** update terraform (non-major) ([#651](https://github.com/ppat/coder/issues/651)) ([36d716c](https://github.com/ppat/coder/commit/36d716c2ac4a8ae8191943bed41a3cc239af24cc))
+* **terraform-version:** update terraform (non-major) ([#670](https://github.com/ppat/coder/issues/670)) ([d6d25e0](https://github.com/ppat/coder/commit/d6d25e0ce9b903c9ba9b52451337d1f2ffde3448))
+* update digest ubuntu (353675e -> 728785b) ([#675](https://github.com/ppat/coder/issues/675)) ([19915f2](https://github.com/ppat/coder/commit/19915f2c13266fbe5327bdf86bec5d69473fd681))
+* update digest ubuntu (9cbed75 -> 353675e) ([#655](https://github.com/ppat/coder/issues/655)) ([9c2b1b7](https://github.com/ppat/coder/commit/9c2b1b7c873a5fad6e4dcfa0e552e72c6dfecb6f))
+* update suzuki-shunsuke/renovate-config (3.3.0 -> 3.3.1) ([#660](https://github.com/ppat/coder/issues/660)) ([ff4097d](https://github.com/ppat/coder/commit/ff4097de8f28a07721f2d8351cb996fbf4aa9921))
+
 ## [2.16.0](https://github.com/ppat/coder/compare/v2.15.0...v2.16.0) (2025-09-08)
 
 ### ✨ Features
