@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.9.16/mise-v2025.9.16-linux-arm64-musl.tar.gz",
-      "checksum": "B3BBBFC47B1C5622346C4662C6493768F8E024A862702EADE99EBD8F33F7DF5D",
+      "id": "github_release/github.com/jdx/mise/v2025.9.20/mise-v2025.9.20-linux-arm64-musl.tar.gz",
+      "checksum": "1CF71C09947DF683616F15E3C8201B656C1F4488C69588F09FE43FDFCC4630DD",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.9.16/mise-v2025.9.16-linux-x64-musl.tar.gz",
-      "checksum": "4A623475BBC0406713BF67B24799EA6654645AAA962905A1F76A05891CF4E3C2",
+      "id": "github_release/github.com/jdx/mise/v2025.9.20/mise-v2025.9.20-linux-x64-musl.tar.gz",
+      "checksum": "47AB6FA7B0E44394524B24F2BE3718E301BBD94C6F6B5249B27AD3E58F0113D5",
       "algorithm": "sha256"
     },
     {
@@ -36,13 +36,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.65.1/chezmoi_2.65.1_linux-glibc_amd64.tar.gz",
-      "checksum": "50538BB8A3FD203A0682F36C4F76EA4CD0500A327CDB42B49EDC82E93D1D519E",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.65.2/chezmoi_2.65.2_linux-glibc_amd64.tar.gz",
+      "checksum": "F57537473EAA5235451C869E647A56A45712F83F67099D49CD54FBBFB10F7333",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.65.1/chezmoi_2.65.1_linux_arm64.pkg.tar.zst",
-      "checksum": "FE10CC1064B4A3840C652A27C903933CEE08F1B8ABF24AFE5416A95D320B7FA6",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.65.2/chezmoi_2.65.2_linux_arm64.pkg.tar.zst",
+      "checksum": "CE39FF9268A625C5A0ADA0EDACB8415C58DF64AE48022C2CB4281FAC8010CFF8",
       "algorithm": "sha256"
     },
     {
