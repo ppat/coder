@@ -2,6 +2,27 @@
 
 
 
+## [2.18.0](https://github.com/ppat/coder/compare/v2.17.0...v2.18.0) (2025-10-21)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.54.1 -> v2.55.0) ([#678](https://github.com/ppat/coder/issues/678)) ([7762fa1](https://github.com/ppat/coder/commit/7762fa1c0d445675ecb868c1eb53415c31c5fa53))
+* update ppat/renovate-presets (v0.0.4 -> v0.1.0) ([#687](https://github.com/ppat/coder/issues/687)) ([1fd7767](https://github.com/ppat/coder/commit/1fd7767b3c010860b9c868edf94bb67716c32f0a))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.417.0 -> v4.418.0) ([#677](https://github.com/ppat/coder/issues/677)) ([8dc0bed](https://github.com/ppat/coder/commit/8dc0bedc92b12fdd0e135c020979422d2b5974f2))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.418.0 -> v4.419.0) ([#680](https://github.com/ppat/coder/issues/680)) ([1a2288b](https://github.com/ppat/coder/commit/1a2288b35484aca8eacd6f7a995f1554142e0c0f))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.419.0 -> v4.426.0) ([#682](https://github.com/ppat/coder/issues/682)) ([cb3c2fc](https://github.com/ppat/coder/commit/cb3c2fc7bc2f6c8cd62ebc3d585715aae1e1d693))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.426.0 -> v4.427.0) ([#688](https://github.com/ppat/coder/issues/688)) ([507b873](https://github.com/ppat/coder/commit/507b87398010a0c2134b5821bde68b2c18184247))
+* **cli-tools:** update cli-tools ([#684](https://github.com/ppat/coder/issues/684)) ([c3dc581](https://github.com/ppat/coder/commit/c3dc5813a2f7293773f80e819c474e5ca8a72c3a))
+* **cli-tools:** update jdx/mise (v2025.10.7 -> v2025.10.8) ([#689](https://github.com/ppat/coder/issues/689)) ([860e13e](https://github.com/ppat/coder/commit/860e13e16f7fa0cdae7b0ddf7d4bd87be7915eb6))
+* **cli-tools:** update jdx/mise (v2025.9.20 -> v2025.9.24) ([#679](https://github.com/ppat/coder/issues/679)) ([d12d679](https://github.com/ppat/coder/commit/d12d679f0469a85ad199150c543278aba6be8c1e))
+* **dev-tools:** update alessandrojcm/commitlint-pre-commit-hook (non-major) ([#685](https://github.com/ppat/coder/issues/685)) ([d74befc](https://github.com/ppat/coder/commit/d74befc7d65a29dab322fd3d9773504dfcaa1da5))
+* **github-actions:** update ppat/github-workflows (v2.1.1 -> v3.0.0) ([#690](https://github.com/ppat/coder/issues/690)) ([bc3ba0d](https://github.com/ppat/coder/commit/bc3ba0d801b8c40581eb84c3c4f72c8fbad19b80))
+* update digest ubuntu (59a458b -> 66460d5) ([#683](https://github.com/ppat/coder/issues/683)) ([8e122a8](https://github.com/ppat/coder/commit/8e122a820a6d91dff8eb2a650f14310e9443445f))
+* update digest ubuntu (728785b -> 59a458b) ([#681](https://github.com/ppat/coder/issues/681)) ([0114956](https://github.com/ppat/coder/commit/0114956de5792e83c85abedf967855fcc361826b))
+
 ## [2.17.0](https://github.com/ppat/coder/compare/v2.16.0...v2.17.0) (2025-10-04)
 
 ### ✨ Features
