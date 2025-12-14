@@ -1,8 +1,8 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2025.10.0/bw-linux-2025.10.0.zip",
-      "checksum": "0544C64D3E9932BB5F2A70E819695EA78186A44AC87A0B1D753E9C55217041D9",
+      "id": "github_release/github.com/bitwarden/clients/cli-v2025.11.0/bw-linux-2025.11.0.zip",
+      "checksum": "943F0107B3A471E7376B08F118E21A59583AFEB49E4EB86F378E3B0D7C79C969",
       "algorithm": "sha256"
     },
     {
@@ -16,33 +16,33 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.10.14/mise-v2025.10.14-linux-arm64-musl.tar.gz",
-      "checksum": "59DE262F89C21466068905E448AB85ABFEB20558C0D5B037727BF749D534E4DD",
+      "id": "github_release/github.com/jdx/mise/v2025.12.0/mise-v2025.12.0-linux-arm64-musl.tar.gz",
+      "checksum": "530550DA634D5AE82CF6D51AC0400BA8D9BA3197940841CC8B2F47DB4411C95C",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.10.14/mise-v2025.10.14-linux-x64-musl.tar.gz",
-      "checksum": "422DCA107BF35CA10DB5513B6A1CACEC9CAFA3BF7941107B1AF7C3E4A976D0C7",
+      "id": "github_release/github.com/jdx/mise/v2025.12.0/mise-v2025.12.0-linux-x64-musl.tar.gz",
+      "checksum": "D1E8969EA5339E4849F8F39C72039C44FE76ED40E1D9E2F4358FA861A1833F94",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/starship/starship/v1.23.0/starship-aarch64-unknown-linux-musl.tar.gz",
-      "checksum": "D37040138C68B5F3334BBE16D4615F0A83829DEEBECC5D014E779C302E8270D8",
+      "id": "github_release/github.com/starship/starship/v1.24.1/starship-aarch64-unknown-linux-musl.tar.gz",
+      "checksum": "A01AC37AA5993B78ECD6761C5FF4F805032B8BA566357FFBB2227980216F2216",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/starship/starship/v1.23.0/starship-x86_64-unknown-linux-musl.tar.gz",
-      "checksum": "8D06D2CC67AEDD6316FF58AB679FB80CDED0D85DE1DCD5727DF0633D35356D57",
+      "id": "github_release/github.com/starship/starship/v1.24.1/starship-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "44A729C34AEA5B0451FBA49108CDC5EF6B1AE68DB65E7623CC244A52EFCD23D1",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.66.1/chezmoi_2.66.1_linux-glibc_amd64.tar.gz",
-      "checksum": "6245B50C278C1F29A4F9503F3742B7144D1263227E12BD20A4AC57DE92A56D36",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.68.0/chezmoi_2.68.0_linux-glibc_amd64.tar.gz",
+      "checksum": "9289B580A56E28302148D036F44AB51EF57A6AEB272E0500E8BD00240C06CA6E",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.66.1/chezmoi_2.66.1_linux_arm64.pkg.tar.zst",
-      "checksum": "FC2DEB744290BDBA7BF8C89A4B7FD5171C97786BAC2E845E8B941EC57594EEDC",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.68.0/chezmoi_2.68.0_linux_arm64.pkg.tar.zst",
+      "checksum": "BC4CDEAC5F533523147EA88C64E8C5FDA82A0E4AE6120354D5810A82679691AD",
       "algorithm": "sha256"
     },
     {
