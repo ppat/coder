@@ -1,6 +1,6 @@
 [tools]
 bun = "1.2.19"
-node = "22.17.1"
+node = "24.11.1"
 terraform = "1.14.0"
 tflint = "0.58.1"
 
