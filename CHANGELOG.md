@@ -2,6 +2,47 @@
 
 
 
+## [2.19.0](https://github.com/ppat/coder/compare/v2.18.0...v2.19.0) (2025-12-16)
+
+### ✨ Features
+
+* **terraform-provider:** update coder/coder (2.11.0 -> 2.12.0) ([#701](https://github.com/ppat/coder/issues/701)) ([f4e8318](https://github.com/ppat/coder/commit/f4e83187acd0336593b1bc4a763e25b5ce7e1764))
+* **terraform-provider:** update coder/coder (2.12.0 -> 2.13.1) ([#717](https://github.com/ppat/coder/issues/717)) ([6f750d6](https://github.com/ppat/coder/commit/6f750d6017aff7d2c35766100e6c18029134bdb3))
+* **terraform-provider:** update hashicorp/kubernetes (2.38.0 -> 3.0.0) ([#718](https://github.com/ppat/coder/issues/718)) ([c9d81b5](https://github.com/ppat/coder/commit/c9d81b50c53c5d12a5e2f0b9f628bbdab0f9c5f9))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.427.0 -> v4.428.0) ([#692](https://github.com/ppat/coder/issues/692)) ([6633c6c](https://github.com/ppat/coder/commit/6633c6c71065067e555d152446b8c40dcf0913cf))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.428.0 -> v4.430.0) ([#697](https://github.com/ppat/coder/issues/697)) ([e119a1f](https://github.com/ppat/coder/commit/e119a1ffe7d95be95fa9431531e659600becf7c0))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.430.0 -> v4.432.0) ([#699](https://github.com/ppat/coder/issues/699)) ([65de51d](https://github.com/ppat/coder/commit/65de51d0fdfedcd79f037ed081b06379271ea1a0))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.432.0 -> v4.433.0) ([#702](https://github.com/ppat/coder/issues/702)) ([1328de5](https://github.com/ppat/coder/commit/1328de5d7e52c3cf6b07b091cf8f8462fa765825))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.433.0 -> v4.435.0) ([#706](https://github.com/ppat/coder/issues/706)) ([60b3f1f](https://github.com/ppat/coder/commit/60b3f1f1a86b319b53263c058141a204d6b852a6))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.435.0 -> v4.444.0) ([#709](https://github.com/ppat/coder/issues/709)) ([c388122](https://github.com/ppat/coder/commit/c388122ed535cf2e1e8996772edda1cb70d8a9c9))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.444.0 -> v4.444.2) ([#721](https://github.com/ppat/coder/issues/721)) ([ffa4b6a](https://github.com/ppat/coder/commit/ffa4b6abec673a8bfd309b7226f1268bf2735235))
+* **cli-tools:** update aquaproj/aqua (v2.55.0 -> v2.55.1) ([#698](https://github.com/ppat/coder/issues/698)) ([68e4db3](https://github.com/ppat/coder/commit/68e4db3e9d510892e949f906a5e5fae29af2c94d))
+* **cli-tools:** update aquaproj/aqua (v2.55.1 -> v2.55.3) ([#716](https://github.com/ppat/coder/issues/716)) ([12bc7cd](https://github.com/ppat/coder/commit/12bc7cda0c21e1b14f7e32f32a9f009a253ee6dc))
+* **cli-tools:** update cli-tools ([#691](https://github.com/ppat/coder/issues/691)) ([ca3045d](https://github.com/ppat/coder/commit/ca3045d369a166eeaaddf75224114c5ccfdd8a6f))
+* **cli-tools:** update cli-tools ([#693](https://github.com/ppat/coder/issues/693)) ([b641eee](https://github.com/ppat/coder/commit/b641eee425884995689a99b186e3d14c74572999))
+* **cli-tools:** update cli-tools ([#708](https://github.com/ppat/coder/issues/708)) ([eee90ed](https://github.com/ppat/coder/commit/eee90ed4501cc53e9856eec72e5f3b6524714fca))
+* **dev-tools:** update davidanson/markdownlint-cli2 (non-major) ([#712](https://github.com/ppat/coder/issues/712)) ([52dee06](https://github.com/ppat/coder/commit/52dee06042830d0b2a3a5d6840d45e9f6c7701d0))
+* **dev-tools:** update davidanson/markdownlint-cli2 (non-major) ([#723](https://github.com/ppat/coder/issues/723)) ([48b71b3](https://github.com/ppat/coder/commit/48b71b391d60caae764a38d517be7765b42873e3))
+* **dev-tools:** update node (major) ([#714](https://github.com/ppat/coder/issues/714)) ([8a2584e](https://github.com/ppat/coder/commit/8a2584e47c4f91300010ef543ed6137d051e5af5))
+* **dev-tools:** update tailscale/tailscale (v1.88.3 -> v1.90.4) ([#696](https://github.com/ppat/coder/issues/696)) ([6000929](https://github.com/ppat/coder/commit/6000929839976437a608f4bcfb2f6bd4c9e466dc))
+* **dev-tools:** update tailscale/tailscale (v1.90.4 -> v1.90.6) ([#700](https://github.com/ppat/coder/issues/700)) ([7c2bb41](https://github.com/ppat/coder/commit/7c2bb41af65b7dbb39718024069247b11fcd5140))
+* **dev-tools:** update tailscale/tailscale (v1.90.6 -> v1.90.8) ([#707](https://github.com/ppat/coder/issues/707)) ([91b07e6](https://github.com/ppat/coder/commit/91b07e6a4cd86d5d0235d751066fe002495bdf3a))
+* **dev-tools:** update tailscale/tailscale (v1.90.8 -> v1.90.9) ([#710](https://github.com/ppat/coder/issues/710)) ([6af02d9](https://github.com/ppat/coder/commit/6af02d950f432b8d79e36d8bd6439d7f100a0ebb))
+* **github-actions:** update digest actions/checkout (08eba0b -> 34e1148) ([#711](https://github.com/ppat/coder/issues/711)) ([e054ffa](https://github.com/ppat/coder/commit/e054ffac5dbfdf0247a0258a0df3cff3b4162de8))
+* **github-actions:** update ppat/github-workflows (v3.0.0 -> v3.0.1) ([#695](https://github.com/ppat/coder/issues/695)) ([817ba17](https://github.com/ppat/coder/commit/817ba175001b32d1363e6d1b0b2f5889d902a5f4))
+* **github-actions:** update ppat/github-workflows (v3.0.1 -> v3.1.0) ([#719](https://github.com/ppat/coder/issues/719)) ([613f639](https://github.com/ppat/coder/commit/613f639f1d8f33ce2e1e12a66d8dccb797f6f38d))
+* **github-actions:** update ppat/github-workflows (v3.1.0 -> v3.2.0) ([#724](https://github.com/ppat/coder/issues/724)) ([9538b51](https://github.com/ppat/coder/commit/9538b51dd634aebf78ff4754c064e1ec43aa02e5))
+* **terraform-provider:** update hashicorp/kubernetes (3.0.0 -> 3.0.1) ([#722](https://github.com/ppat/coder/issues/722)) ([8478a6b](https://github.com/ppat/coder/commit/8478a6b5c806e2b6d16748c4bfed06222546b8e7))
+* **terraform-version:** update terraform (non-major) ([#694](https://github.com/ppat/coder/issues/694)) ([8179ef7](https://github.com/ppat/coder/commit/8179ef7d3a7cd69676be130ff0c09b5774f7b326))
+* **terraform-version:** update terraform (non-major) ([#705](https://github.com/ppat/coder/issues/705)) ([17570aa](https://github.com/ppat/coder/commit/17570aa3a1e7afe0b567acc15eb043baf989c0a1))
+* **terraform-version:** update terraform (non-major) ([#713](https://github.com/ppat/coder/issues/713)) ([2251cac](https://github.com/ppat/coder/commit/2251cac3c2a3a9499134f16c6b2a9144fc7edce8))
+* **terraform-version:** update terraform (non-major) ([#720](https://github.com/ppat/coder/issues/720)) ([076796d](https://github.com/ppat/coder/commit/076796d9ef18265e75f5bdcf2904cdc62589dfdc))
+* update digest ubuntu (66460d5 -> e96e81f) ([#703](https://github.com/ppat/coder/issues/703)) ([2bc3436](https://github.com/ppat/coder/commit/2bc34360d7642a5e7d2bf1be53f1fde6498af952))
+* update digest ubuntu (e96e81f -> c35e29c) ([#704](https://github.com/ppat/coder/issues/704)) ([3727b82](https://github.com/ppat/coder/commit/3727b824834708d25ce96cd7da2778c3c5892cd2))
+
 ## [2.18.0](https://github.com/ppat/coder/compare/v2.17.0...v2.18.0) (2025-10-21)
 
 ### ✨ Features
