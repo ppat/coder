@@ -1,4 +1,4 @@
-resource "kubernetes_config_map" "workspace_scripts" {
+resource "kubernetes_config_map_v1" "workspace_scripts" {
   count = data.coder_workspace.me.start_count
 
   metadata {
