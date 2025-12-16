@@ -1,4 +1,4 @@
-resource "kubernetes_deployment" "deployment" {
+resource "kubernetes_deployment_v1" "deployment" {
   count = data.coder_workspace.me.start_count
 
   metadata {
