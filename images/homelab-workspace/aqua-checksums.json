@@ -16,23 +16,23 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.12.12/mise-v2025.12.12-linux-arm64-musl.tar.gz",
-      "checksum": "8875845EAF270E174D63C41C1FE629D893B7CC78BC9BE494B2F81F8F1B98217B",
+      "id": "github_release/github.com/jdx/mise/v2025.12.13/mise-v2025.12.13-linux-arm64-musl.tar.gz",
+      "checksum": "574954F475EE0B069B0A56D1F39E4656EC9EA9351A14BD47131220DD5203ADFE",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2025.12.12/mise-v2025.12.12-linux-x64-musl.tar.gz",
-      "checksum": "F4BAC31B7317690F421184B10FB7920AE43D71316889B0DF8A7A10FBB3E0B844",
+      "id": "github_release/github.com/jdx/mise/v2025.12.13/mise-v2025.12.13-linux-x64-musl.tar.gz",
+      "checksum": "FDC80F994D17E28C4DD1497723FCE771FDC4134A92A3A2C9B69D4E608BDAA2CE",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/starship/starship/v1.24.1/starship-aarch64-unknown-linux-musl.tar.gz",
-      "checksum": "A01AC37AA5993B78ECD6761C5FF4F805032B8BA566357FFBB2227980216F2216",
+      "id": "github_release/github.com/starship/starship/v1.24.2/starship-aarch64-unknown-linux-musl.tar.gz",
+      "checksum": "56B9FF412BBF374D29B99E5AC09A849124CB37A0A13121E8470DF32DE53C1EA6",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/starship/starship/v1.24.1/starship-x86_64-unknown-linux-musl.tar.gz",
-      "checksum": "44A729C34AEA5B0451FBA49108CDC5EF6B1AE68DB65E7623CC244A52EFCD23D1",
+      "id": "github_release/github.com/starship/starship/v1.24.2/starship-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "00FF3C1F8FFB59B5C15D4B44C076BCCA04D92CF0055C86B916248C14F3AE714A",
       "algorithm": "sha256"
     },
     {
