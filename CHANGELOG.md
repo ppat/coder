@@ -2,6 +2,24 @@
 
 
 
+## [2.20.0](https://github.com/ppat/coder/compare/v2.19.0...v2.20.0) (2026-01-02)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.55.3 -> v2.56.1) ([#735](https://github.com/ppat/coder/issues/735)) ([addfaa1](https://github.com/ppat/coder/commit/addfaa170b5d6cfaf764aa4e585937b7909f5429))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.444.2 -> v4.445.0) ([#727](https://github.com/ppat/coder/issues/727)) ([d36c4d8](https://github.com/ppat/coder/commit/d36c4d885bd42120d23dcae8773b41a7d9c46d70))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.445.0 -> v4.446.0) ([#730](https://github.com/ppat/coder/issues/730)) ([17410ed](https://github.com/ppat/coder/commit/17410ed99eba927eeb4953e8952b0d531f2e720c))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.446.0 -> v4.447.0) ([#732](https://github.com/ppat/coder/issues/732)) ([4cfdee3](https://github.com/ppat/coder/commit/4cfdee3b705753b1ea8a686f8e81c8aa27445ca8))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.447.0 -> v4.447.1) ([#733](https://github.com/ppat/coder/issues/733)) ([b6f4fff](https://github.com/ppat/coder/commit/b6f4fff80405551120ac9d4f0e6ca58c9199b110))
+* **cli-tools:** update cli-tools ([#729](https://github.com/ppat/coder/issues/729)) ([47483e0](https://github.com/ppat/coder/commit/47483e015226def0af2a1a43563767ef03a3ed2d))
+* **cli-tools:** update cli-tools ([#734](https://github.com/ppat/coder/issues/734)) ([7350f70](https://github.com/ppat/coder/commit/7350f7001c4011982f69603b3f73d1c330246ca6))
+* **dev-tools:** update tailscale/tailscale (v1.90.9 -> v1.92.3) ([#728](https://github.com/ppat/coder/issues/728)) ([49ba4f8](https://github.com/ppat/coder/commit/49ba4f81d5b1b3293e11cedc283aa5a0264bd596))
+* **terraform-version:** update terraform (non-major) ([#731](https://github.com/ppat/coder/issues/731)) ([ce484d8](https://github.com/ppat/coder/commit/ce484d852e126d6539571b0d568c57878ac9ce74))
+* update k8s resources to v1 terraform resource types in workspace template ([#726](https://github.com/ppat/coder/issues/726)) ([37f150f](https://github.com/ppat/coder/commit/37f150f282b2aea7c5fccdef1c296b7e2f4e09c2))
+
 ## [2.19.0](https://github.com/ppat/coder/compare/v2.18.0...v2.19.0) (2025-12-16)
 
 ### ✨ Features
