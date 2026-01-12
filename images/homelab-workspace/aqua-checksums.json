@@ -36,13 +36,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.68.1/chezmoi_2.68.1_linux-glibc_amd64.tar.gz",
-      "checksum": "3013E9D8D5EEAB832B28BC87C8666EFDDECFC0FE9A1C6597368D940498022FE1",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.69.0/chezmoi_2.69.0_linux-glibc_amd64.tar.gz",
+      "checksum": "31AA8AF7A0F4763406C3277270A76C134516CAF0C679BEE7A492E1EE3B3E5C0F",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.68.1/chezmoi_2.68.1_linux_arm64.pkg.tar.zst",
-      "checksum": "057AB9BA1B0AA0615EADAB1B25771AC1C837D79A4D60ACE86296E4C8E2EAE586",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.69.0/chezmoi_2.69.0_linux_arm64.pkg.tar.zst",
+      "checksum": "3B1D9B77B31672C8574D83690F5D8DA85EE851039367D6A37CB6641A2224146E",
       "algorithm": "sha256"
     },
     {
