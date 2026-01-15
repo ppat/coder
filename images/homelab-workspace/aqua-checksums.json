@@ -46,13 +46,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/upx/upx/v5.0.2/upx-5.0.2-amd64_linux.tar.xz",
-      "checksum": "DDC2654063FE4DC80D95B420788494E4DB078EBB01A650692D623B5A9906E61E",
+      "id": "github_release/github.com/upx/upx/v5.1.0/upx-5.1.0-amd64_linux.tar.xz",
+      "checksum": "946B7269D0F7FCC1C5DA0F771EA7FE9C0FED3534CF41D285980830019B4BC95E",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/upx/upx/v5.0.2/upx-5.0.2-arm64_linux.tar.xz",
-      "checksum": "100310F74EB6F67694D1D0377F1C729B6A49238CE8C4DE21EA2E7D3406186F8B",
+      "id": "github_release/github.com/upx/upx/v5.1.0/upx-5.1.0-arm64_linux.tar.xz",
+      "checksum": "222DDE34DFA3244A31B06C97820EE651515270E524736F532AC8456783AFE76E",
       "algorithm": "sha256"
     },
     {
