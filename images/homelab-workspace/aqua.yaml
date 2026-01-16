@@ -15,4 +15,4 @@ packages:
 - name: jdx/mise@v2026.1.1
 - name: starship/starship@v1.24.2
 - name: twpayne/chezmoi@v2.69.0
-- name: upx/upx@v5.0.2
+- name: upx/upx@v5.1.0
