@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.1.3/mise-v2026.1.3-linux-arm64-musl.tar.gz",
-      "checksum": "75FF2B4ED6CA795AC03EFF8B9654C7CDDCC8BD64561DDE79D28390760FCCA445",
+      "id": "github_release/github.com/jdx/mise/v2026.1.5/mise-v2026.1.5-linux-arm64-musl.tar.gz",
+      "checksum": "D963525DBBF83F5AF5B4D320F8E2785D217103CA46D7529D28D94F76F314ED09",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.1.3/mise-v2026.1.3-linux-x64-musl.tar.gz",
-      "checksum": "244DDCE0547DB945A19887BED785AEDCA2539B307E90B0E02B015924405E81F9",
+      "id": "github_release/github.com/jdx/mise/v2026.1.5/mise-v2026.1.5-linux-x64-musl.tar.gz",
+      "checksum": "976487DBA32B35802D64756CD44C563B239CC21E8DFF177EDF0C71EE5E9BC3F1",
       "algorithm": "sha256"
     },
     {
