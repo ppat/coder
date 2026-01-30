@@ -2,6 +2,42 @@
 
 
 
+## [2.21.0](https://github.com/ppat/coder/compare/v2.20.0...v2.21.0) (2026-01-30)
+
+### ✨ Features
+
+* **cli-tools:** update jdx/mise (v2025.12.13 -> v2026.1.1) ([#744](https://github.com/ppat/coder/issues/744)) ([d9a26f8](https://github.com/ppat/coder/commit/d9a26f81911c45cc21c7e559b87a6772077fcb93))
+* update aquaproj/aqua-renovate-config (2.9.0 -> 2.10.0) ([#760](https://github.com/ppat/coder/issues/760)) ([dc70425](https://github.com/ppat/coder/commit/dc7042537d468ba3ce57f1658d756239bf0d3200))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.447.1 -> v4.448.0) ([#736](https://github.com/ppat/coder/issues/736)) ([c18bc94](https://github.com/ppat/coder/commit/c18bc94f699f077786e7e88ed2e8897f91cfae84))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.448.0 -> v4.448.1) ([#738](https://github.com/ppat/coder/issues/738)) ([4707fdd](https://github.com/ppat/coder/commit/4707fdd507d15764e3b25798e9864775086d4fa4))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.448.1 -> v4.449.0) ([#739](https://github.com/ppat/coder/issues/739)) ([dc505c1](https://github.com/ppat/coder/commit/dc505c19866024527f36b2e3600e59c774781053))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.449.0 -> v4.451.0) ([#740](https://github.com/ppat/coder/issues/740)) ([54800d1](https://github.com/ppat/coder/commit/54800d115b605571f6d2b12d9abdd936b550b62a))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.451.0 -> v4.451.1) ([#742](https://github.com/ppat/coder/issues/742)) ([1b1b29f](https://github.com/ppat/coder/commit/1b1b29f91cbba55d6a1c9252d11c5f08d5f53072))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.451.1 -> v4.454.0) ([#746](https://github.com/ppat/coder/issues/746)) ([dceb43e](https://github.com/ppat/coder/commit/dceb43e03d5cd2157d4c1890ce0cfd0f99e062ba))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.454.0 -> v4.456.0) ([#752](https://github.com/ppat/coder/issues/752)) ([47f2ef3](https://github.com/ppat/coder/commit/47f2ef3e18035a8b116524a2ab2a104a9b18282d))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.456.0 -> v4.458.0) ([#754](https://github.com/ppat/coder/issues/754)) ([abfa585](https://github.com/ppat/coder/commit/abfa5850f54052d7ca9c1a225f5155d67252ccc3))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.458.0 -> v4.459.0) ([#755](https://github.com/ppat/coder/issues/755)) ([e3fae3c](https://github.com/ppat/coder/commit/e3fae3cbfd6576e96ae3686cca99d0fb6a3a36a5))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.459.0 -> v4.461.0) ([#758](https://github.com/ppat/coder/issues/758)) ([9076620](https://github.com/ppat/coder/commit/9076620500f673d217cbd3e713cfd39ebdd2d2f5))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.461.0 -> v4.462.0) ([#761](https://github.com/ppat/coder/issues/761)) ([b523e5c](https://github.com/ppat/coder/commit/b523e5cdc622bc64a4bdd5255134725bad251c57))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.462.0 -> v4.464.0) ([#764](https://github.com/ppat/coder/issues/764)) ([c0aa58d](https://github.com/ppat/coder/commit/c0aa58dee2cc3d25e9b505d8a179e620172e2264))
+* **cli-tools:** update aquaproj/aqua (v2.56.1 -> v2.56.2) ([#743](https://github.com/ppat/coder/issues/743)) ([54826ba](https://github.com/ppat/coder/commit/54826ba1262c025ebfc93c8e51ab3192ec5bc3c8))
+* **cli-tools:** update aquaproj/aqua (v2.56.2 -> v2.56.3) ([#750](https://github.com/ppat/coder/issues/750)) ([9022e8f](https://github.com/ppat/coder/commit/9022e8fee4accdfe42757fe26e8d3eecf6aa3998))
+* **cli-tools:** update aquaproj/aqua (v2.56.3 -> v2.56.5) ([#753](https://github.com/ppat/coder/issues/753)) ([ff13e55](https://github.com/ppat/coder/commit/ff13e55a2c32080425d61f9b13453ab595203846))
+* **cli-tools:** update cli-tools ([#751](https://github.com/ppat/coder/issues/751)) ([956331d](https://github.com/ppat/coder/commit/956331d8532ef779cfacdcf57f6a51f5317a6398))
+* **cli-tools:** update jdx/mise (v2026.1.3 -> v2026.1.6) ([#756](https://github.com/ppat/coder/issues/756)) ([a82abd2](https://github.com/ppat/coder/commit/a82abd2769378bf95b6ee3f35c94087c43ad0bd4))
+* **cli-tools:** update jdx/mise (v2026.1.6 -> v2026.1.11) ([#762](https://github.com/ppat/coder/issues/762)) ([ea6f2b4](https://github.com/ppat/coder/commit/ea6f2b489f2d690225f3f964da87a13408902f5f))
+* **cli-tools:** update twpayne/chezmoi (v2.68.1 -> v2.69.0) ([#745](https://github.com/ppat/coder/issues/745)) ([7953065](https://github.com/ppat/coder/commit/7953065746d92e0b88609a587f5d6c753405424c))
+* **cli-tools:** update twpayne/chezmoi (v2.69.0 -> v2.69.1) ([#749](https://github.com/ppat/coder/issues/749)) ([403537c](https://github.com/ppat/coder/commit/403537c7d0268de20303f5848b60105746d36057))
+* **cli-tools:** update upx/upx (v5.0.2 -> v5.1.0) ([#747](https://github.com/ppat/coder/issues/747)) ([aa19f19](https://github.com/ppat/coder/commit/aa19f19fb420d8dbd4018fd64c5791f9963ae802))
+* **dev-tools:** update pre-commit packages (non-major) ([#757](https://github.com/ppat/coder/issues/757)) ([4d88bd4](https://github.com/ppat/coder/commit/4d88bd4c4a50f93db96a0bc809be28b8f86ec78a))
+* **dev-tools:** update tailscale/tailscale (v1.92.3 -> v1.92.5) ([#741](https://github.com/ppat/coder/issues/741)) ([4606d66](https://github.com/ppat/coder/commit/4606d6656aaa08dbeadb2880349e6cf2e670f424))
+* **dev-tools:** update tailscale/tailscale (v1.92.5 -> v1.94.1) ([#763](https://github.com/ppat/coder/issues/763)) ([e702c35](https://github.com/ppat/coder/commit/e702c3502705f5966d93e59f3ba41e5cfd12e10b))
+* **terraform-version:** update terraform (non-major) ([#759](https://github.com/ppat/coder/issues/759)) ([e665f56](https://github.com/ppat/coder/commit/e665f56ccf1eaa681f9abc2326b57ab14c3dab52))
+* update digest ubuntu (c35e29c -> cd1dba6) ([#748](https://github.com/ppat/coder/issues/748)) ([010259d](https://github.com/ppat/coder/commit/010259d19d9b7c408071f1ffedfce64a8219f1a7))
+
 ## [2.20.0](https://github.com/ppat/coder/compare/v2.19.0...v2.20.0) (2026-01-02)
 
 ### ✨ Features
