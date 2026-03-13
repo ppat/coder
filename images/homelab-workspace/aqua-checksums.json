@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.1.11/mise-v2026.1.11-linux-arm64-musl.tar.gz",
-      "checksum": "16C988E66201E0021AB493742EA0212A77331CBE85D050817296850E19D1992F",
+      "id": "github_release/github.com/jdx/mise/v2026.3.3/mise-v2026.3.3-linux-arm64-musl.tar.gz",
+      "checksum": "7D715338BCBE73EC22D46513EDF56EBF3FC976DC2A6B90E9EBEFF0C7EEF73106",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.1.11/mise-v2026.1.11-linux-x64-musl.tar.gz",
-      "checksum": "6BAF8ABEA3EC2E17DF5C4BCE3D313812C012E2621106761894B52859AD05C4CC",
+      "id": "github_release/github.com/jdx/mise/v2026.3.3/mise-v2026.3.3-linux-x64-musl.tar.gz",
+      "checksum": "81C5C4C0BD971B11E1707282CFE53CE82EB70579C330852ED96BB5811482858C",
       "algorithm": "sha256"
     },
     {
@@ -36,23 +36,23 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.69.3/chezmoi_2.69.3_linux_amd64.tar.gz",
-      "checksum": "9B9BF911EFED8ABA28BD6F5DF1E780A6123DC3FB177004C1CA36EC2B9ECA7628",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.69.4/chezmoi_2.69.4_linux_amd64.tar.gz",
+      "checksum": "5054CF09CB2993725F525C8BB6EC3FF8625489ECFC061E019C17E737E7C7057B",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.69.3/chezmoi_2.69.3_linux_arm64.tar.gz",
-      "checksum": "0AEF9EF75EE33CFFB483A82C474B495D428E0F7941AB7898263C3519006E0662",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.69.4/chezmoi_2.69.4_linux_arm64.tar.gz",
+      "checksum": "560FB76182A3DA7DB7D445953CFA82FEFBDC59284C8C673BB22363DB9122EE4E",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/upx/upx/v5.1.0/upx-5.1.0-amd64_linux.tar.xz",
-      "checksum": "946B7269D0F7FCC1C5DA0F771EA7FE9C0FED3534CF41D285980830019B4BC95E",
+      "id": "github_release/github.com/upx/upx/v5.1.1/upx-5.1.1-amd64_linux.tar.xz",
+      "checksum": "1FF660454227861E00772F743F66B900072116B9DC24F6EE28B97CCE88A7828A",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/upx/upx/v5.1.0/upx-5.1.0-arm64_linux.tar.xz",
-      "checksum": "222DDE34DFA3244A31B06C97820EE651515270E524736F532AC8456783AFE76E",
+      "id": "github_release/github.com/upx/upx/v5.1.1/upx-5.1.1-arm64_linux.tar.xz",
+      "checksum": "A307C2C821EEAB47607BA5C232408B22AB884CCA13884682508B98F7308B8443",
       "algorithm": "sha256"
     },
     {
