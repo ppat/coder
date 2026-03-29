@@ -70,7 +70,7 @@ jobs:
         persist-credentials: false
 
     - name: Tailscale Connect
-      uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3
+      uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4
       with:
         oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
         oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
