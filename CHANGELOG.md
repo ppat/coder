@@ -2,6 +2,45 @@
 
 
 
+## [2.22.0](https://github.com/ppat/coder/compare/v2.21.0...v2.22.0) (2026-04-18)
+
+### ✨ Features
+
+* **cli-tools:** update aquaproj/aqua (v2.56.7 -> v2.57.0) ([#785](https://github.com/ppat/coder/issues/785)) ([2481566](https://github.com/ppat/coder/commit/2481566b6a41e74d422b163d5c226eae9ef08749))
+* **cli-tools:** update bitwarden/clients (v2025.12.1 -> v2026.1.0) ([#792](https://github.com/ppat/coder/issues/792)) ([f4dae7e](https://github.com/ppat/coder/commit/f4dae7ec5daf4ffaa7c084cfa2e5545e068267d3))
+* update aquaproj/aqua-renovate-config (2.10.0 -> 2.11.0) ([#779](https://github.com/ppat/coder/issues/779)) ([fa43cb3](https://github.com/ppat/coder/commit/fa43cb37edce9fa76549b79bc519fa39315008e2))
+* update aquaproj/aqua-renovate-config (2.11.0 -> 2.12.0) ([#793](https://github.com/ppat/coder/issues/793)) ([5e100da](https://github.com/ppat/coder/commit/5e100da24b2f8f91bfbc6c98adc43eacb05a16bf))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.464.0 -> v4.466.0) ([#766](https://github.com/ppat/coder/issues/766)) ([373371f](https://github.com/ppat/coder/commit/373371f68602ef73ef422a9ccf16ee01756ff022))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.466.0 -> v4.468.0) ([#767](https://github.com/ppat/coder/issues/767)) ([5ef6cd2](https://github.com/ppat/coder/commit/5ef6cd266de26b21b6a0b276df3e299d1b145a95))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.468.0 -> v4.470.0) ([#771](https://github.com/ppat/coder/issues/771)) ([a1769b0](https://github.com/ppat/coder/commit/a1769b0cb099c24a816a86fbee198bd1e498f8c4))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.470.0 -> v4.478.0) ([#772](https://github.com/ppat/coder/issues/772)) ([ae5d0be](https://github.com/ppat/coder/commit/ae5d0be854602dbd47b860e9193ddf49e5cc7637))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.478.0 -> v4.486.0) ([#781](https://github.com/ppat/coder/issues/781)) ([2c981f3](https://github.com/ppat/coder/commit/2c981f39ee4e02c3b6a257ce83e45fd2b440974e))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.486.0 -> v4.487.0) ([#790](https://github.com/ppat/coder/issues/790)) ([5ac7a32](https://github.com/ppat/coder/commit/5ac7a32b6dfd392a56766f2834c9e5cd1c379d40))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.487.0 -> v4.489.0) ([#791](https://github.com/ppat/coder/issues/791)) ([a7d1b87](https://github.com/ppat/coder/commit/a7d1b876df2da75703a272522b12812e50f2db67))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.489.0 -> v4.491.0) ([#794](https://github.com/ppat/coder/issues/794)) ([815fd52](https://github.com/ppat/coder/commit/815fd5267d04a597a2b615b1fda587a30ec7c556))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.491.0 -> v4.492.0) ([#795](https://github.com/ppat/coder/issues/795)) ([059e2b0](https://github.com/ppat/coder/commit/059e2b04bd1a19adc39452f57cfb5b9541bcdba1))
+* **cli-tools:** update aquaproj/aqua (v2.56.5 -> v2.56.6) ([#765](https://github.com/ppat/coder/issues/765)) ([50fb985](https://github.com/ppat/coder/commit/50fb985e5ad20f513af85117610544d9d33f547d))
+* **cli-tools:** update aquaproj/aqua (v2.56.6 -> v2.56.7) ([#776](https://github.com/ppat/coder/issues/776)) ([9fcd4cb](https://github.com/ppat/coder/commit/9fcd4cbab67c5c5e456b64b6c66a0f3fcab906d0))
+* **cli-tools:** update aquaproj/aqua (v2.57.0 -> v2.57.1) ([#786](https://github.com/ppat/coder/issues/786)) ([874508d](https://github.com/ppat/coder/commit/874508d3924c05cbe79785a936604768d5449180))
+* **cli-tools:** update cli-tools ([#777](https://github.com/ppat/coder/issues/777)) ([7d12b0a](https://github.com/ppat/coder/commit/7d12b0a975bb4c0b4d684489befc5b76ac0dffad))
+* **cli-tools:** update cli-tools ([#780](https://github.com/ppat/coder/issues/780)) ([d5b8aa4](https://github.com/ppat/coder/commit/d5b8aa402c8159ce0cc8140b84de6c2519b734c3))
+* **cli-tools:** update cli-tools ([#796](https://github.com/ppat/coder/issues/796)) ([51f16ad](https://github.com/ppat/coder/commit/51f16adfe1f81d7afd0f033e0553464322be6722))
+* **cli-tools:** update jdx/mise (v2026.3.9 -> v2026.3.17) ([#789](https://github.com/ppat/coder/issues/789)) ([14362c1](https://github.com/ppat/coder/commit/14362c180c7a44073862565df892c4a096718465))
+* **dev-tools:** update davidanson/markdownlint-cli2 (non-major) ([#775](https://github.com/ppat/coder/issues/775)) ([6af606e](https://github.com/ppat/coder/commit/6af606ec51928f365068c56d864192b08774a682))
+* **dev-tools:** update davidanson/markdownlint-cli2 (non-major) ([#788](https://github.com/ppat/coder/issues/788)) ([d30b45f](https://github.com/ppat/coder/commit/d30b45fb8b14d87f3b186dadc27f7056381717e0))
+* **dev-tools:** update tailscale/tailscale (v1.94.1 -> v1.94.2) ([#773](https://github.com/ppat/coder/issues/773)) ([4ee9f59](https://github.com/ppat/coder/commit/4ee9f5994b1b4ab2f3e537599584dd1fa74eff70))
+* **dev-tools:** update tailscale/tailscale (v1.94.2 -> v1.96.4) ([#784](https://github.com/ppat/coder/issues/784)) ([1e32237](https://github.com/ppat/coder/commit/1e32237a4372f8f3b5220b32310c60f7df4d1c50))
+* **terraform-version:** update terraform (non-major) ([#768](https://github.com/ppat/coder/issues/768)) ([4787858](https://github.com/ppat/coder/commit/4787858f7cc077a9f4a027461b2eee364db78669))
+* **terraform-version:** update terraform (non-major) ([#774](https://github.com/ppat/coder/issues/774)) ([ac238cb](https://github.com/ppat/coder/commit/ac238cbcd005c84ce6bf7be5044b7dc4037d1cc8))
+* **terraform-version:** update terraform (non-major) ([#778](https://github.com/ppat/coder/issues/778)) ([f560a13](https://github.com/ppat/coder/commit/f560a13d319cc2a47b9a23e8d32a48e3b8d43855))
+* **terraform-version:** update terraform (non-major) ([#787](https://github.com/ppat/coder/issues/787)) ([94704f4](https://github.com/ppat/coder/commit/94704f4bb57139c6936e11e2fed8d36bf30cfc05))
+* update digest ubuntu (cd1dba6 -> d1e2e92) ([#770](https://github.com/ppat/coder/issues/770)) ([246edd0](https://github.com/ppat/coder/commit/246edd0b6f47399a5f44dc82fa04b21ccb55fc4b))
+* update digest ubuntu (d1e2e92 -> c4a8d55) ([#782](https://github.com/ppat/coder/issues/782)) ([bcabebe](https://github.com/ppat/coder/commit/bcabebe95729a0643331587a6e7728923e5c8131))
+* update ppat/renovate-presets (v0.1.0 -> v0.1.1) ([#783](https://github.com/ppat/coder/issues/783)) ([cac887b](https://github.com/ppat/coder/commit/cac887b1d3a8fa4efbbba5a04fbaef9b25d84007))
+
 ## [2.21.0](https://github.com/ppat/coder/compare/v2.20.0...v2.21.0) (2026-01-30)
 
 ### ✨ Features
