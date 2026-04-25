@@ -1,8 +1,8 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2026.1.0/bw-linux-2026.1.0.zip",
-      "checksum": "1D7B44C94B17A0A6C1264BA529F94B8B50FE059AB08D20AA5A5CBFDD25084AAB",
+      "id": "github_release/github.com/bitwarden/clients/cli-v2026.3.0/bw-linux-2026.3.0.zip",
+      "checksum": "0BDF85CFA1AD1E3C4F6CD2AE23D0DE1AF136939405F1F395B6836B7F43479ED2",
       "algorithm": "sha256"
     },
     {
@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.4.8/mise-v2026.4.8-linux-arm64-musl.tar.gz",
-      "checksum": "A5BE964C2E29237DC6808C237793C73732DB29877AA135B2457345F5D788B436",
+      "id": "github_release/github.com/jdx/mise/v2026.4.16/mise-v2026.4.16-linux-arm64-musl.tar.gz",
+      "checksum": "5328C096B5A7AEF266EE3C8495C3AAB7F916C294C034B4488DA2A7BDB40B76CF",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.4.8/mise-v2026.4.8-linux-x64-musl.tar.gz",
-      "checksum": "9D670988A11E6AF1A478FC2037B55AF90C51E4F3BC538FE684B18B71C5A5FC4E",
+      "id": "github_release/github.com/jdx/mise/v2026.4.16/mise-v2026.4.16-linux-x64-musl.tar.gz",
+      "checksum": "3DD389BEE8684C6E8C400B2D44A33A1087981AE287B7C98816E3537F524287D7",
       "algorithm": "sha256"
     },
     {
@@ -36,13 +36,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.70.1/chezmoi_2.70.1_linux_amd64.tar.gz",
-      "checksum": "3BD054238E2A95548EEE62A6C5B4D9D1352F2C6C69C6D32F3D1964878398F91A",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.70.2/chezmoi_2.70.2_linux_amd64.tar.gz",
+      "checksum": "DDA79928BF8428C1BB3D48497BE00237A6ECC95A2BEF7DED573608436EC7270B",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/twpayne/chezmoi/v2.70.1/chezmoi_2.70.1_linux_arm64.tar.gz",
-      "checksum": "7F8307CEF8AADE159CDEE372A10871A606A50C6239284C0860FB463A174FABA0",
+      "id": "github_release/github.com/twpayne/chezmoi/v2.70.2/chezmoi_2.70.2_linux_arm64.tar.gz",
+      "checksum": "99E402AF70F457DBF3AD545F62F78892375F2D9361DB1C9C354E6D924A3B4FAE",
       "algorithm": "sha256"
     },
     {
