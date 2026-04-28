@@ -10,9 +10,9 @@ registries:
 - type: standard
   ref: v4.495.0 # renovate: depName=aquaproj/aqua-registry
 packages:
-- name: bitwarden/clients@cli-v2026.1.0
+- name: bitwarden/clients@cli-v2026.3.0
 - name: bitwarden/sdk-sm@bws-v1.0.0
-- name: jdx/mise@v2026.4.8
-- name: starship/starship@v1.24.2
-- name: twpayne/chezmoi@v2.70.1
+- name: jdx/mise@v2026.4.18
+- name: starship/starship@v1.25.0
+- name: twpayne/chezmoi@v2.70.2
 - name: upx/upx@v5.1.1
