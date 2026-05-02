@@ -1,8 +1,8 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/bitwarden/clients/cli-v2026.3.0/bw-linux-2026.3.0.zip",
-      "checksum": "0BDF85CFA1AD1E3C4F6CD2AE23D0DE1AF136939405F1F395B6836B7F43479ED2",
+      "id": "github_release/github.com/bitwarden/clients/cli-v2026.4.1/bw-linux-2026.4.1.zip",
+      "checksum": "2172DC63F821FCBD4B4CE65E7106F1EBAB26B6CB16C9C8A5B28230DCC6F8A774",
       "algorithm": "sha256"
     },
     {
@@ -16,13 +16,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.4.18/mise-v2026.4.18-linux-arm64-musl.tar.gz",
-      "checksum": "A451AF75120D69139C3A88622299A893C2EF6EABDC80EC1226E2296AB6CC3432",
+      "id": "github_release/github.com/jdx/mise/v2026.4.20/mise-v2026.4.20-linux-arm64-musl.tar.gz",
+      "checksum": "18FEE09DA992DE537C563E07F352341A7BD6F1FBBDEDA3B86D7A0D19A35975AE",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/jdx/mise/v2026.4.18/mise-v2026.4.18-linux-x64-musl.tar.gz",
-      "checksum": "DCB0187879DCD8ADB0F26279F08F9B06F7B78FA3FEA3FB95FFD4DB72375201F4",
+      "id": "github_release/github.com/jdx/mise/v2026.4.20/mise-v2026.4.20-linux-x64-musl.tar.gz",
+      "checksum": "B45FAFB4DAC8468045575671E881888C8BEA5C3BA3450805A1D068BC6FE34F9B",
       "algorithm": "sha256"
     },
     {
