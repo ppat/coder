@@ -2,6 +2,36 @@
 
 
 
+## [2.23.0](https://github.com/ppat/coder/compare/v2.22.0...v2.23.0) (2026-05-19)
+
+### ✨ Features
+
+* **terraform-provider:** update coder/coder (2.13.1 -> 2.15.0) ([#798](https://github.com/ppat/coder/issues/798)) ([25ceef1](https://github.com/ppat/coder/commit/25ceef1043ac387cc6ed8e1c7c0d905764bd11c2))
+* **terraform-provider:** update hashicorp/kubernetes (3.0.1 -> 3.1.0) ([#817](https://github.com/ppat/coder/issues/817)) ([416d145](https://github.com/ppat/coder/commit/416d1456e05da6c66ee645bce83f7d2c2baeca45))
+* update suzuki-shunsuke/renovate-config (3.3.1 -> 4.0.0) ([#797](https://github.com/ppat/coder/issues/797)) ([b185427](https://github.com/ppat/coder/commit/b185427e9ea761ab91a196d87fca68d1a6c2760f))
+
+### 🐛 Enhancements + Bug Fixes
+
+* **cli-tools:** drop aqua based installation of cli-tools as they are now installed by homebrew at runtime ([#821](https://github.com/ppat/coder/issues/821)) ([7ce8211](https://github.com/ppat/coder/commit/7ce8211e7900ac41c39d734c46b668c10016af5e))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.492.0 -> v4.493.0) ([#800](https://github.com/ppat/coder/issues/800)) ([adb3d61](https://github.com/ppat/coder/commit/adb3d61577f407ccf08026246b6f7526e36c3a66))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.493.0 -> v4.494.1) ([#801](https://github.com/ppat/coder/issues/801)) ([ef59f15](https://github.com/ppat/coder/commit/ef59f154ecee0fb5e7a6dba240048c60b427c9a3))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.494.1 -> v4.495.0) ([#802](https://github.com/ppat/coder/issues/802)) ([f5f26dd](https://github.com/ppat/coder/commit/f5f26dd338dfaffa29b502be8d3fe3511c1a7d68))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.495.0 -> v4.496.0) ([#803](https://github.com/ppat/coder/issues/803)) ([fffcfba](https://github.com/ppat/coder/commit/fffcfba6f547f3509a7277d1ba30f97335499e02))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.496.0 -> v4.497.0) ([#806](https://github.com/ppat/coder/issues/806)) ([6f86fe3](https://github.com/ppat/coder/commit/6f86fe3e05f3d1beece824ac1ff538d30a54a5c2))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.497.0 -> v4.499.0) ([#808](https://github.com/ppat/coder/issues/808)) ([ed40ba3](https://github.com/ppat/coder/commit/ed40ba3bfd94d09fa62275f3f3bfd47abb932c88))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.499.0 -> v4.500.0) ([#810](https://github.com/ppat/coder/issues/810)) ([5565c77](https://github.com/ppat/coder/commit/5565c776f427aa61245024db5f050d2d975bf991))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.500.0 -> v4.503.0) ([#811](https://github.com/ppat/coder/issues/811)) ([74b32ce](https://github.com/ppat/coder/commit/74b32ce375d6a2276cbb7955cf78db20af2c0180))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.503.0 -> v4.505.0) ([#812](https://github.com/ppat/coder/issues/812)) ([5f22791](https://github.com/ppat/coder/commit/5f227910053aa09775879c0a8140bd8861c15b1b))
+* **cli-tools:** update aqua registry: aquaproj/aqua-registry (v4.505.0 -> v4.510.0) ([#813](https://github.com/ppat/coder/issues/813)) ([53901fa](https://github.com/ppat/coder/commit/53901faa41c9f06f36251fe2fa5c9b08f5deb1ac))
+* **cli-tools:** update aquaproj/aqua (v2.57.1 -> v2.57.2) ([#809](https://github.com/ppat/coder/issues/809)) ([20707a6](https://github.com/ppat/coder/commit/20707a6a76ae88e05a6b89858b8e0c3d3e1eb68d))
+* **cli-tools:** update cli-tools ([#799](https://github.com/ppat/coder/issues/799)) ([4d4c224](https://github.com/ppat/coder/commit/4d4c2241896231a6345314228ac29cdd8051a777))
+* **cli-tools:** update cli-tools ([#807](https://github.com/ppat/coder/issues/807)) ([6eb4895](https://github.com/ppat/coder/commit/6eb489568ed8fba673220c451852d470a3642bf5))
+* **cli-tools:** update cli-tools ([#814](https://github.com/ppat/coder/issues/814)) ([7844543](https://github.com/ppat/coder/commit/7844543a403f0ab9037986df1c8df5b5ba9b4d31))
+* **dev-tools:** update alessandrojcm/commitlint-pre-commit-hook (non-major) ([#815](https://github.com/ppat/coder/issues/815)) ([51ecdc5](https://github.com/ppat/coder/commit/51ecdc5e121e4da3287b4bc400bfd3fb02e6e654))
+* **dev-tools:** update davidanson/markdownlint-cli2 (non-major) ([#804](https://github.com/ppat/coder/issues/804)) ([9c84de5](https://github.com/ppat/coder/commit/9c84de5cf54dd7c8ad3580b390d90d23440c568f))
+* **terraform-version:** update terraform (non-major) ([#805](https://github.com/ppat/coder/issues/805)) ([013a23b](https://github.com/ppat/coder/commit/013a23bdd500ff58f9828c08b79c3f2092a9969a))
+* **terraform-version:** update terraform (non-major) ([#816](https://github.com/ppat/coder/issues/816)) ([642ab2c](https://github.com/ppat/coder/commit/642ab2cee08967e5ff1397915a82916790d1ab48))
+
 ## [2.22.0](https://github.com/ppat/coder/compare/v2.21.0...v2.22.0) (2026-04-18)
 
 ### ✨ Features
