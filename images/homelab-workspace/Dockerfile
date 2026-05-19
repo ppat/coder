@@ -114,46 +114,10 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # ========================================================================================================
-FROM base AS binary-downloads
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG TARGETARCH
-WORKDIR /tmp
-
-ENV AQUA_ROOT_DIR=$HOME/.local/share/aquaproj-aqua
-ENV PATH=$AQUA_ROOT_DIR/bin:$PATH
-ENV AQUA_GLOBAL_CONFIG=/etc/aqua/aqua.yaml
-COPY aqua.yaml aqua-checksums.json /etc/aqua/
-
-# renovate: datasource=github-releases depName=aquaproj/aqua
-ARG AQUA_VERSION="2.57.2"
-# hadolint ignore=SC2046
-RUN --mount=type=cache,target=$AQUA_ROOT_DIR,id=cache-aqua-${TARGETARCH},sharing=locked \
-    --mount=type=tmpfs,target=/tmp \
-    mkdir -p $AQUA_ROOT_DIR/bin && \
-    mkdir -p /dist && \
-    # Download and install aqua
-    curl -fsSL -O "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_linux_${TARGETARCH}.tar.gz" && \
-    curl -fsSL -o checksums.txt "https://github.com/aquaproj/aqua/releases/download/v${AQUA_VERSION}/aqua_${AQUA_VERSION}_checksums.txt" && \
-    grep -E "aqua_linux_${TARGETARCH}.tar.gz$" checksums.txt > aqua_artifact_checksum.txt && \
-    sha256sum -c aqua_artifact_checksum.txt && \
-    tar xzf "aqua_linux_${TARGETARCH}.tar.gz" aqua && \
-    mv ./aqua $AQUA_ROOT_DIR/bin/aqua && \
-    chmod +x $AQUA_ROOT_DIR/bin/aqua && \
-    echo "aqua v$AQUA_VERSION installed successfully" && \
-    # Install packages w/ aqua as defined in aqua.yaml
-    aqua install --all && \
-    aqua cp -o /dist $(find $AQUA_ROOT_DIR/bin -type l -not -name upx -exec basename {} \; | sort) && \
-    cp $AQUA_ROOT_DIR/bin/aqua /dist/aqua && \
-    upx $(find /dist -type f -executable)
-
-# ========================================================================================================
 FROM system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 WORKDIR /tmp
-
-# copy binaries from aqua based binary install stage
-COPY --from=binary-downloads --chown=root:root --chmod=755 /dist/* /usr/local/sbin/
 
 # Instead of utilizing ENV statements, we make use of /etc/environment file to make the requisite
 # environment variables available to all users of this image (primarily 'root' and 'coder')
