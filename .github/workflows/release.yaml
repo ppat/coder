@@ -111,7 +111,7 @@ jobs:
         curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
         echo
         echo "Logging into Coder..."
-        coder login ${CODER_URL}
+        coder login --use-token-as-session ${CODER_URL}
 
     - name: Publish template
       id: publish-template
