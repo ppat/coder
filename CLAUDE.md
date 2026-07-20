@@ -79,6 +79,14 @@ Things that look arbitrary in the code but are load-bearing (full reasoning in [
 - `deployment.tf`'s `system` volume is an `empty_dir`, rebuilt from the image on every pod start — a fix to anything under `/usr`, `/etc`, `/var` must go in the image or the init script, not be treated as a one-time patch.
 - The Dockerfile writes shared env vars to `/etc/environment` rather than using `ENV`, because `PATH` needs to be extended by a script running after the image is built, not fixed at build time.
 - `parameters.tf`'s `local.validated_*` regex allowlist is the only thing stopping `system_packages`/`preferred_nodes` from injecting shell metacharacters into the init container — any new list-type parameter must go through the same decode-then-validate step.
+- Adding a package/tool has three possible homes, and picking the wrong one is a real mistake, not a style choice — route by the rule in [DESIGN.md](DESIGN.md#where-the-workspace-environment-comes-from): universal + stable → image (`Dockerfile`); occasionally-needed + apt-only + too heavy to bake in → the template's `system_packages` parameter; personal, fast-moving, or not an apt package → the operator's dotfiles (a *different* repo — see below), never this one.
+
+## Neighbouring repos
+
+This repo is only the image+template layer. When a task's real cause is above or below that layer, it lives elsewhere — describe those repos briefly and link, don't reproduce their content (see [DESIGN.md](DESIGN.md#where-the-workspace-environment-comes-from) for how the layers compose):
+
+- **Coder platform** — the control plane these templates are pushed to, deployed to the cluster from [`homelab-ops-kubernetes-apps`](../homelab-ops-kubernetes-apps/apps/subsystems/coder/helm-release-coder.yaml) (Helm release) and [`homelab-ops-kubernetes-clusters`](../homelab-ops-kubernetes-clusters/clusters/homelab/kustomizations/apps-coder.yaml) (Flux Kustomization).
+- **Dotfiles** — the operator's per-workspace tooling (brew/mise/aqua), applied at provision time from [`dotfiles`](../dotfiles). Day-to-day tool installs belong here, not in the image or template.
 
 ## Working on a template or image change
 
