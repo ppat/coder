@@ -14,6 +14,7 @@ This repo is the middle of a larger stack: the Coder control plane is deployed s
 ## Docs
 
 - **[DESIGN.md](DESIGN.md)** — why the template and image are built the way they are: trade-offs considered, decisions made, targeted outcomes.
+- **[DESIGN-DIND.md](DESIGN-DIND.md)** — how the workspace runs Docker and `kind` while staying an unprivileged pod.
 - **[TESTING.md](TESTING.md)** — how to validate a change, including exercising it against the real cluster without touching production workspace data.
 - **[CLAUDE.md](CLAUDE.md)** — commands and conventions for working in this repo with Claude Code.
 - **[CHANGELOG.md](CHANGELOG.md)** — generated release history (semantic-release).

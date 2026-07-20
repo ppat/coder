@@ -23,6 +23,17 @@ Both modes run the identical sequence of stages; only what each stage is permitt
 
 Because all three stages run for real in dry-run — just scoped away from production — a passing PR is a meaningful signal that a live release would also succeed, not a guess based on static checks alone.
 
+## Exercising the rootless Docker feature
+
+The `enable_docker` feature (see [DESIGN-DIND.md](DESIGN-DIND.md)) can't be judged by lint alone — it needs a live workspace. After the dry-run pipeline builds the image and pushes the disposable template, provision a test workspace from that template with **`enable_docker = true`** and check, from a terminal in the workspace:
+
+- `docker info` — the daemon is up and rootless (`Cgroup Driver` / `rootless: true`), storage driver is `overlay2` (or the `fuse-overlayfs`/`vfs` fallback).
+- `docker run --rm hello-world` — a container actually runs.
+- `kind create cluster` (kind comes from dotfiles) then `kubectl get nodes` — a nested cluster comes up; tear it down with `kind delete cluster`.
+- `kubectl get pod <this-workspace-pod> -o jsonpath='{.spec.hostUsers}'` (from a client with cluster access) returns `false` — confirming the platform Kyverno policy mutated the pod. If it's empty, the policy side isn't in effect and Docker is running in the weaker posture.
+
+The Kyverno policy half lives in the platform repo and has its own chainsaw coverage there (it asserts a marked pod is mutated and an unmarked one is left alone) — a template change here that renames the `com.coder.workspace.docker-enabled` marker must be matched there.
+
 ## After merge
 
 Merging to `main` is what flips the pipeline into live mode — there's no separate promotion step afterward. The dry-run pass on the PR is the actual release gate.

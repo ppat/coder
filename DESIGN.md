@@ -63,6 +63,8 @@ The rule that ties the layers together: a package or tool belongs in the *lowest
 
 **Unprivileged by default.** The workspace itself runs as an unprivileged, non-root, fixed-identity container. Anything that genuinely needs elevated privilege (installing packages, preparing shared volume state) is scoped to a narrow, short-lived setup step that runs before the workspace shell exists, not to something the workspace user can reach into.
 
+**Nested containers without giving up that posture.** Running Docker and `kind` *inside* the workspace would normally mean a privileged pod or a node-level runtime — both rejected here. Instead an opt-in rootless-Docker setup keeps the pod unprivileged and socket-free, with user-namespace isolation supplied by a platform Kyverno policy. This is a large enough topic to have its own design doc — see [DESIGN-DIND.md](DESIGN-DIND.md), which also covers the cluster-runtime migration angle.
+
 ## Outcomes targeted
 
 - One operator can keep dependencies current and ship template/image changes at low ongoing effort, without a fleet of environments to maintain.
