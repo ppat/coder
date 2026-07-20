@@ -61,17 +61,6 @@ data "coder_parameter" "system_packages" {
   type         = "list(string)"
 }
 
-data "coder_parameter" "enable_docker" {
-  name = "enable_docker"
-
-  default      = false
-  display_name = "Enable Docker"
-  description  = "Run a rootless Docker daemon inside the workspace"
-  icon         = "/icon/docker.svg"
-  mutable      = true
-  type         = "bool"
-}
-
 
 locals {
   validated_system_packages = (data.coder_parameter.system_packages.value != "") ? [

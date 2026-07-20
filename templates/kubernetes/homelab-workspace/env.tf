@@ -4,10 +4,6 @@ resource "coder_env" "welcome_message" {
   value    = local.homebrew_directory
 }
 
-resource "coder_env" "docker_host" {
-  count = data.coder_parameter.enable_docker.value ? 1 : 0
-
-  agent_id = coder_agent.main.id
-  name     = "DOCKER_HOST"
-  value    = "unix:///run/user/10001/docker.sock"
-}
+# Rootful dockerd listens on the default /var/run/docker.sock; the coder user
+# reaches it via the `docker` group (see script-workspace-entrypoint.sh), so no
+# DOCKER_HOST override is needed.

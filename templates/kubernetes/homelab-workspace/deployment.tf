@@ -1,11 +1,3 @@
-locals {
-  # Marker label consumed by a Kyverno policy (separate repo) that injects
-  # `hostUsers: false` onto the pod — the hashicorp/kubernetes provider has no
-  # host_users attribute, so this label is the only way to request it. Absent
-  # (not "false") when docker is disabled so the policy simply doesn't match.
-  docker_labels = data.coder_parameter.enable_docker.value ? { "com.coder.workspace.docker-enabled" = "true" } : {}
-}
-
 resource "kubernetes_deployment_v1" "deployment" {
   count = data.coder_workspace.me.start_count
 
@@ -30,7 +22,11 @@ resource "kubernetes_deployment_v1" "deployment" {
 
     template {
       metadata {
-        labels = merge(local.common_labels, local.pod_labels, local.docker_labels)
+        # The docker-enabled marker is what the platform Kyverno policy matches to
+        # inject `hostUsers: false` (the kubernetes provider has no host_users field).
+        # Docker is always enabled now, so the label is always present. hostUsers:false
+        # is what makes the root/CAP_SYS_ADMIN container below safe (namespaced root).
+        labels = merge(local.common_labels, local.pod_labels, { "com.coder.workspace.docker-enabled" = "true" })
       }
       spec {
         dynamic "affinity" {
@@ -51,14 +47,22 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         automount_service_account_token = false
-        init_container {
-          name    = "prepare-workspace"
-          command = ["/bin/bash", "/prepare-workspace-script.sh"]
+        container {
+          name = "workspace"
+          # Entrypoint runs as root: prepares the workspace (apt/homebrew), starts
+          # dockerd, then drops to the coder user to exec the agent. This replaces the
+          # old init-container + system-volume dance, which only existed to shuttle
+          # root-made changes into a non-root container -- unnecessary now.
+          command = ["/bin/bash", "/workspace-entrypoint.sh"]
           image   = var.workspace_image
           # In test_mode the image is a mutable branch tag that gets rebuilt in place,
           # so a cached layer must not shadow a fresh push -> Always. Released versions
           # use immutable tags where IfNotPresent is correct (and avoids needless pulls).
           image_pull_policy = var.test_mode ? "Always" : "IfNotPresent"
+          env {
+            name  = "CODER_AGENT_TOKEN"
+            value = coder_agent.main.token
+          }
           env {
             name  = "SYSTEM_PACKAGES"
             value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
@@ -66,43 +70,6 @@ resource "kubernetes_deployment_v1" "deployment" {
           env {
             name  = "HOMEBREW_PREFIX"
             value = local.homebrew_directory
-          }
-          volume_mount {
-            mount_path = local.home_directory
-            name       = "home"
-            sub_path   = data.coder_workspace.me.name
-          }
-          volume_mount {
-            mount_path = local.homebrew_directory
-            name       = "home"
-            sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
-          }
-          volume_mount {
-            mount_path = "/prepare-workspace-script.sh"
-            name       = "coder-scripts"
-            sub_path   = "prepare_workspace_script"
-          }
-          volume_mount {
-            name       = "system"
-            mount_path = "/updated"
-          }
-          security_context {
-            run_as_user = 0
-          }
-        }
-        container {
-          name    = "workspace"
-          command = ["/bin/bash", "/workspace-init.sh"]
-          image   = var.workspace_image
-          # See init_container: Always in test_mode (mutable branch tag), else IfNotPresent.
-          image_pull_policy = var.test_mode ? "Always" : "IfNotPresent"
-          env {
-            name  = "CODER_AGENT_TOKEN"
-            value = coder_agent.main.token
-          }
-          env {
-            name  = "ENABLE_DOCKER"
-            value = tostring(data.coder_parameter.enable_docker.value)
           }
           liveness_probe {
             exec {
@@ -123,12 +90,22 @@ resource "kubernetes_deployment_v1" "deployment" {
             }
           }
           security_context {
-            allow_privilege_escalation = false
+            # Root INSIDE the pod user namespace (hostUsers:false, injected by the
+            # platform Kyverno policy via the marker label above). Namespaced root maps
+            # to an unprivileged host uid, so these privileges are void on the host --
+            # this is what lets a rootful dockerd run without being privileged-on-host.
+            # SYS_ADMIN/NET_ADMIN are what dockerd needs; escalation must be true for the
+            # caps to take effect. privileged stays false. The entrypoint drops to the
+            # coder user before handing off to the agent.
+            allow_privilege_escalation = true
             read_only_root_filesystem  = false
             privileged                 = false
-            run_as_user                = 10001
-            run_as_group               = 10001
-            run_as_non_root            = true
+            run_as_user                = 0
+            run_as_group               = 0
+            run_as_non_root            = false
+            capabilities {
+              add = ["SYS_ADMIN", "NET_ADMIN"]
+            }
           }
           volume_mount {
             mount_path = local.home_directory
@@ -150,38 +127,19 @@ resource "kubernetes_deployment_v1" "deployment" {
             sub_path   = "agent_startup_script"
           }
           volume_mount {
+            mount_path = "/workspace-entrypoint.sh"
+            name       = "coder-scripts"
+            sub_path   = "workspace_entrypoint_script"
+          }
+          volume_mount {
             mount_path = "/workspace-init.sh"
             name       = "coder-scripts"
             sub_path   = "workspace_init_script"
           }
           volume_mount {
-            mount_path = "/usr"
-            name       = "system"
-            sub_path   = "usr"
-          }
-          volume_mount {
-            mount_path = "/etc"
-            name       = "system"
-            sub_path   = "etc"
-          }
-          volume_mount {
-            mount_path = "/var"
-            name       = "system"
-            sub_path   = "var"
-          }
-          dynamic "volume_mount" {
-            for_each = data.coder_parameter.enable_docker.value ? toset(["docker-data"]) : []
-            content {
-              name       = "docker-data"
-              mount_path = "${local.home_directory}/.local/share/docker"
-            }
-          }
-          dynamic "volume_mount" {
-            for_each = data.coder_parameter.enable_docker.value ? toset(["xdg-runtime"]) : []
-            content {
-              name       = "xdg-runtime"
-              mount_path = "/run/user/10001"
-            }
+            # Rootful dockerd's data root; on the persistent docker-data PVC.
+            mount_path = "/var/lib/docker"
+            name       = "docker-data"
           }
         }
         enable_service_links = false
@@ -191,9 +149,11 @@ resource "kubernetes_deployment_v1" "deployment" {
           "kubernetes.io/arch" = "amd64"
         }
         security_context {
-          run_as_user            = 10001
-          run_as_group           = 10001
-          run_as_non_root        = true
+          # Pod-level root, matching the container. Namespaced by hostUsers:false.
+          # fs_group stays 10001 so the coder user owns its home PVC contents.
+          run_as_user            = 0
+          run_as_group           = 0
+          run_as_non_root        = false
           fs_group               = 10001
           fs_group_change_policy = "OnRootMismatch"
         }
@@ -224,26 +184,10 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         volume {
-          name = "system"
-          empty_dir {
-            size_limit = "10Gi"
-          }
-        }
-        dynamic "volume" {
-          for_each = data.coder_parameter.enable_docker.value ? toset(["docker-data"]) : []
-          content {
-            name = "docker-data"
-            persistent_volume_claim {
-              claim_name = kubernetes_persistent_volume_claim_v1.docker_data[0].metadata[0].name
-              read_only  = false
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = data.coder_parameter.enable_docker.value ? toset(["xdg-runtime"]) : []
-          content {
-            name = "xdg-runtime"
-            empty_dir {}
+          name = "docker-data"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim_v1.docker_data[0].metadata[0].name
+            read_only  = false
           }
         }
       }
@@ -251,15 +195,17 @@ resource "kubernetes_deployment_v1" "deployment" {
   }
 }
 
-# Persistent storage for the rootless Docker daemon's image/layer data.
+# Persistent storage for the Docker daemon's image/layer data (/var/lib/docker).
 #
-# Gated on enable_docker but deliberately NOT on start_count: like the external
-# `coder-workspace-home` PVC, this must survive a workspace STOP (deployment
-# scales to 0). Tying it to start_count would delete the volume — and every
-# pulled image and built layer — on every stop. It is instead destroyed only on
-# workspace DELETE or when docker is disabled.
+# Deliberately NOT gated on start_count: like the external `coder-workspace-home`
+# PVC, it must survive a workspace STOP (deployment scales to 0). Tying it to
+# start_count would delete the volume -- and every pulled image and built layer --
+# on every stop. It is destroyed only on workspace DELETE.
 resource "kubernetes_persistent_volume_claim_v1" "docker_data" {
-  count = data.coder_parameter.enable_docker.value ? 1 : 0
+  # count = 1 (not start_count): the deployment is gated on start_count and scales
+  # to 0 on stop, but this PVC must persist across stop so images/layers survive.
+  # terraform destroy (workspace delete) still removes it.
+  count = 1
 
   wait_until_bound = false
 
