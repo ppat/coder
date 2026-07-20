@@ -123,8 +123,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
 # - fuse-overlayfs: fallback storage driver; native overlay2 (userns + kernel>=5.11) is the primary path,
 #                   used when /dev/fuse is unavailable (the unprivileged pod has no /dev/fuse)
 # - iptables:       required by dockerd/kind for bridge + port-mapping rules
-# docker-ce (from Docker's official apt repo, not Ubuntu's docker.io) is required because it ships
-# dockerd-rootless.sh and dockerd-rootless-setuptool.sh, which the Ubuntu package does not.
+# We use Docker's official apt repo (not Ubuntu's docker.io) so the rootless entrypoints ship in the
+# docker-ce-rootless-extras package (dockerd-rootless.sh / dockerd-rootless-setuptool.sh).
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
@@ -146,13 +146,16 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     chmod a+r /etc/apt/keyrings/docker.asc && \
     echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" \
       > /etc/apt/sources.list.d/docker.list && \
-    # Docker engine + CLI + buildx + containerd (docker-ce ships dockerd-rootless*.sh helpers)
+    # Docker engine + CLI + buildx + containerd. docker-ce-rootless-extras is a
+    # SEPARATE package (not pulled in by docker-ce) that ships dockerd-rootless.sh
+    # and dockerd-rootless-setuptool.sh -- the rootless entrypoints this image needs.
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       containerd.io \
       docker-buildx-plugin \
       docker-ce \
       docker-ce-cli \
+      docker-ce-rootless-extras \
       && \
     # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
     find /usr -name __pycache__ -exec rm -rf {} +

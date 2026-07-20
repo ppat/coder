@@ -8,6 +8,11 @@ setup_docker() {
   # dockerd-rootless.sh and dockerd-rootless-setuptool.sh ship in /usr/bin
   export PATH="/usr/bin:${PATH}"
 
+  if ! command -v dockerd-rootless.sh > /dev/null 2>&1; then
+    echo 'dockerd-rootless.sh not found (docker-ce-rootless-extras missing from image); skipping docker setup.'
+    return 1
+  fi
+
   echo 'Ensuring XDG_RUNTIME_DIR exists...'
   mkdir -p "${XDG_RUNTIME_DIR}"
   chmod 700 "${XDG_RUNTIME_DIR}"
