@@ -189,13 +189,15 @@ RUN groupadd --gid "${CODER_GID}" coder && \
     # package installation is complete, users of resulting image need not cache downloaded packages
     rm -f /etc/apt/apt.conf.d/keep-cache
 
-# Guarantee subordinate uid/gid ranges for 'coder' so rootless dockerd can map users inside its userns.
-# useradd does not reliably populate /etc/subuid+/etc/subgid at build time, so ensure them idempotently
-# (append only if no entry for coder exists; never clobber ranges already present at runtime).
-# newuidmap/newgidmap must stay setuid-root for the mapping to work - verify, and do NOT strip the bits.
-RUN touch /etc/subuid /etc/subgid && \
-    grep -q '^coder:' /etc/subuid || echo 'coder:100000:65536' >> /etc/subuid && \
-    grep -q '^coder:' /etc/subgid || echo 'coder:100000:65536' >> /etc/subgid && \
+# Subordinate uid/gid ranges for 'coder', sized to fit INSIDE a user-namespaced pod.
+# When the workspace runs with hostUsers=false (see DESIGN-DIND.md) the pod's userns is only
+# 65536 IDs wide (0-65535), and newuidmap maps subordinate IDs relative to that namespace.
+# useradd's default range (coder:165536:65536) points outside it, so rootlesskit fails with
+# "newuidmap: write to uid_map failed: Operation not permitted". We therefore OVERWRITE (not
+# append) with a range that fits above coder's own UID 10001: 10002..65535 -> 55534 subordinate
+# IDs, enough for nested rootless containers. newuidmap/newgidmap must stay setuid-root.
+RUN echo 'coder:10002:55534' > /etc/subuid && \
+    echo 'coder:10002:55534' > /etc/subgid && \
     test -u /usr/bin/newuidmap && test -u /usr/bin/newgidmap
 
 USER coder

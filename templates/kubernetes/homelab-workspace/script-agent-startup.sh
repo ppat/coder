@@ -15,7 +15,10 @@ setup_docker() {
 
   echo 'Ensuring XDG_RUNTIME_DIR exists...'
   mkdir -p "${XDG_RUNTIME_DIR}"
-  chmod 700 "${XDG_RUNTIME_DIR}"
+  # The dir is an emptyDir mount owned by root but group-writable via fsGroup=10001,
+  # so it is already usable by coder; chmod would fail (coder is not the owner) and
+  # that is harmless -- keep it non-fatal rather than emitting a scary error.
+  chmod 700 "${XDG_RUNTIME_DIR}" 2> /dev/null || true
 
   echo 'Installing rootless docker (idempotent; tolerate re-run)...'
   dockerd-rootless-setuptool.sh install 2>&1 | sed -E -n 's|^|    |p' || true
