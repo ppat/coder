@@ -1,3 +1,11 @@
+locals {
+  # Marker label consumed by a Kyverno policy (separate repo) that injects
+  # `hostUsers: false` onto the pod — the hashicorp/kubernetes provider has no
+  # host_users attribute, so this label is the only way to request it. Absent
+  # (not "false") when docker is disabled so the policy simply doesn't match.
+  docker_labels = data.coder_parameter.enable_docker.value ? { "com.coder.workspace.docker-enabled" = "true" } : {}
+}
+
 resource "kubernetes_deployment_v1" "deployment" {
   count = data.coder_workspace.me.start_count
 
@@ -22,7 +30,7 @@ resource "kubernetes_deployment_v1" "deployment" {
 
     template {
       metadata {
-        labels = merge(local.common_labels, local.pod_labels)
+        labels = merge(local.common_labels, local.pod_labels, local.docker_labels)
       }
       spec {
         dynamic "affinity" {
@@ -85,6 +93,10 @@ resource "kubernetes_deployment_v1" "deployment" {
           env {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
+          }
+          env {
+            name  = "ENABLE_DOCKER"
+            value = tostring(data.coder_parameter.enable_docker.value)
           }
           liveness_probe {
             exec {
@@ -151,6 +163,20 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "system"
             sub_path   = "var"
           }
+          dynamic "volume_mount" {
+            for_each = data.coder_parameter.enable_docker.value ? toset(["docker-data"]) : []
+            content {
+              name       = "docker-data"
+              mount_path = "${local.home_directory}/.local/share/docker"
+            }
+          }
+          dynamic "volume_mount" {
+            for_each = data.coder_parameter.enable_docker.value ? toset(["xdg-runtime"]) : []
+            content {
+              name       = "xdg-runtime"
+              mount_path = "/run/user/10001"
+            }
+          }
         }
         enable_service_links = false
         hostname             = lower(replace(data.coder_workspace.me.name, "/[^a-zA-Z0-9]/", "-"))
@@ -197,6 +223,52 @@ resource "kubernetes_deployment_v1" "deployment" {
             size_limit = "10Gi"
           }
         }
+        dynamic "volume" {
+          for_each = data.coder_parameter.enable_docker.value ? toset(["docker-data"]) : []
+          content {
+            name = "docker-data"
+            persistent_volume_claim {
+              claim_name = kubernetes_persistent_volume_claim_v1.docker_data[0].metadata[0].name
+              read_only  = false
+            }
+          }
+        }
+        dynamic "volume" {
+          for_each = data.coder_parameter.enable_docker.value ? toset(["xdg-runtime"]) : []
+          content {
+            name = "xdg-runtime"
+            empty_dir {}
+          }
+        }
+      }
+    }
+  }
+}
+
+# Persistent storage for the rootless Docker daemon's image/layer data.
+#
+# Gated on enable_docker but deliberately NOT on start_count: like the external
+# `coder-workspace-home` PVC, this must survive a workspace STOP (deployment
+# scales to 0). Tying it to start_count would delete the volume — and every
+# pulled image and built layer — on every stop. It is instead destroyed only on
+# workspace DELETE or when docker is disabled.
+resource "kubernetes_persistent_volume_claim_v1" "docker_data" {
+  count = data.coder_parameter.enable_docker.value ? 1 : 0
+
+  wait_until_bound = false
+
+  metadata {
+    name      = "coder-${data.coder_workspace.me.id}-docker"
+    namespace = "coder"
+    labels    = merge(local.common_labels, local.pod_labels)
+  }
+
+  spec {
+    access_modes       = ["ReadWriteOnce"]
+    storage_class_name = "sc-longhorn-local-non-replicated"
+    resources {
+      requests = {
+        storage = "40Gi"
       }
     }
   }

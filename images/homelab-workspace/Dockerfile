@@ -114,6 +114,50 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # ========================================================================================================
+# Rootless Docker support (the runtime kind/Kubernetes-in-Docker relies on; kind itself is installed by the
+# user via aqua in their dotfiles, not baked into the image).
+# Kept as a self-contained block (separate from the general toolset above) so it can later be lifted into a
+# dedicated variant image without untangling it from the base package list.
+# - uidmap:         provides newuidmap/newgidmap (setuid-root) needed to map subordinate uid/gid ranges
+# - slirp4netns:    userspace network stack for rootless dockerd (no CAP_NET_ADMIN required)
+# - fuse-overlayfs: fallback storage driver; native overlay2 (userns + kernel>=5.11) is the primary path,
+#                   used when /dev/fuse is unavailable (the unprivileged pod has no /dev/fuse)
+# - iptables:       required by dockerd/kind for bridge + port-mapping rules
+# docker-ce (from Docker's official apt repo, not Ubuntu's docker.io) is required because it ships
+# dockerd-rootless.sh and dockerd-rootless-setuptool.sh, which the Ubuntu package does not.
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
+    --mount=type=tmpfs,target=/var/cache/python \
+    --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=tmpfs,target=/var/tmp \
+    # rootless-docker runtime dependencies (from Ubuntu repos)
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
+      fuse-overlayfs \
+      iptables \
+      slirp4netns \
+      uidmap \
+      && \
+    # add Docker's official apt repository + signing key (arch matched to the build platform)
+    install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
+    chmod a+r /etc/apt/keyrings/docker.asc && \
+    echo "deb [arch=${TARGETARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" \
+      > /etc/apt/sources.list.d/docker.list && \
+    # Docker engine + CLI + buildx + containerd (docker-ce ships dockerd-rootless*.sh helpers)
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
+      containerd.io \
+      docker-buildx-plugin \
+      docker-ce \
+      docker-ce-cli \
+      && \
+    # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
+    find /usr -name __pycache__ -exec rm -rf {} +
+
+# ========================================================================================================
 FROM system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
@@ -141,6 +185,15 @@ RUN groupadd --gid "${CODER_GID}" coder && \
     chmod 775 /home/linuxbrew/.linuxbrew && \
     # package installation is complete, users of resulting image need not cache downloaded packages
     rm -f /etc/apt/apt.conf.d/keep-cache
+
+# Guarantee subordinate uid/gid ranges for 'coder' so rootless dockerd can map users inside its userns.
+# useradd does not reliably populate /etc/subuid+/etc/subgid at build time, so ensure them idempotently
+# (append only if no entry for coder exists; never clobber ranges already present at runtime).
+# newuidmap/newgidmap must stay setuid-root for the mapping to work - verify, and do NOT strip the bits.
+RUN touch /etc/subuid /etc/subgid && \
+    grep -q '^coder:' /etc/subuid || echo 'coder:100000:65536' >> /etc/subuid && \
+    grep -q '^coder:' /etc/subgid || echo 'coder:100000:65536' >> /etc/subgid && \
+    test -u /usr/bin/newuidmap && test -u /usr/bin/newgidmap
 
 USER coder
 WORKDIR /home/coder
