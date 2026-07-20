@@ -29,7 +29,7 @@ env:
 
 jobs:
   create-release:
-    uses: ppat/github-workflows/.github/workflows/release-semantic.yaml@d8be434313cb0ee0a3b27777b969760cb48b1aa7 # v4.0.0
+    uses: ppat/github-workflows/.github/workflows/release-semantic.yaml@72fca5796f7e8f92e60a89226239c1fa197e5c03 # v4.1.0
     with:
       dry_run: ${{ (github.event_name == 'pull_request') || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_publish == 'true') }}
       release_branch: ${{ github.head_ref || github.ref_name }}
@@ -39,7 +39,7 @@ jobs:
 
   publish-image:
     needs: [create-release]
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@d8be434313cb0ee0a3b27777b969760cb48b1aa7 # v4.0.0
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@72fca5796f7e8f92e60a89226239c1fa197e5c03 # v4.1.0
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
