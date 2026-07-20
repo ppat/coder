@@ -55,6 +55,10 @@ resource "kubernetes_deployment_v1" "deployment" {
           name    = "prepare-workspace"
           command = ["/bin/bash", "/prepare-workspace-script.sh"]
           image   = var.workspace_image
+          # In test_mode the image is a mutable branch tag that gets rebuilt in place,
+          # so a cached layer must not shadow a fresh push -> Always. Released versions
+          # use immutable tags where IfNotPresent is correct (and avoids needless pulls).
+          image_pull_policy = var.test_mode ? "Always" : "IfNotPresent"
           env {
             name  = "SYSTEM_PACKAGES"
             value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
@@ -90,6 +94,8 @@ resource "kubernetes_deployment_v1" "deployment" {
           name    = "workspace"
           command = ["/bin/bash", "/workspace-init.sh"]
           image   = var.workspace_image
+          # See init_container: Always in test_mode (mutable branch tag), else IfNotPresent.
+          image_pull_policy = var.test_mode ? "Always" : "IfNotPresent"
           env {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
