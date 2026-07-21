@@ -92,20 +92,21 @@ resource "kubernetes_deployment_v1" "deployment" {
           security_context {
             # Root INSIDE the pod user namespace (hostUsers:false, injected by the
             # platform Kyverno policy via the marker label above). Namespaced root maps
-            # to an unprivileged host uid, so these privileges are void on the host --
-            # this is what lets a rootful dockerd run without being privileged-on-host.
-            # SYS_ADMIN/NET_ADMIN are what dockerd needs; escalation must be true for the
-            # caps to take effect. privileged stays false. The entrypoint drops to the
-            # coder user before handing off to the agent.
+            # to an unprivileged host uid, so even privileged is void on the host.
+            #
+            # privileged=true (TEST): the cri-containerd AppArmor profile default-denies
+            # the mount() syscall, which blocks containerd's overlayfs snapshotter from
+            # bind/overlay-mounting image layers (confirmed: fails on an ext4 emptyDir data
+            # root, so it is NOT overlay-on-overlay -- it is AppArmor). privileged sets the
+            # profile to unconfined (and grants all caps), which should unblock it. If this
+            # works, the durable fix is appArmorProfile:Unconfined via the Kyverno policy
+            # (the provider has no app_armor_profile field), keeping caps narrow.
             allow_privilege_escalation = true
             read_only_root_filesystem  = false
-            privileged                 = false
+            privileged                 = true
             run_as_user                = 0
             run_as_group               = 0
             run_as_non_root            = false
-            capabilities {
-              add = ["SYS_ADMIN", "NET_ADMIN"]
-            }
           }
           volume_mount {
             mount_path = local.home_directory
