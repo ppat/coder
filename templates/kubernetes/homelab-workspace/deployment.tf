@@ -136,11 +136,11 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "coder-scripts"
             sub_path   = "workspace_init_script"
           }
-          volume_mount {
-            # Rootful dockerd's data root; on the persistent docker-data PVC.
-            mount_path = "/var/lib/docker"
-            name       = "docker-data"
-          }
+          # No /var/lib/docker volume: a kubelet-mounted PVC there is a locked,
+          # private mount that dockerd cannot make shared or bind within (EPERM in
+          # the userns). Instead the entrypoint bind-mounts a dir under the home PVC
+          # to /var/lib/docker inside this container's own mount namespace, which
+          # dockerd can manage -- and it still persists across stop via the home PVC.
         }
         enable_service_links = false
         hostname             = lower(replace(data.coder_workspace.me.name, "/[^a-zA-Z0-9]/", "-"))
@@ -183,44 +183,6 @@ resource "kubernetes_deployment_v1" "deployment" {
             default_mode = "0750"
           }
         }
-        volume {
-          name = "docker-data"
-          persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.docker_data[0].metadata[0].name
-            read_only  = false
-          }
-        }
-      }
-    }
-  }
-}
-
-# Persistent storage for the Docker daemon's image/layer data (/var/lib/docker).
-#
-# Deliberately NOT gated on start_count: like the external `coder-workspace-home`
-# PVC, it must survive a workspace STOP (deployment scales to 0). Tying it to
-# start_count would delete the volume -- and every pulled image and built layer --
-# on every stop. It is destroyed only on workspace DELETE.
-resource "kubernetes_persistent_volume_claim_v1" "docker_data" {
-  # count = 1 (not start_count): the deployment is gated on start_count and scales
-  # to 0 on stop, but this PVC must persist across stop so images/layers survive.
-  # terraform destroy (workspace delete) still removes it.
-  count = 1
-
-  wait_until_bound = false
-
-  metadata {
-    name      = "coder-${data.coder_workspace.me.id}-docker"
-    namespace = "coder"
-    labels    = merge(local.common_labels, local.pod_labels)
-  }
-
-  spec {
-    access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "sc-longhorn-local-non-replicated"
-    resources {
-      requests = {
-        storage = "40Gi"
       }
     }
   }
