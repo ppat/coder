@@ -136,11 +136,15 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "coder-scripts"
             sub_path   = "workspace_init_script"
           }
-          # No /var/lib/docker volume: a kubelet-mounted PVC there is a locked,
-          # private mount that dockerd cannot make shared or bind within (EPERM in
-          # the userns). Instead the entrypoint bind-mounts a dir under the home PVC
-          # to /var/lib/docker inside this container's own mount namespace, which
-          # dockerd can manage -- and it still persists across stop via the home PVC.
+          volume_mount {
+            # Docker data root on a kubelet-mounted emptyDir: a plain (non-overlay)
+            # filesystem, so containerd's overlayfs snapshotter isn't stacking overlay
+            # on overlay (which the container rootfs would otherwise force). The kubelet
+            # sets this mount up outside the container, so it does not hit the in-container
+            # AppArmor mount restrictions. NOTE: emptyDir does not persist across stop.
+            mount_path = "/var/lib/docker"
+            name       = "docker-data"
+          }
         }
         enable_service_links = false
         hostname             = lower(replace(data.coder_workspace.me.name, "/[^a-zA-Z0-9]/", "-"))
@@ -181,6 +185,16 @@ resource "kubernetes_deployment_v1" "deployment" {
           config_map {
             name         = "init-scripts-${data.coder_workspace.me.id}"
             default_mode = "0750"
+          }
+        }
+        volume {
+          # Docker data root. emptyDir (not PVC) so it is a plain fs the kubelet
+          # mounts outside the container -- avoids overlay-on-overlay and the locked
+          # -mount / in-container AppArmor problems. Persistence across stop is a
+          # follow-up once the runtime is confirmed working.
+          name = "docker-data"
+          empty_dir {
+            size_limit = "40Gi"
           }
         }
       }

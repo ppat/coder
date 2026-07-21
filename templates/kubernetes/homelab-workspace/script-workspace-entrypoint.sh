@@ -76,25 +76,12 @@ setup_docker() {
   groupadd --force docker
   usermod --append --groups docker "${CODER_USER}"
 
-  # Docker's data root must live on a mount that dockerd can make shared and
-  # bind-mount within (it does this for every layer/snapshot). A PVC mounted by
-  # the kubelet is created OUTSIDE this pod's user namespace, so it is a locked,
-  # private mount: `mount --make-shared` and the snapshot bind-mounts both fail
-  # with EPERM even as (namespaced) root. A bind mount we create ourselves inside
-  # this container's mount namespace is not locked, so dockerd can manage it.
-  #
-  # Back the data root with a dir under the home PVC (persists across stop) and
-  # bind it to /var/lib/docker. Both dirs must be root:root 0711 -- dockerd
-  # rejects a world/group-accessible data root, and the home PVC is otherwise
-  # fsGroup-owned by the coder group.
-  local docker_data="/home/${CODER_USER}/.var/docker"
-  mkdir -p "${docker_data}" /var/lib/docker
-  chown root:root "${docker_data}" /var/lib/docker
-  chmod 0711 "${docker_data}" /var/lib/docker
-  mount --bind "${docker_data}" /var/lib/docker
-  # dockerd also sets this itself; do it up front so the data root is shared before
-  # it starts. Non-fatal -- if it fails, dockerd's own attempt is what matters.
-  mount --make-shared /var/lib/docker || true
+  # /var/lib/docker is a kubelet-mounted emptyDir (see deployment.tf): a plain,
+  # non-overlay filesystem, so containerd's overlayfs snapshotter is not trying to
+  # stack overlay-on-overlay (which is what the container rootfs would force). The
+  # dir must be root:root 0711 -- dockerd rejects a group/world-accessible data root.
+  chown root:root /var/lib/docker
+  chmod 0711 /var/lib/docker
 
   echo 'Starting dockerd...'
   # Rootful dockerd. CAP_SYS_ADMIN/NET_ADMIN (granted on the container, valid only
