@@ -2,6 +2,8 @@
 
 
 
+## [2.24.0](https://github.com/ppat/coder/compare/v2.23.0...v2.24.0) (2026-08-02)
+
 ## [2.23.0](https://github.com/ppat/coder/compare/v2.22.0...v2.23.0) (2026-05-19)
 
 ### ✨ Features
