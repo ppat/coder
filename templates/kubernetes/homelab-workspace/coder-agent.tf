@@ -49,4 +49,26 @@ resource "coder_agent" "main" {
     interval = 60
     timeout  = 1
   }
+  metadata {
+    display_name = "Memory Headroom"
+    key          = "6_memory_headroom"
+    # Published by the memory watchdog (see scripts.tf). This is the honest
+    # number: bytes left before something in the pod has to die. "Memory Usage"
+    # above reads ~63% on a pod whose true unreclaimable share is ~23%, because
+    # it counts page cache the kernel will hand straight back.
+    script   = "cat $${HOME}/.local/state/vscode-memory-watchdog/headroom 2>/dev/null || echo '-'"
+    interval = 60
+    timeout  = 1
+  }
+
+  # A coarse backstop, not the real signal. Coder computes
+  # (memory.current - inactive_file) / memory.max, which is still inflated by
+  # active_file, so the threshold is 95 rather than 90: at 90 this pod would
+  # alert continuously while sitting at 23% unreclaimable and zero PSI.
+  resources_monitoring {
+    memory {
+      enabled   = true
+      threshold = 95
+    }
+  }
 }

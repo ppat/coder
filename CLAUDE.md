@@ -62,11 +62,14 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `terraform.tf` | Provider requirements/versions (Renovate-managed) |
 | `main.tf` | `coder_workspace`/`coder_workspace_owner` data sources, shared labels/path locals |
 | `parameters.tf` | User-facing `coder_parameter` inputs + sanitization locals |
-| `coder-agent.tf` | `coder_agent` resource: startup script, `coder stat` metadata |
+| `coder-agent.tf` | `coder_agent` resource: startup script, `coder stat` metadata, `resources_monitoring` |
 | `deployment.tf` / `configmap.tf` | Kubernetes Pod spec, volumes, ConfigMap |
 | `env.tf` | `coder_env` resources exposed to the agent |
+| `scripts.tf` | `coder_script` resources — the memory watchdog daemon and the weekly `vscode-server` GC schedule |
 | `variables.tf` | `workspace_image`, `test_mode` — both supplied by the release workflow |
 | `script-agent-startup.sh` / `script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
+| `script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). **Ships in observe-only mode**: it measures and logs, and sets no limits and sends no signals until `WATCHDOG_MODE=enforce` |
+| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's arithmetic and process selection. Run it by hand (`./script-memory-watchdog-test.sh`); nothing in CI runs it |
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
@@ -79,6 +82,8 @@ Things that look arbitrary in the code but are load-bearing (full reasoning in [
 - `deployment.tf`'s `system` volume is an `empty_dir`, rebuilt from the image on every pod start — a fix to anything under `/usr`, `/etc`, `/var` must go in the image or the init script, not be treated as a one-time patch.
 - The Dockerfile writes shared env vars to `/etc/environment` rather than using `ENV`, because `PATH` needs to be extended by a script running after the image is built, not fixed at build time.
 - `parameters.tf`'s `local.validated_*` regex allowlist is the only thing stopping `system_packages`/`preferred_nodes` from injecting shell metacharacters into the init container — any new list-type parameter must go through the same decode-then-validate step.
+- `script-memory-watchdog.sh` computes headroom as `memory.max − U`, where `U` sums only the *unreclaimable* fields of `memory.stat` (`anon`, `shmem`, `unevictable`, `slab_unreclaimable`, `kernel_stack`, `pagetables`, `sec_pagetables`, `percpu`, `sock`). Do not "simplify" it to `memory.current` or to `memory.stat`'s `kernel` roll-up: on the live pod those read 92% and 42% of the limit while true `U` is 23%, so either substitution makes the watchdog fire permanently on an idle container. Its thresholds are absolute bytes, not percentages, because the page cache a workload needs is a property of the workload rather than of the limit — which also means the 4 GiB memory parameter needs its own numbers, and the script logs a warning when it detects that mismatch.
+- The watchdog never signals anything in the `--type=ptyHost` subtree. Tree membership alone is *not* a safe kill criterion: tmux sessions and agent runs started from a VS Code integrated terminal are descendants of the server tree through ptyHost, so a tree-wide kill would take the operator's work with it. The exclusion is asserted, together with the mutation that must flip it, in `script-memory-watchdog-test.sh`.
 - Adding a package/tool has three possible homes, and picking the wrong one is a real mistake, not a style choice — route by the rule in [DESIGN.md](DESIGN.md#where-the-workspace-environment-comes-from): universal + stable → image (`Dockerfile`); occasionally-needed + apt-only + too heavy to bake in → the template's `system_packages` parameter; personal, fast-moving, or not an apt package → the operator's dotfiles (a *different* repo — see below), never this one.
 - `deployment.tf`'s Deployment `metadata.name` (`local.workload_name` in `main.tf`) is not cosmetic: the cluster's Prometheus resolves pod → ReplicaSet → Deployment via an existing `kube_pod_owner` recording rule and exposes the result as a `workload` label with no other join needed, so whatever this Deployment is named *is* the identity CPU/memory/PSI/OOM metrics get attributed to. Don't revert it to an opaque identifier (e.g. the workspace UUID) without re-breaking that attribution — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions).
 
