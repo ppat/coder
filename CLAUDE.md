@@ -62,7 +62,7 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `terraform.tf` | Provider requirements/versions (Renovate-managed) |
 | `main.tf` | `coder_workspace`/`coder_workspace_owner` data sources, shared labels/path locals |
 | `parameters.tf` | User-facing `coder_parameter` inputs + sanitization locals |
-| `coder-agent.tf` | `coder_agent` resource: startup script, `coder stat` metadata, `resources_monitoring` |
+| `coder-agent.tf` | `coder_agent` resource: startup script, `coder stat` metadata |
 | `deployment.tf` / `configmap.tf` | Kubernetes Pod spec, volumes, ConfigMap |
 | `env.tf` | `coder_env` resources exposed to the agent |
 | `scripts.tf` | `coder_script` resources — the memory watchdog daemon and the weekly `vscode-server` GC schedule |

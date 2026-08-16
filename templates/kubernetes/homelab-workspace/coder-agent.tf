@@ -61,14 +61,4 @@ resource "coder_agent" "main" {
     timeout  = 1
   }
 
-  # A coarse backstop, not the real signal. Coder computes
-  # (memory.current - inactive_file) / memory.max, which is still inflated by
-  # active_file, so the threshold is 95 rather than 90: at 90 this pod would
-  # alert continuously while sitting at 23% unreclaimable and zero PSI.
-  resources_monitoring {
-    memory {
-      enabled   = true
-      threshold = 95
-    }
-  }
 }
