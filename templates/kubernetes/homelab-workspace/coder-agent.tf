@@ -49,4 +49,16 @@ resource "coder_agent" "main" {
     interval = 60
     timeout  = 1
   }
+  metadata {
+    display_name = "Memory Headroom"
+    key          = "6_memory_headroom"
+    # Published by the memory watchdog (see scripts.tf). This is the honest
+    # number: bytes left before something in the pod has to die. "Memory Usage"
+    # above reads ~63% on a pod whose true unreclaimable share is ~23%, because
+    # it counts page cache the kernel will hand straight back.
+    script   = "cat $${HOME}/.local/state/vscode-memory-watchdog/headroom 2>/dev/null || echo '-'"
+    interval = 60
+    timeout  = 1
+  }
+
 }

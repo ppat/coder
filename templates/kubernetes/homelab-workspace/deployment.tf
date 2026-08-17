@@ -132,6 +132,11 @@ resource "kubernetes_deployment_v1" "deployment" {
             sub_path   = "agent_startup_script"
           }
           volume_mount {
+            mount_path = "/memory-watchdog.sh"
+            name       = "coder-scripts"
+            sub_path   = "memory_watchdog_script"
+          }
+          volume_mount {
             mount_path = "/workspace-init.sh"
             name       = "coder-scripts"
             sub_path   = "workspace_init_script"

@@ -1,0 +1,43 @@
+---
+# yamllint disable rule:line-length
+name: test
+
+# Repo-local rather than a reusable workflow because ppat/github-workflows has
+# nothing for "execute a test script" - the shellcheck workflow only lints,
+# and lint.yaml's detect-changes/job-per-linter structure exists to share one
+# change-detection matrix across many linters, which a single test job has no
+# need of. This guards process-selection safety in the memory watchdog (which
+# processes count as the editor's, and which of those may be signalled) via a
+# fixture suite, not a linter, so it does not belong in lint.yaml.
+
+on:
+  pull_request:
+    paths:
+    - .github/workflows/test.yaml
+    - templates/kubernetes/homelab-workspace/script-memory-watchdog*.sh
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+        ref: ${{ github.head_ref || github.ref }}
+
+    - name: Run memory watchdog fixture tests
+      # Exits non-zero when any assertion fails, which is what fails the build.
+      # Needs nothing but bash and a writable TMPDIR: builds its fixtures under
+      # mktemp -d, touches no network, finishes in a couple of seconds.
+      run: ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
