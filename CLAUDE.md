@@ -32,7 +32,7 @@ tflint --config=../../../.tflint.hcl
 
 CI (`.github/workflows/lint.yaml`) runs the same checks per file-type via reusable workflows in `ppat/github-workflows`, scoped to changed files on PRs, or everything on `workflow_dispatch`/schedule.
 
-One job there is not a linter: `watchdog-tests` runs `script-memory-watchdog-test.sh` and fails the build on the first failed assertion. It is repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
+A separate workflow, `.github/workflows/test.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
 
 ```bash
 ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
@@ -75,7 +75,7 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `variables.tf` | `workspace_image`, `test_mode` — both supplied by the release workflow |
 | `script-agent-startup.sh` / `script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
 | `script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). **Defaults to observe-only mode**: it measures and logs, and sets no limits and sends no signals unless the `memory_watchdog_mode` parameter is switched to `enforce` |
-| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's arithmetic and process selection. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog-tests` job in `.github/workflows/lint.yaml` |
+| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's arithmetic and process selection. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test.yaml` |
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
