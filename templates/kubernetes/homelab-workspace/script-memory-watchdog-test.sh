@@ -116,7 +116,12 @@ add_proc() {
   mkdir -p "$d"
   printf '%s (%s) S %s 0 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 0\n' \
     "$pid" "$comm" "$ppid" >"${d}/stat"
-  printf '0 %s 0 0 0 0 0\n' "$((rss / 4096))" >"${d}/statm"
+  # statm: size resident shared text lib data dt. `data` is what RLIMIT_DATA
+  # accounts, and on a real V8 process it is several times resident - see
+  # set_proc_data, and read_rss() in the watchdog for the live measurements.
+  # Defaulting it to resident keeps the fixtures honest about which field is
+  # being read without asserting a relationship that does not hold.
+  printf '0 %s 0 0 0 %s 0\n' "$((rss / 4096))" "$((rss / 4096))" >"${d}/statm"
   cat >"${d}/limits" <<'EOF'
 Limit                     Soft Limit           Hard Limit           Units
 Max data size             unlimited            unlimited            bytes
@@ -126,6 +131,12 @@ EOF
   for arg in "$@"; do
     printf '%s\0' "$arg" >>"${d}/cmdline"
   done
+}
+
+# set_proc_data <procdir> <pid> <rss-bytes> <data-bytes>
+set_proc_data() {
+  local dir=$1 pid=$2 rss=$3 data=$4
+  printf '0 %s 0 0 0 %s 0\n' "$((rss / 4096))" "$((data / 4096))" >"${dir}/${pid}/statm"
 }
 
 # A representative tree, transcribed from `ps -eo pid,ppid,comm,args` on a live
@@ -897,7 +908,7 @@ test_derivation() {
   assert_eq 536870912 "${CEILING[fileWatcher]}" "and floors the small ones rather than shrinking them to nothing"
   local role
   for role in serverMain extensionHost tsserver languageServer fileWatcher; do
-    if ((CEILING[role] < 4294967296)); then
+    if ((${CEILING[$role]} < 4294967296)); then
       ok "4 GiB pod: the ${role} ceiling is inside the pod"
     else
       bad "4 GiB pod: the ${role} ceiling (${CEILING[$role]}) is the whole pod - inert"
@@ -991,6 +1002,194 @@ test_shedding_is_rate_limited() {
 }
 
 # --------------------------------------------------------------------------- #
+# 4d. a ceiling is never a kill order for a healthy process
+#
+# This is a regression test for a defect found by running the derivation against
+# a live 4 GiB workspace rather than against these fixtures. RLIMIT_DATA accounts
+# data_vm, not RSS, and on a V8 process the two differ by roughly an order of
+# magnitude: the live file watcher held 622 MB of data while resident in 66 MB.
+# The derived file-watcher ceiling for that pod was 512 MB - below what the
+# process already had - so enforcing it would have killed a perfectly healthy
+# file watcher on its next allocation, and again on every restart.
+#
+# The numbers below are that measurement, not an invention.
+# --------------------------------------------------------------------------- #
+
+# CEILING_LOGGED is a memo global of the sourced watchdog, cleared here so the
+# second half of the test can observe a fresh proposal.
+# shellcheck disable=SC2034
+test_ceiling_is_never_below_observed_usage() {
+  printf 'a ceiling is never below what the process already holds\n'
+  write_cgroup "${WORK}/cg" 4294967296 0.00
+  local pdir="${WORK}/proc4d"
+  build_tree "$pdir"
+  # Live 4 GiB workspace, at rest, VS Code 1.132: pid 918 fileWatcher and pid
+  # 907 extensionHost.
+  set_proc_data "$pdir" 42 67000000 637184000
+  set_proc_data "$pdir" 41 509220000 1028004000
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir"
+  scan_fixture
+
+  # The case is real only if the derived ceiling really is below observed usage.
+  # Without this the assertion below would pass on a pod where nothing was wrong.
+  if ((CEILING[fileWatcher] < P_DATA[42])); then
+    ok "the derived file-watcher ceiling really is below observed usage on a 4 GiB pod"
+  else
+    bad "the fixture does not reproduce the condition - the test proves nothing"
+  fi
+
+  apply_ceilings
+  local log
+  log="$(cat "${WORK}/state/actions.log")"
+  local line want
+  for pid in 42 41; do
+    line=$(printf '%s\n' "$log" | grep "pid=${pid} " | head -1)
+    want=${line##*rlimit_data=}
+    want=${want%% *}
+    if [[ -n $want ]] && ((want > ${P_DATA[$pid]:-0})); then
+      ok "pid ${pid}: proposed ceiling ${want} is above its observed ${P_DATA[$pid]:-0} bytes of data"
+    else
+      bad "pid ${pid}: proposed ceiling '${want}' would kill it at once (data=${P_DATA[$pid]:-0})"
+    fi
+  done
+
+  # And the growth allowance is the reserve, so the ceiling means "may grow by
+  # this much", not "may be this big".
+  line=$(printf '%s\n' "$log" | grep "pid=42 " | head -1)
+  want=${line##*rlimit_data=}
+  want=${want%% *}
+  assert_eq "$((P_DATA[42] + 2 * C_RESERVE))" "$want" \
+    "the ceiling is observed usage plus two critical reserves"
+
+  # A ceiling that could only be set above memory.max bounds nothing. Saying so
+  # is better than setting it and looking protected.
+  set_proc_data "$pdir" 42 67000000 4000000000
+  read_rss 42
+  : >"${WORK}/state/actions.log"
+  CEILING_LOGGED=()
+  apply_ceilings
+  if [[ "$(cat "${WORK}/state/actions.log")" == *"no-ceiling pid=42"* ]]; then
+    ok "a process already too large to cap is reported, not silently capped"
+  else
+    bad "a process too large to cap was handled silently"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
+# 4e. the sample interval is chosen by rate, not by tier
+#
+# Measured, not supposed. A runaway at the rate seen in production took the test
+# workspace from idle to OOMKilled in 43 seconds while the watchdog ran in
+# enforce mode, never left L0 and logged nothing: at a 10-second idle interval it
+# had four samples in which to satisfy a three-sample debounce and climb three
+# rungs. Tier cannot be the input to the interval, because tier is the lagging
+# indicator of the very thing being raced.
+# --------------------------------------------------------------------------- #
+
+# shellcheck disable=SC2034  # TIME_TO_LIMIT and PREV_TIER are the sourced globals
+test_interval_is_chosen_by_rate() {
+  printf 'the sample interval is chosen by rate\n'
+  write_cgroup "${WORK}/cg" 4294967296 0.00
+  load_watchdog "${WORK}/cg" "${WORK}/proc2"
+
+  TIME_TO_LIMIT=0
+  PREV_TIER=L0
+  assert_eq 10 "$(next_interval)" "an idle pod that is not growing polls slowly"
+
+  PREV_TIER=L1
+  assert_eq 2 "$(next_interval)" "a pod already on the ladder polls faster"
+
+  # 3.96 GiB of headroom disappearing at 91 MB/s - the reproduced production
+  # rate - is 43 seconds from the limit while still reading L0.
+  TIME_TO_LIMIT=43
+  PREV_TIER=L0
+  assert_eq 1 "$(next_interval)" \
+    "but a rate that reaches the limit inside the horizon overrides L0 entirely"
+
+  # The case that must not become chatty: growth so slow it will never matter.
+  TIME_TO_LIMIT=3600
+  PREV_TIER=L0
+  assert_eq 10 "$(next_interval)" "slow growth does not spin the loop up"
+
+  # With a 1-second interval the debounce that could not complete in the live run
+  # completes with time to spare: three samples is three seconds, against the 43
+  # the event took.
+  if ((DEBOUNCE_L1 * 1 < 43 && DEBOUNCE_L3 * 1 < 43)); then
+    ok "at the fast interval the debounces fit inside the observed event"
+  else
+    bad "the debounces still cannot complete inside a 43-second event"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
+# 4f. a stale pidfile does not disarm the watchdog forever
+#
+# Found on the live test workspace, not here. The pod was OOM-killed, the
+# watchdog died by SIGKILL without running its EXIT trap, and its pidfile
+# survived on the NFS-backed home directory. Every restart afterwards logged
+# "another instance is already running" and exited - so the first kill left the
+# pod unwatched from then on, which is the worst possible time for that.
+# --------------------------------------------------------------------------- #
+
+test_singleton_survives_a_hard_kill() {
+  printf 'a stale pidfile does not disarm the watchdog\n'
+  write_cgroup "${WORK}/cg" 4294967296 0.00
+  local pdir="${WORK}/proc4f"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir"
+
+  # A pid from the previous container that no longer exists at all.
+  printf '99999\n' >"${WORK}/state/watchdog.pid"
+  if acquire_singleton; then
+    ok "a pidfile naming a dead process is taken over"
+  else
+    bad "a dead process's pidfile locks the watchdog out"
+  fi
+
+  # A pid that does exist in this container but is something else entirely -
+  # the recycled-pid case, which is the normal case after a restart.
+  printf '44\n' >"${WORK}/state/watchdog.pid"
+  if acquire_singleton; then
+    ok "a pidfile naming an unrelated live process is taken over"
+  else
+    bad "an unrelated process holding a recycled pid locks the watchdog out"
+  fi
+
+  # An empty pidfile - what a truncated or half-written file looks like.
+  : >"${WORK}/state/watchdog.pid"
+  if acquire_singleton; then
+    ok "an empty pidfile is taken over"
+  else
+    bad "an empty pidfile locks the watchdog out"
+  fi
+
+  # And the mutation that must flip it: a live process genuinely running this
+  # script. Without this, the three assertions above would pass equally against a
+  # watchdog with no singleton guard at all.
+  local d="${pdir}/4242"
+  mkdir -p "$d"
+  printf '4242 (bash) S 1 0 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 0\n' >"${d}/stat"
+  printf '/bin/bash\0%s\0' "${SELF_DIR}/script-memory-watchdog.sh" >"${d}/cmdline"
+  printf '4242\n' >"${WORK}/state/watchdog.pid"
+  if acquire_singleton; then
+    bad "a genuinely running watchdog did not stop a second one"
+  else
+    ok "a live process running this same script does hold the lock"
+  fi
+
+  # Releasing must not steal a pidfile owned by someone else.
+  printf '4242\n' >"${WORK}/state/watchdog.pid"
+  release_singleton
+  if [[ -s "${WORK}/state/watchdog.pid" ]]; then
+    ok "releasing leaves another instance's pidfile alone"
+  else
+    bad "releasing removed a pidfile this instance did not own"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
 # 5. observe mode really is inert
 # --------------------------------------------------------------------------- #
 
@@ -1041,6 +1240,9 @@ main() {
   test_tiers
   test_derivation
   test_shedding_is_rate_limited
+  test_ceiling_is_never_below_observed_usage
+  test_interval_is_chosen_by_rate
+  test_singleton_survives_a_hard_kill
   test_observe_mode_is_inert
   printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
   ((FAIL == 0))

@@ -50,8 +50,25 @@ PAGE_SIZE=4096
 
 # Sampling. The interval shortens under pressure so the ladder can outrun a
 # process that allocates a gigabyte in a few seconds.
+#
+# INTERVAL_FAST and FAST_HORIZON exist because the original two-speed scheme was
+# measured against a real event and lost. Reproduced on the test workspace, a
+# runaway growing at the rate seen in production took the pod from idle to
+# OOMKilled in 43 seconds; the watchdog was running in enforce mode throughout,
+# never left L0, and logged no action at all. At a 10-second idle interval it
+# got four samples, and a three-sample debounce cannot complete inside four
+# samples that also have to cross three rungs.
+#
+# The fix is to key the interval on the measured rate rather than on the tier:
+# once dU/dt implies the limit is reachable inside FAST_HORIZON, sample every
+# second, whatever tier the ladder currently believes it is in. Tier is a lagging
+# indicator of exactly the thing being raced. This changes only how often the
+# rules are evaluated, not what they decide - the corroboration and debounce that
+# keep L2 honest are untouched.
 INTERVAL_IDLE="${WATCHDOG_INTERVAL_IDLE:-10}"
 INTERVAL_BUSY="${WATCHDOG_INTERVAL_BUSY:-2}"
+INTERVAL_FAST="${WATCHDOG_INTERVAL_FAST:-1}"
+FAST_HORIZON="${WATCHDOG_FAST_HORIZON:-120}"        # seconds to memory.max
 CALIBRATION_EVERY="${WATCHDOG_CALIBRATION_EVERY:-6}" # cycles between CSV rows
 
 # Tier thresholds, in absolute bytes of headroom H, derived from the pod's own
@@ -182,7 +199,7 @@ MAX_CSV_LINES="${WATCHDOG_MAX_CSV_LINES:-50000}"
 # Scan state. Declared at file scope, not inside main(), so that sourcing the
 # script with WATCHDOG_SOURCE_ONLY=1 gives the test harness correctly-typed
 # globals without having to restate them.
-declare -gA P_COMM=() P_CMD=() P_ARGV0=() P_PPID=() P_RSS=() CHILDREN=()
+declare -gA P_COMM=() P_CMD=() P_ARGV0=() P_PPID=() P_RSS=() P_DATA=() CHILDREN=()
 declare -gA SERVER_TREE=() PROTECTED=() PROTECT_REASON=() WATCHDOG_KIN=()
 declare -ga PIDS=() CANDIDATES=() SERVER_ROOTS=()
 SERVER_PID=""
@@ -195,6 +212,7 @@ PREV_U=0
 PREV_REFAULT=0
 PREV_PGSCAN=0
 CYCLE=0
+TIME_TO_LIMIT=0
 H_MAX_SEEN=0
 H_MIN_SEEN=0
 CALIBRATION_WARNED=0
@@ -355,6 +373,7 @@ read_process_table() {
   P_ARGV0=()
   P_PPID=()
   P_RSS=()
+  P_DATA=()
   CHILDREN=()
 
   local entry pid line rest comm ppid
@@ -390,11 +409,27 @@ read_process_table() {
   return 0
 }
 
+# RSS, and the quantity RLIMIT_DATA actually accounts.
+#
+# These are not interchangeable and the difference is not small. RLIMIT_DATA
+# limits mm->data_vm - private writable anonymous mappings - which for a V8
+# process is dominated by *reserved* address space rather than resident pages.
+# Measured on the live 4 GiB workspace at rest: the extension host was 497 MB
+# resident against 1004 MB of data, the file watcher 66 MB resident against
+# 622 MB of data. A ceiling reasoned about as though it bounded RSS is therefore
+# roughly an order of magnitude tighter than intended, and the first derived
+# ceilings this script produced were *below* what an idle file watcher already
+# held - which would have killed it on its next allocation, every time, forever.
+#
+# statm's sixth field is data_vm + stack_vm, so it overstates by the stack (a few
+# hundred kB here). That is accepted rather than read a second file per process
+# per scan: the allowance added on top is measured in hundreds of megabytes.
 read_rss() {
-  local pid res
+  local pid res data
   for pid in "$@"; do
-    read -r _ res _ <"${PROC_DIR}/${pid}/statm" 2>/dev/null || continue
+    read -r _ res _ _ _ data _ <"${PROC_DIR}/${pid}/statm" 2>/dev/null || continue
     P_RSS[$pid]=$((res * PAGE_SIZE))
+    P_DATA[$pid]=$((data * PAGE_SIZE))
   done
   return 0
 }
@@ -953,7 +988,7 @@ declare -gA CEILING_LOGGED=()
 # proactive mechanism and it must also cover processes spawned while the pod is
 # already under pressure - not only while it is idle.
 apply_ceilings() {
-  local pid want cur
+  local pid want cur floor obs
   local -a f
   for pid in "${!SERVER_TREE[@]}"; do
     role_of "$pid"
@@ -961,6 +996,26 @@ apply_ceilings() {
     [[ -n ${PROTECTED[$pid]:-} ]] && continue
     want=${CEILING[$ROLE]:-}
     [[ -n $want ]] || continue
+
+    # A ceiling must be a growth allowance above what the process already holds,
+    # never an absolute size derived from the pod alone. The derived value says
+    # what the pod can afford; this says what the process demonstrably needs
+    # right now. Taking the larger of the two is what stops a correctly-reasoned
+    # budget from being an instant kill order for a healthy process - see
+    # read_rss() for the measurements that made this necessary.
+    obs=${P_DATA[$pid]:-0}
+    floor=$((obs + 2 * C_RESERVE))
+    ((want < floor)) && want=$floor
+
+    # A ceiling at or above the pod's own limit cannot bound anything, and
+    # setting one would only look like protection. Say so instead.
+    if ((want >= M_MAX)); then
+      if [[ -z ${CEILING_LOGGED[${pid}:inert]:-} ]]; then
+        CEILING_LOGGED[${pid}:inert]=1
+        log_action "no-ceiling pid=${pid} role=${ROLE} data=${obs} would-need=${want} memory.max=${M_MAX} (a cap this size cannot bound anything)"
+      fi
+      continue
+    fi
 
     cur=""
     while read -r -a f; do
@@ -1071,33 +1126,53 @@ shed_load() {
 # atomic O_EXCL create, which is all that is needed here: /usr/bin/flock does
 # exist in the image, but it would only add a fork and a held descriptor to get
 # the same guarantee.
+# Liveness decides, not the existence of a file.
+#
+# The previous version treated a failed O_EXCL create as evidence that another
+# watchdog held the lock, and only then looked at whether the recorded pid was
+# alive. That inverts the reliable test and the unreliable one, and it failed in
+# exactly the situation this daemon exists for: the pod was OOM-killed, the
+# watchdog died by SIGKILL without running its EXIT trap, and the pidfile
+# survived on the NFS-backed home directory. Every restart afterwards logged
+# "another instance is already running" and exited, so the first kill left the
+# pod permanently unwatched - observed on the test workspace, not theorised.
+#
+# The identity check is the script's own path as a whole argv element, not a
+# substring of the command line. A recycled pid in a fresh container would have
+# to be running this same script for the check to match, which is precisely the
+# case where refusing to start is correct.
 acquire_singleton() {
   local pidfile="${STATE_DIR}/watchdog.pid"
-  local other=""
+  local self="${BASH_SOURCE[0]}"
+  local other="" a
   local -a argv=()
 
-  if (
-    set -o noclobber
-    printf '%s\n' "$$" >"$pidfile"
-  ) 2>/dev/null; then
-    return 0
+  if [[ -s $pidfile ]]; then
+    read -r other <"$pidfile" 2>/dev/null
+    if [[ $other =~ ^[0-9]+$ ]] && ((other != $$)) &&
+      [[ -r ${PROC_DIR}/${other}/cmdline ]]; then
+      mapfile -d '' -t argv <"${PROC_DIR}/${other}/cmdline" 2>/dev/null
+      for a in "${argv[@]}"; do
+        [[ $a == "$self" ]] && return 1
+      done
+    fi
   fi
 
+  printf '%s\n' "$$" >"$pidfile" 2>/dev/null || return 1
+  # Two watchdogs started at the same instant would both get this far. Settle it
+  # by reading back who actually owns the file rather than by trusting the write.
+  /usr/bin/sleep 1
   read -r other <"$pidfile" 2>/dev/null
-  if [[ $other =~ ^[0-9]+$ ]] && [[ -r ${PROC_DIR}/${other}/cmdline ]]; then
-    mapfile -d '' -t argv <"${PROC_DIR}/${other}/cmdline" 2>/dev/null
-    [[ "${argv[*]}" == *memory-watchdog* ]] && return 1
-  fi
-
-  rm -f "$pidfile"
-  (
-    set -o noclobber
-    printf '%s\n' "$$" >"$pidfile"
-  ) 2>/dev/null
+  [[ $other == "$$" ]]
 }
 
 release_singleton() {
-  rm -f "${STATE_DIR}/watchdog.pid"
+  local pidfile="${STATE_DIR}/watchdog.pid" owner=""
+  read -r owner <"$pidfile" 2>/dev/null
+  # Never remove a pidfile another instance owns - that would hand the lock to a
+  # third one while the second is still running.
+  [[ $owner == "$$" ]] && rm -f "$pidfile"
+  return 0
 }
 
 # Returns 2 when the cgroup has no memory limit and there is nothing to protect.
@@ -1141,6 +1216,13 @@ scan_once() {
     du_rate=$(((M_U - PREV_U) / dt))
   fi
   local projected=$((M_H - du_rate * PROJECTION_HORIZON))
+
+  # Seconds until U reaches memory.max at the currently observed rate. Zero means
+  # "not growing", and is the normal reading. This is what chooses the next
+  # interval, and it is deliberately a raw single-interval rate rather than a
+  # smoothed one: smoothing is what would hide the only event shape that matters.
+  TIME_TO_LIMIT=0
+  ((du_rate > 0)) && TIME_TO_LIMIT=$((M_H / du_rate))
 
   build_server_tree
   compute_protected
@@ -1192,6 +1274,18 @@ scan_once() {
 # operator should see that before switching enforce on rather than after.
 CALIBRATION_WARMUP="${WATCHDOG_CALIBRATION_WARMUP:-30}" # cycles
 
+# How long to wait before the next scan. Rate first, tier second - see
+# INTERVAL_FAST for the measurement that made that ordering necessary.
+next_interval() {
+  if ((TIME_TO_LIMIT > 0 && TIME_TO_LIMIT < FAST_HORIZON)); then
+    printf '%s' "$INTERVAL_FAST"
+  elif [[ $PREV_TIER == "L0" ]]; then
+    printf '%s' "$INTERVAL_IDLE"
+  else
+    printf '%s' "$INTERVAL_BUSY"
+  fi
+}
+
 check_calibration() {
   ((CALIBRATION_WARNED)) && return 0
   ((CYCLE >= CALIBRATION_WARMUP)) || return 0
@@ -1224,8 +1318,7 @@ main() {
 
     [[ $ONESHOT == "1" ]] && break
 
-    interval=$INTERVAL_IDLE
-    [[ $PREV_TIER == "L0" ]] || interval=$INTERVAL_BUSY
+    interval=$(next_interval)
     /usr/bin/sleep "$interval"
   done
   return 0
