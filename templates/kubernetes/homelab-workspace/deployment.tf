@@ -156,6 +156,10 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "system"
             sub_path   = "var"
           }
+          volume_mount {
+            mount_path = "/tmp"
+            name       = "tmp"
+          }
         }
         enable_service_links = false
         hostname             = local.sanitized_workspace_name
@@ -200,6 +204,40 @@ resource "kubernetes_deployment_v1" "deployment" {
           name = "system"
           empty_dir {
             size_limit = "10Gi"
+          }
+        }
+        # /tmp is scratch space (agent/tool tempfiles, build caches, downloaded
+        # archives) and needs to be fast - it cannot be the NFS-backed "home"
+        # PVC, and it cannot be an empty_dir either, because empty_dir lives on
+        # the node's root filesystem, which is the exact partition this volume
+        # exists to stay off of (single ~125Gi ext4 partition shared by every
+        # pod on the node; container writable layers and empty_dirs all land
+        # there, and it is what the kubelet's disk-pressure eviction threshold
+        # watches). A Kubernetes "generic ephemeral volume" on
+        # sc-longhorn-local-non-replicated-ephemeral instead lands on the same
+        # node's much larger Longhorn-backed partition: still node-local NVMe
+        # (no NFS latency), not replicated (this is scratch data - losing it on
+        # node failure costs nothing, so paying to replicate it would be pure
+        # overhead), and bounded by the size below instead of growing until the
+        # node notices. Its lifecycle matches the Pod's (created fresh, deleted
+        # with it) - like the "system" volume above, that means a Pod restart
+        # gets a clean volume but a container-only restart within a live Pod
+        # does not, which is why script-agent-startup.sh also wipes /tmp's
+        # contents explicitly on every agent start instead of relying on this.
+        volume {
+          name = "tmp"
+          ephemeral {
+            volume_claim_template {
+              spec {
+                access_modes       = ["ReadWriteOnce"]
+                storage_class_name = "sc-longhorn-local-non-replicated-ephemeral"
+                resources {
+                  requests = {
+                    storage = "20Gi"
+                  }
+                }
+              }
+            }
           }
         }
       }
