@@ -6,8 +6,8 @@
 #
 #   ./script-memory-watchdog-test.sh
 #
-# CI runs it too, in the `watchdog-tests` job of .github/workflows/lint.yaml,
-# which fails the build on the first failed assertion. It exists so that the two
+# CI runs it too, in the `watchdog` job of .github/workflows/test.yaml, which
+# fails the build on the first failed assertion. It exists so that the two
 # things in the watchdog that can actually hurt the operator - the
 # unreclaimable-memory arithmetic and the process-selection rules - can be
 # changed with evidence rather than hope.
