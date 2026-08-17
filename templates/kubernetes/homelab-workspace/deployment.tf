@@ -2,7 +2,7 @@ resource "kubernetes_deployment_v1" "deployment" {
   count = data.coder_workspace.me.start_count
 
   metadata {
-    name      = "coder-${data.coder_workspace.me.id}"
+    name      = local.workload_name
     namespace = "coder"
     labels    = merge(local.common_labels, local.pod_labels)
     annotations = {
@@ -153,7 +153,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         enable_service_links = false
-        hostname             = lower(replace(data.coder_workspace.me.name, "/[^a-zA-Z0-9]/", "-"))
+        hostname             = local.sanitized_workspace_name
         node_selector = {
           "kubernetes.io/os"   = "linux"
           "kubernetes.io/arch" = "amd64"
