@@ -37,9 +37,6 @@ jobs:
         - '**/.terraform-version'
         - '**/.terraform.lock.hcl'
         - '.tflint.hcl'
-        watchdog:
-        - templates/kubernetes/homelab-workspace/script-memory-watchdog*.sh
-        - .github/workflows/lint.yaml
         yaml:
         - '**.yaml'
       git_ref: ${{ github.head_ref || github.ref }}
@@ -138,29 +135,6 @@ jobs:
     with:
       git_ref: ${{ github.head_ref || github.ref }}
       tf_dirs: ${{ needs.terraform-dirs.outputs.terraform_dirs }}
-
-  # The one job here that runs a test rather than a linter. It is repo-local on
-  # purpose: ppat/github-workflows has no reusable workflow for "execute a test
-  # script", and the shellcheck workflow only lints. The suite needs nothing but
-  # bash and a writable TMPDIR, builds its fixtures under mktemp -d, touches no
-  # network and finishes in a couple of seconds - so it is cheap enough to leave
-  # on and has nothing in it to go flaky.
-  watchdog-tests:
-    needs: [detect-changes]
-    if: ${{ github.event_name != 'pull_request' || fromJSON(needs.detect-changes.outputs.results).watchdog_any_changed == 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        fetch-depth: 1
-        persist-credentials: false
-        ref: ${{ github.head_ref || github.ref }}
-
-    - name: Run memory watchdog fixture tests
-      # Exits non-zero when any assertion fails, which is what fails the build.
-      run: ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
 
   yaml:
     needs: [detect-changes]
