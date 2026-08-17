@@ -10,11 +10,16 @@
 # reachable without privileged:true. See DESIGN.md. The only remaining strategy
 # is to never reach memory.max, which is what this does from userspace.
 #
-# Dependencies are deliberately tiny, because this runs before (and without) the
-# operator's dotfiles: bash 4.4+, /proc, /sys/fs/cgroup, /usr/bin/sleep, coreutils
-# mv/rm/mkdir, and - in enforce mode only - /usr/bin/prlimit. No brew, no mise, no
-# python3, no flock, no awk. Measurement and process enumeration use bash builtins
-# so a scan forks nothing.
+# Dependencies are deliberately tiny: bash 4.4+, /proc, /sys/fs/cgroup,
+# /usr/bin/sleep, coreutils mv/rm/mkdir, and - in enforce mode only -
+# /usr/bin/prlimit. Measurement and process enumeration use bash builtins, so a
+# scan forks nothing at all; at a 2-second interval under pressure that matters.
+#
+# awk, flock, python3, ps and pgrep do all exist in the base image - an earlier
+# version of this comment claimed otherwise and was wrong. Not using them is a
+# choice (no forks per scan, one language to review), not a constraint. The one
+# real constraint is that the operator's PATH is shadowed by brew, so anything
+# invoked here is called by absolute /usr/bin/... path and never by name.
 #
 # Modes:
 #   observe (default) - measure, publish headroom, log what it *would* have done.
@@ -80,6 +85,11 @@ PROJECTION_HORIZON="${WATCHDOG_PROJECTION_HORIZON:-60}" # seconds
 # NOT AGREED. Enforce mode must not be turned on until these are set from
 # calibration data: too low kills a healthy extension host mid-edit, too high
 # makes the mechanism inert.
+#
+# Every role here is a V8 process, and that is what makes a ceiling a reasonable
+# thing to set: hitting it makes mmap return ENOMEM, V8 raises its own fatal heap
+# OOM, and the editor offers "Restart Extension Host" or silently respawns the
+# language server. `extensionHelper` is deliberately absent - see role_of().
 declare -gA CEILING=(
   [serverMain]=1610612736     # 1.50 GiB
   [extensionHost]=3221225472  # 3.00 GiB
@@ -90,7 +100,7 @@ declare -gA CEILING=(
 
 # Roles L2 is allowed to shed. Each is restarted transparently or on demand by
 # the editor, and none of them holds unsaved user state.
-L2_ROLES=" tsserver languageServer fileWatcher "
+L2_ROLES=" tsserver languageServer fileWatcher extensionHelper "
 
 MAX_LOG_LINES="${WATCHDOG_MAX_LOG_LINES:-20000}"
 MAX_CSV_LINES="${WATCHDOG_MAX_CSV_LINES:-50000}"
@@ -100,7 +110,7 @@ MAX_CSV_LINES="${WATCHDOG_MAX_CSV_LINES:-50000}"
 # globals without having to restate them.
 declare -gA P_COMM=() P_CMD=() P_RSS=() CHILDREN=()
 declare -gA SERVER_TREE=() PROTECTED=()
-declare -ga PIDS=() CANDIDATES=()
+declare -ga PIDS=() CANDIDATES=() SERVER_ROOTS=()
 SERVER_PID=""
 TIER=L0
 ROLE=other
@@ -242,33 +252,74 @@ read_rss() {
 # selection - pure over the tables above; produces sets, takes no action
 # --------------------------------------------------------------------------- #
 
-# Sets SERVER_PID to the pid of the remote server entrypoint, or "".
+# Fills SERVER_ROOTS with every remote-server entrypoint, and sets SERVER_PID to
+# the first of them (used only for logging and the calibration CSV).
 #
-# Matching is on a whole argv element, not on a substring of the joined command
-# line. Anything that merely mentions the path - a grep over the server's log, an
-# editor, a shell running a script that names it - would otherwise be mistaken
-# for the root, and the root is what scopes every subsequent decision. A match
-# whose comm is `node` wins outright; anything else is only a fallback.
-find_server_root() {
-  local pid arg fallback=""
+# Three things about a real server tree that a plausible-looking implementation
+# gets wrong, all three confirmed against a live workspace:
+#
+#  - comm is NOT "node". Every node process in the server tree - server-main.js,
+#    ptyHost, extensionHost, fileWatcher, node-based language servers - reports
+#    comm=MainThread, because V8 renames its main thread with prctl(PR_SET_NAME).
+#    Anything that keys off comm=="node" is keying off a state that never occurs.
+#
+#  - argv[0] is the signal that does hold. VS Code launches the server as
+#    `<server-dir>/node <server-dir>/out/server-main.js ...`, and argv[0] keeps
+#    the interpreter's real path. Requiring it to live under /.vscode-server/ (or,
+#    for a future launcher outside that tree, to be named node) is what keeps a
+#    `cat`, `tail -f` or `grep` over the same path from being elected as the root
+#    of everything the watchdog then decides.
+#
+#  - there can be more than one. `--reconnection-grace-time 28800` keeps a
+#    disconnected server alive for eight hours, and a window on a different commit
+#    gets its own server. Electing one and scoping to it would leave the other
+#    tree not merely unmanaged but unprotected, because the ptyHost excision only
+#    runs inside the tree that was discovered. So every root counts and the
+#    managed tree is the union of their subtrees.
+#
+# Matching is always on a whole argv element, never on a substring of the joined
+# command line.
+find_server_roots() {
+  local pid arg exe
   local -a argv
+  SERVER_ROOTS=()
   SERVER_PID=""
+
   for pid in "${PIDS[@]}"; do
     [[ ${P_CMD[$pid]} == *"/.vscode-server/"*"out/server-main.js"* ]] || continue
     argv=()
     mapfile -d '' -t argv <"${PROC_DIR}/${pid}/cmdline" 2>/dev/null
-    for arg in "${argv[@]}"; do
+    ((${#argv[@]} > 1)) || continue
+    exe=${argv[0]##*/}
+    [[ ${argv[0]} == *"/.vscode-server/"* || $exe == node || $exe == node[0-9]* ]] || continue
+    # From argv[1]: the server path appearing as argv[0] would mean the .js file
+    # is itself being executed as the program, which is not how it is launched.
+    for arg in "${argv[@]:1}"; do
       [[ $arg == *"/.vscode-server/"*"out/server-main.js" ]] || continue
-      if [[ ${P_COMM[$pid]:-} == "node" ]]; then
-        SERVER_PID=$pid
-        return 0
-      fi
-      [[ -n $fallback ]] || fallback=$pid
+      SERVER_ROOTS+=("$pid")
       break
     done
   done
-  [[ -n $fallback ]] || return 1
-  SERVER_PID=$fallback
+
+  ((${#SERVER_ROOTS[@]})) || return 1
+  SERVER_PID=${SERVER_ROOTS[0]}
+  return 0
+}
+
+# Sets SERVER_TREE to the union of every root's descendants, and reads their RSS.
+# Returns 1 when no server is running, leaving SERVER_TREE empty.
+build_server_tree() {
+  local root pid
+  local -A one=()
+  SERVER_TREE=()
+  find_server_roots || return 1
+  for root in "${SERVER_ROOTS[@]}"; do
+    subtree_of "$root" one
+    for pid in "${!one[@]}"; do
+      SERVER_TREE[$pid]=1
+    done
+  done
+  read_rss "${!SERVER_TREE[@]}"
   return 0
 }
 
@@ -298,6 +349,31 @@ subtree_of() {
   return 0
 }
 
+# True when the process is running a binary that VS Code itself shipped, i.e. one
+# under ~/.vscode-server. This is the structural boundary between "a process VS
+# Code started with its own runtime" and "a process that merely happens to sit
+# inside the tree", and it is the primary safety rule of the whole watchdog.
+#
+# A fully provisioned workspace has two unrelated node installations: VS Code's
+# bundled one at ~/.vscode-server/cli/servers/Stable-<commit>/server/node, which
+# arrives with the server download, and mise's on PATH, which is what the
+# operator's repo tooling and Claude Code sessions run on. There is no
+# /usr/bin/node and no node on PATH at all without dotfiles. Every process VS
+# Code spawns - server-main.js, every bootstrap-fork, every node language server,
+# and native helpers like terraform-ls - runs a binary under ~/.vscode-server;
+# nothing the operator runs does.
+#
+# So keying detection on "is this node" by comm, by basename, or by a loose
+# cmdline match would make an agent session indistinguishable from an editor
+# helper, and the watchdog would stamp RLIMIT_DATA on it and shed it at L2/L3 -
+# the exact outcome this design exists to prevent, arriving one layer earlier
+# than the action rules that are meant to prevent it. Path, and only path.
+is_vscode_binary() {
+  local argv0=${P_CMD[$1]:-}
+  argv0=${argv0%% *}
+  [[ $argv0 == *"/.vscode-server/"* ]]
+}
+
 # The never-signal list. Every action consults this directly, so a defect in
 # tree-walking still cannot route around it.
 #
@@ -315,6 +391,10 @@ is_never_signal() {
   coder | claude | chezmoi | sshd | init | systemd) return 0 ;;
   tmux*) return 0 ;;
   esac
+  # Names are a second line of defence, not the first - is_vscode_binary is. They
+  # are also deliberately loose: `*/claude*` will match a path that merely
+  # contains /claude, which over-protects rather than under-protects, and that is
+  # the direction to err in. Nothing here should be load-bearing on its own.
   case "${P_CMD[$pid]:-}" in
   *"coder agent"*) return 0 ;;
   *"/claude"* | "claude" | "claude "*) return 0 ;;
@@ -333,6 +413,14 @@ compute_protected() {
 
   for pid in "${PIDS[@]}"; do
     is_never_signal "$pid" && PROTECTED[$pid]=1
+  done
+
+  # Everything in the tree that is not running a VS Code binary, whatever its
+  # position in it. A Claude Code session spawned by an extension is a child of
+  # the extension host and not of ptyHost, so neither the subtree excision nor
+  # tree membership would save it; its executable path does.
+  for pid in "${!SERVER_TREE[@]}"; do
+    is_vscode_binary "$pid" || PROTECTED[$pid]=1
   done
 
   for pid in "${!SERVER_TREE[@]}"; do
@@ -355,6 +443,8 @@ compute_protected() {
 # direction, whereas over-matching any other role means mis-classifying it.
 role_of() {
   local cmd=" ${P_CMD[$1]:-} "
+  local argv0=${P_CMD[$1]:-}
+  argv0=${argv0%% *}
   case "$cmd" in
   *" --type=ptyHost "* | *"--type=ptyHost"*) ROLE=ptyHost ;;
   *" --type=extensionHost "*) ROLE=extensionHost ;;
@@ -366,7 +456,28 @@ role_of() {
   # keeps the blast radius of a wrong guess to one restartable helper.
   *yaml-language-server* | *jsonServerMain* | *-language-server* | *languageserver*) ROLE=languageServer ;;
   *"out/server-main.js "*) ROLE=serverMain ;;
-  *) ROLE=other ;;
+  *)
+    # Native helpers shipped inside an extension - terraform-ls on the live tree,
+    # and gopls / rust-analyzer / clangd on the same pattern. Keyed on argv[0],
+    # never on the joined command line: a Claude Code session launched by an
+    # extension has the extension's directory all over its arguments while its
+    # executable is mise's node, and matching the arguments would classify it as
+    # a sheddable helper. Checked last, so a node language server - which also
+    # lives under extensions/ but runs VS Code's own node - keeps its role above.
+    #
+    # It gets no RLIMIT_DATA ceiling, on purpose. The argument for a ceiling is
+    # that V8 turns ENOMEM into its own fatal heap OOM and the editor offers a
+    # restart; a Go or Rust runtime turns the same ENOMEM into an abrupt abort
+    # with no editor-side affordance, and there is no measured relationship
+    # between its working set and a number we could pick. It is still restartable
+    # and holds no unsaved state, so it is shed at L2 - a corroborated, debounced
+    # decision to kill a helper - rather than pre-emptively capped on a guess.
+    if [[ $argv0 == *"/.vscode-server/extensions/"* ]]; then
+      ROLE=extensionHelper
+    else
+      ROLE=other
+    fi
+    ;;
   esac
   return 0
 }
@@ -474,8 +585,18 @@ log_action() {
   return 0
 }
 
+# The projected-headroom term goes negative whenever dU/dt is steep enough to
+# exhaust the cgroup inside the horizon - a normal reading, and the one the log
+# most needs to be legible for. Bash division truncates toward zero, so both
+# halves of a negative value come out negative and print as "-27.-79 GiB"; the
+# sign is taken off the front and applied once.
 fmt_gib() {
-  printf '%d.%02d GiB' "$(($1 / GIB))" "$(($1 % GIB * 100 / GIB))"
+  local v=$1 sign=""
+  if ((v < 0)); then
+    sign="-"
+    v=$((-v))
+  fi
+  printf '%s%d.%02d GiB' "$sign" "$((v / GIB))" "$((v % GIB * 100 / GIB))"
 }
 
 publish_headroom() {
@@ -499,6 +620,13 @@ append_calibration() {
   fi
   return 0
 }
+
+# Proposals already written to the log, keyed by pid and value. In enforce mode a
+# ceiling is set once and the process then fails the "needs lowering" test on
+# every later cycle, so it is logged once. In observe mode nothing is ever set,
+# so without this the same handful of lines is appended every cycle - which at a
+# 10-second interval buries the tier transitions the log exists to record.
+declare -gA CEILING_LOGGED=()
 
 # Idempotent: reads the current soft limit and only lowers what is unlimited or
 # above the ceiling. Runs every cycle regardless of tier, because this is the
@@ -529,8 +657,15 @@ apply_ceilings() {
     if [[ $MODE == "enforce" ]]; then
       /usr/bin/prlimit --pid "$pid" --data="${want}:" 2>/dev/null || continue
     fi
+    [[ -n ${CEILING_LOGGED[${pid}:${want}]:-} ]] && continue
+    CEILING_LOGGED[${pid}:${want}]=1
     log_action "ceiling pid=${pid} role=${ROLE} rlimit_data=${want} was=${cur}"
   done
+  # Pids are recycled, so the memo has to be pruned or it grows without bound and
+  # eventually suppresses a proposal for a genuinely new process.
+  if ((${#CEILING_LOGGED[@]} > 512)); then
+    CEILING_LOGGED=()
+  fi
   return 0
 }
 
@@ -592,8 +727,10 @@ shed_load() {
 # --------------------------------------------------------------------------- #
 
 # A coder_script re-runs when the agent restarts without the pod restarting, so
-# two watchdogs are otherwise entirely possible. noclobber gives an atomic O_EXCL
-# create without flock, which is brew-only here.
+# two watchdogs are otherwise entirely possible. `set -o noclobber` gives an
+# atomic O_EXCL create, which is all that is needed here: /usr/bin/flock does
+# exist in the image, but it would only add a fork and a held descriptor to get
+# the same guarantee.
 acquire_singleton() {
   local pidfile="${STATE_DIR}/watchdog.pid"
   local other=""
@@ -649,11 +786,7 @@ scan_once() {
   fi
   local projected=$((M_H - du_rate * PROJECTION_HORIZON))
 
-  SERVER_TREE=()
-  if find_server_root; then
-    subtree_of "$SERVER_PID" SERVER_TREE
-    read_rss "${!SERVER_TREE[@]}"
-  fi
+  build_server_tree
   compute_protected
 
   decide_tier "$M_H" "$M_PSI_CENTI" "$refault_rate" "$projected" "$now"
