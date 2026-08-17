@@ -54,17 +54,47 @@ INTERVAL_IDLE="${WATCHDOG_INTERVAL_IDLE:-10}"
 INTERVAL_BUSY="${WATCHDOG_INTERVAL_BUSY:-2}"
 CALIBRATION_EVERY="${WATCHDOG_CALIBRATION_EVERY:-6}" # cycles between CSV rows
 
-# Tier thresholds, in absolute bytes of headroom H. Absolute rather than a
-# percentage of memory.max, because the page cache a workload needs to make
-# forward progress is a property of the workload, not of the limit.
+# Tier thresholds, in absolute bytes of headroom H, derived from the pod's own
+# memory.max by derive_limits() below. Set any of these in the environment to
+# override the derivation entirely; empty means "derive it".
+T_L1="${WATCHDOG_T_L1:-}"
+T_L2="${WATCHDOG_T_L2:-}"
+T_L3="${WATCHDOG_T_L3:-}"
+T_L4="${WATCHDOG_T_L4:-}"
+
+# The one number the ladder is derived from: the critical reserve C, the amount
+# of headroom below which the next allocation burst can reach memory.max before
+# the next sample can react. T_L4 is C, and the rungs above it are fixed
+# multiples of it.
 #
-# NOTE: unvalidated starting points, derived from role and an 8 GiB budget rather
-# than from measurement. Replacing them with numbers taken from calibration.csv
-# is the entire reason this ships in observe mode first.
-T_L1="${WATCHDOG_T_L1:-3221225472}" # 3.00 GiB
-T_L2="${WATCHDOG_T_L2:-2147483648}" # 2.00 GiB
-T_L3="${WATCHDOG_T_L3:-1342177280}" # 1.25 GiB
-T_L4="${WATCHDOG_T_L4:-805306368}"  # 0.75 GiB
+# Why this is a clamped fraction rather than an absolute constant, having been an
+# absolute constant first. The original argument for absolute bytes was that the
+# page cache a workload needs for forward progress is a property of the workload,
+# not of the container's limit - and that is true, but it only settles what the
+# thresholds *mean*, not what values are available. Headroom is bounded above by
+# memory.max, so on a pod small enough that the fixed floor exceeds the range the
+# pod ever has, an absolute ladder does not become conservative, it becomes
+# permanently tripped and therefore inert: the 4 GiB workspace rests at H = 3.4
+# GiB against a 3.0 GiB L1, which is one editor window away from sitting at L1
+# for the rest of the pod's life. So the fraction scales the ladder to the pod,
+# while:
+#
+#   - the FLOOR expresses reaction time, which really is size-independent. It is
+#     what the sample interval times a plausible allocation rate costs, and no
+#     pod is too small to need it.
+#   - the CAP stops a percentage from scaling into absurdity on a large pod,
+#     which was the correct half of the original objection: a fraction that gave
+#     16 GiB a 4 GiB "critical" reserve would shed with plenty of genuine
+#     headroom left.
+#
+# At 8 GiB this reproduces the hand-tuned ladder it replaces (0.80/1.20/2.00/3.20
+# against 0.75/1.25/2.00/3.00), which is the only calibration point that ever
+# existed; at 4 GiB it gives 0.41/0.61/1.02/1.64, leaving the measured 3.4 GiB
+# resting headroom two thirds of the pod clear of the first rung.
+C_FRACTION_NUM="${WATCHDOG_C_NUM:-1}"
+C_FRACTION_DEN="${WATCHDOG_C_DEN:-10}"
+C_FLOOR="${WATCHDOG_C_FLOOR:-402653184}" # 384 MiB
+C_CAP="${WATCHDOG_C_CAP:-1073741824}"    # 1.00 GiB
 
 # Corroboration is required at L2 only. At L2 we are "at the limit"; PSI and the
 # refault rate are what separate "at the limit and fine" - the normal resting
@@ -76,27 +106,71 @@ T_REFAULT_RATE="${WATCHDOG_T_REFAULT_RATE:-20000}"
 DEBOUNCE_L1="${WATCHDOG_DEBOUNCE_L1:-3}"
 DEBOUNCE_L2="${WATCHDOG_DEBOUNCE_L2:-3}"
 DEBOUNCE_L3="${WATCHDOG_DEBOUNCE_L3:-2}"
-COOLDOWN="${WATCHDOG_COOLDOWN:-180}"
 PROJECTION_HORIZON="${WATCHDOG_PROJECTION_HORIZON:-60}" # seconds
 
-# Soft RLIMIT_DATA ceilings by role, in bytes. Hard limits are never touched, so
-# an inheriting shell restores itself with `ulimit -d unlimited`.
+# How rarely it acts is part of what "working" means here, not a refinement of
+# it. Shedding the editor is the right trade against an oom.group kill that takes
+# every tmux session and every agent with it - but an editor that dies every
+# fifteen minutes gets the watchdog switched off, and a watchdog that is switched
+# off protects nothing. So the ladder is rate-limited by construction rather than
+# by a timer alone:
 #
-# NOT AGREED. Enforce mode must not be turned on until these are set from
-# calibration data: too low kills a healthy extension host mid-edit, too high
-# makes the mechanism inert.
+#   - SETTLE is the minimum gap between any two actions. It exists so the ladder
+#     can see the effect of a kill before deciding it was not enough. It does NOT
+#     hold back a higher rung indefinitely, which the fixed 180s cooldown it
+#     replaces did: that cooldown demoted L3 to L1 for three minutes after an L2
+#     shed, so a fast-growing extension host could not be stopped during exactly
+#     the window when it most needed stopping.
+#
+#   - Each rung then fires at most once per excursion, and an excursion only ends
+#     when headroom recovers above L1. Escalation is unaffected - L2, then L3,
+#     then L4 all remain available as things get worse - but a pod that is simply
+#     too small for its workload sheds one helper and one extension host and then
+#     stops, instead of shedding one every SETTLE seconds forever. If that is not
+#     enough, the answer is a bigger pod, and repeatedly killing the editor is a
+#     worse way of finding that out than the log line that says so.
+SETTLE="${WATCHDOG_SETTLE:-30}"
+
+# A shed has to be worth its disruption. Killing a 40 MiB file watcher frees
+# nothing, restarts a component the operator can notice, and burns the rung that
+# would otherwise have been available later in the same excursion.
+MIN_SHED_RSS="${WATCHDOG_MIN_SHED_RSS:-134217728}" # 128 MiB
+
+# Soft RLIMIT_DATA ceilings by role, as sixteenths of memory.max. Hard limits are
+# never touched, so an inheriting shell restores itself with `ulimit -d
+# unlimited`.
+#
+# These scale for the same reason the ladder does, and it matters more here: a
+# 3 GiB extension-host ceiling on a 4 GiB pod is not conservative, it is inert -
+# the pod dies first. The numerators are the hand-picked 8 GiB values expressed
+# against that pod's limit (1.5, 3.0, 3.5, 1.0, 1.0 GiB), so an 8 GiB workspace
+# gets exactly the ceilings that were reasoned about, and every other size gets
+# the same shape.
+#
+# The floor is what keeps the scaling from turning into a different failure: a
+# ceiling below what a role legitimately needs makes it die doing ordinary work,
+# which is worse than no ceiling because it is constant rather than occasional.
+# The cap keeps a large pod from being handed a ceiling so high that nothing
+# could ever reach it.
 #
 # Every role here is a V8 process, and that is what makes a ceiling a reasonable
 # thing to set: hitting it makes mmap return ENOMEM, V8 raises its own fatal heap
 # OOM, and the editor offers "Restart Extension Host" or silently respawns the
 # language server. `extensionHelper` is deliberately absent - see role_of().
-declare -gA CEILING=(
-  [serverMain]=1610612736     # 1.50 GiB
-  [extensionHost]=3221225472  # 3.00 GiB
-  [tsserver]=3758096384       # 3.50 GiB
-  [languageServer]=1073741824 # 1.00 GiB
-  [fileWatcher]=1073741824    # 1.00 GiB
+declare -gA CEILING_SIXTEENTHS=(
+  [serverMain]=3
+  [extensionHost]=6
+  [tsserver]=7
+  [languageServer]=2
+  [fileWatcher]=2
 )
+CEILING_FLOOR="${WATCHDOG_CEILING_FLOOR:-536870912}" # 512 MiB
+CEILING_CAP="${WATCHDOG_CEILING_CAP:-4294967296}"    # 4.00 GiB
+
+# Filled by derive_limits(). A role may also be pinned outright from the
+# environment - WATCHDOG_CEILING_extensionHost=... - which is how the live
+# demonstration forces a ceiling to bite without editing the script.
+declare -gA CEILING=()
 
 # Roles L2 is allowed to shed. Each is restarted transparently or on demand by
 # the editor, and none of them holds unsaved user state.
@@ -108,18 +182,87 @@ MAX_CSV_LINES="${WATCHDOG_MAX_CSV_LINES:-50000}"
 # Scan state. Declared at file scope, not inside main(), so that sourcing the
 # script with WATCHDOG_SOURCE_ONLY=1 gives the test harness correctly-typed
 # globals without having to restate them.
-declare -gA P_COMM=() P_CMD=() P_RSS=() CHILDREN=()
-declare -gA SERVER_TREE=() PROTECTED=()
+declare -gA P_COMM=() P_CMD=() P_ARGV0=() P_PPID=() P_RSS=() CHILDREN=()
+declare -gA SERVER_TREE=() PROTECTED=() PROTECT_REASON=() WATCHDOG_KIN=()
 declare -ga PIDS=() CANDIDATES=() SERVER_ROOTS=()
 SERVER_PID=""
 TIER=L0
 ROLE=other
+GUARD=""
 PREV_TIER=L0
 PREV_AT=0
 PREV_U=0
 PREV_REFAULT=0
 PREV_PGSCAN=0
 CYCLE=0
+H_MAX_SEEN=0
+H_MIN_SEEN=0
+CALIBRATION_WARNED=0
+C_RESERVE=0
+TOO_SMALL=0
+M_MAX=0
+STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
+
+# How often each rung has acted since the watchdog started, and when it last did.
+# Published in the summary file every cycle - in observe mode too, where it is
+# the count of sheds enforce mode *would* have performed. That number is what
+# says whether enforce mode is tolerable on a live workspace, and it can be had
+# without ever signalling anything.
+declare -gA ACTIONS=([L2]=0 [L3]=0 [L4]=0)
+declare -gA RUNG_FIRED=()
+EXCURSIONS=0
+IN_EXCURSION=0
+
+# --------------------------------------------------------------------------- #
+# derivation - one pure function of memory.max; no state, no I/O
+# --------------------------------------------------------------------------- #
+
+clamp() {
+  local v=$1 lo=$2 hi=$3
+  ((v < lo)) && v=$lo
+  ((v > hi)) && v=$hi
+  printf '%s' "$v"
+}
+
+# Sets T_L1..T_L4 and CEILING from memory.max. Anything already set from the
+# environment is left alone, so a single role or a single rung can be pinned for
+# an experiment without replacing the derivation.
+derive_limits() {
+  local max=$1 role c
+
+  c=$(clamp $((max * C_FRACTION_NUM / C_FRACTION_DEN)) "$C_FLOOR" "$C_CAP")
+  C_RESERVE=$c
+  : "${T_L4:=$c}"
+  : "${T_L3:=$((c * 3 / 2))}"
+  : "${T_L2:=$((c * 5 / 2))}"
+  : "${T_L1:=$((c * 4))}"
+
+  # Inversion: what pod size makes this formula harmful rather than imprecise?
+  # A small enough one. The floor is a reaction-time budget and cannot shrink
+  # with the pod, so below roughly 3 GiB the top of the ladder approaches
+  # memory.max and the pod is inside the shedding tiers from the moment it boots
+  # - which would mean killing the editor continuously, the one outcome that
+  # reliably gets a watchdog switched off for good. There is no threshold that
+  # fixes this, because the pod genuinely has no runway; the honest response is
+  # to say so and refuse to act. The workspace offers 4 and 8 GiB, both of which
+  # clear this comfortably, so this is a guard against a future option rather
+  # than a live case.
+  TOO_SMALL=0
+  ((T_L1 * 2 > max)) && TOO_SMALL=1
+
+  local var
+  for role in "${!CEILING_SIXTEENTHS[@]}"; do
+    # An explicit WATCHDOG_CEILING_<role> wins over the derivation.
+    var="WATCHDOG_CEILING_${role}"
+    if [[ -n ${!var:-} ]]; then
+      CEILING[$role]=${!var}
+      continue
+    fi
+    CEILING[$role]=$(clamp \
+      $((max * CEILING_SIXTEENTHS[$role] / 16)) "$CEILING_FLOOR" "$CEILING_CAP")
+  done
+  return 0
+}
 
 # --------------------------------------------------------------------------- #
 # measurement - reads only, sets M_*/P_* globals, decides nothing
@@ -209,6 +352,8 @@ read_process_table() {
   PIDS=()
   P_COMM=()
   P_CMD=()
+  P_ARGV0=()
+  P_PPID=()
   P_RSS=()
   CHILDREN=()
 
@@ -234,6 +379,12 @@ read_process_table() {
     PIDS+=("$pid")
     P_COMM[$pid]=$comm
     P_CMD[$pid]="${argv[*]}"
+    # argv[0] is kept as its own field rather than recovered later by cutting
+    # P_CMD at the first space, which is wrong for any executable path
+    # containing one, and which is precisely the kind of "close enough" string
+    # handling this script has already been bitten by.
+    P_ARGV0[$pid]="${argv[0]:-}"
+    P_PPID[$pid]=$ppid
     CHILDREN[$ppid]+=" $pid"
   done
   return 0
@@ -369,50 +520,126 @@ subtree_of() {
 # the exact outcome this design exists to prevent, arriving one layer earlier
 # than the action rules that are meant to prevent it. Path, and only path.
 is_vscode_binary() {
-  local argv0=${P_CMD[$1]:-}
-  argv0=${argv0%% *}
-  [[ $argv0 == *"/.vscode-server/"* ]]
+  [[ ${P_ARGV0[$1]:-} == *"/.vscode-server/"* ]]
 }
 
-# The never-signal list. Every action consults this directly, so a defect in
-# tree-walking still cannot route around it.
+# The watchdog's own process, everything that started it, and everything it
+# started. Structural, by pid: this replaces a `*memory-watchdog*` cmdline match
+# that once protected every process in a test harness because the harness lived
+# in a directory whose path contained that string. Two full runs of that harness
+# looked clean while exercising nothing. Identity is a thing you know about
+# yourself, not a thing you pattern-match out of other processes' arguments.
+compute_watchdog_kin() {
+  WATCHDOG_KIN=()
+  local cur=$$ hops=0 p
+  local -A mine=()
+  subtree_of "$$" mine
+  for p in "${!mine[@]}"; do
+    WATCHDOG_KIN[$p]=self
+  done
+  # Ancestors. Bounded, because a corrupt or racing ppid chain must not spin.
+  while ((cur > 1 && hops < 64)); do
+    cur=${P_PPID[$cur]:-0}
+    ((cur > 1)) || break
+    WATCHDOG_KIN[$cur]=ancestor
+    ((hops += 1))
+  done
+  return 0
+}
+
+# True when an argv element names one of the operator's own programs. This is
+# the one guard that has to look at arguments rather than at argv[0], because the
+# case it exists for is a payload run by somebody else's interpreter: an agent
+# session that an extension spawned as `<vscode>/node .../claude-code/cli.js`
+# has VS Code's binary at argv[0] and is not under ptyHost, so neither of the
+# structural rules reaches it.
 #
-# Tree membership is NOT a safe kill criterion: tmux sessions and long-running
-# agents started from a VS Code integrated terminal are descendants of the server
-# tree via ptyHost. Errors here are one-directional by design - refusing to
-# signal something that could safely have been signalled costs nothing.
-is_never_signal() {
-  local pid=$1
-  ((pid <= 1)) && return 0
-  ((pid == $$)) && return 0
-  ((pid == BASHPID)) && return 0
-  ((pid == PPID)) && return 0
-  case "${P_COMM[$pid]:-}" in
-  coder | claude | chezmoi | sshd | init | systemd) return 0 ;;
-  tmux*) return 0 ;;
-  esac
-  # Names are a second line of defence, not the first - is_vscode_binary is. They
-  # are also deliberately loose: `*/claude*` will match a path that merely
-  # contains /claude, which over-protects rather than under-protects, and that is
-  # the direction to err in. Nothing here should be load-bearing on its own.
-  case "${P_CMD[$pid]:-}" in
-  *"coder agent"*) return 0 ;;
-  *"/claude"* | "claude" | "claude "*) return 0 ;;
-  *chezmoi*) return 0 ;;
-  *memory-watchdog*) return 0 ;;
-  esac
+# Matching is on whole path segments, never on a raw substring. Substrings are
+# what made `*/claude*` protect an unrelated process whose scratchpad path
+# happened to contain /claude: the segment there was `claude-10001`, which is not
+# the program and does not match. The cost of being wrong is asymmetric but not
+# free in either direction - over-matching protects something that could have
+# been shed, which quietly turns the mechanism off, and that is exactly how the
+# harness bug hid.
+is_operator_payload() {
+  local tok seg
+  for tok in ${P_CMD[$1]:-}; do
+    tok=${tok%/}
+    seg=${tok##*/}
+    case "$seg" in
+    claude | tmux | chezmoi) return 0 ;;
+    esac
+    case "/${tok}/" in
+    */claude-code/* | */claude-code-*/*) return 0 ;;
+    esac
+  done
   return 1
 }
 
-# Everything the watchdog must never touch: the never-signal names anywhere in
-# the pod, plus every ptyHost fork inside the server tree and all its descendants.
+# The never-signal list. Every action consults this directly, so a defect in
+# tree-walking still cannot route around it. Sets GUARD to the rule that fired,
+# so that a protection can be reported rather than merely happening.
+#
+# Tree membership is NOT a safe kill criterion: tmux sessions and long-running
+# agents started from a VS Code integrated terminal are descendants of the server
+# tree via ptyHost. The rules below are ordered cheapest and most certain first;
+# each of them is asserted, and asserted to be individually reachable, by
+# script-memory-watchdog-test.sh.
+is_never_signal() {
+  local pid=$1
+  GUARD=""
+  ((pid <= 1)) && GUARD=pid1 && return 0
+  ((pid == $$)) && GUARD=self && return 0
+  ((pid == BASHPID)) && GUARD=self && return 0
+  ((pid == PPID)) && GUARD=self && return 0
+  if [[ -n ${WATCHDOG_KIN[$pid]:-} ]]; then
+    GUARD=watchdog-${WATCHDOG_KIN[$pid]}
+    return 0
+  fi
+  case "${P_COMM[$pid]:-}" in
+  coder | claude | chezmoi | sshd | screen | init | systemd)
+    GUARD="comm"
+    return 0
+    ;;
+  tmux*)
+    GUARD="comm"
+    return 0
+    ;;
+  esac
+  # argv[0]'s basename, i.e. the program actually being executed - the same
+  # question is_vscode_binary asks, asked of the other side. `/home/coder/...`
+  # appears in nearly every command line in this pod, so a rule that looked
+  # anywhere but argv[0] for the name `coder` would protect the entire pod.
+  case "${P_ARGV0[$pid]:-}" in
+  */coder | coder | */chezmoi | chezmoi | */tmux | tmux | */claude | claude)
+    GUARD=argv0
+    return 0
+    ;;
+  esac
+  if is_operator_payload "$pid"; then
+    GUARD=payload
+    return 0
+  fi
+  return 1
+}
+
+# Everything the watchdog must never touch: the never-signal rules anywhere in
+# the pod, plus every ptyHost fork inside the server tree and all its
+# descendants. PROTECT_REASON records which rule claimed each pid, which is what
+# makes an over-broad guard visible instead of silently inert.
 compute_protected() {
   PROTECTED=()
+  PROTECT_REASON=()
   local pid p
   local -A pty=()
 
+  compute_watchdog_kin
+
   for pid in "${PIDS[@]}"; do
-    is_never_signal "$pid" && PROTECTED[$pid]=1
+    if is_never_signal "$pid"; then
+      PROTECTED[$pid]=1
+      PROTECT_REASON[$pid]=$GUARD
+    fi
   done
 
   # Everything in the tree that is not running a VS Code binary, whatever its
@@ -420,7 +647,10 @@ compute_protected() {
   # the extension host and not of ptyHost, so neither the subtree excision nor
   # tree membership would save it; its executable path does.
   for pid in "${!SERVER_TREE[@]}"; do
-    is_vscode_binary "$pid" || PROTECTED[$pid]=1
+    if ! is_vscode_binary "$pid"; then
+      PROTECTED[$pid]=1
+      PROTECT_REASON[$pid]=${PROTECT_REASON[$pid]:-foreign-binary}
+    fi
   done
 
   for pid in "${!SERVER_TREE[@]}"; do
@@ -428,6 +658,7 @@ compute_protected() {
       subtree_of "$pid" pty
       for p in "${!pty[@]}"; do
         PROTECTED[$p]=1
+        PROTECT_REASON[$p]=${PROTECT_REASON[$p]:-ptyhost}
       done
     fi
   done
@@ -443,8 +674,7 @@ compute_protected() {
 # direction, whereas over-matching any other role means mis-classifying it.
 role_of() {
   local cmd=" ${P_CMD[$1]:-} "
-  local argv0=${P_CMD[$1]:-}
-  argv0=${argv0%% *}
+  local argv0=${P_ARGV0[$1]:-}
   case "$cmd" in
   *" --type=ptyHost "* | *"--type=ptyHost"*) ROLE=ptyHost ;;
   *" --type=extensionHost "*) ROLE=extensionHost ;;
@@ -526,42 +756,73 @@ C_L1=0
 C_L2=0
 C_L3=0
 LAST_ACTION_AT=0
+SUPPRESSED=""
 
 # Sets TIER. Called in the current shell, never in a command substitution - the
 # debounce counters are state and a subshell would silently discard them.
+#
+# SUPPRESSED records why an acting tier was demoted, so that "the ladder reached
+# L3 and nothing happened" is always accompanied by the reason. It is not
+# decoration: the one class of bug this watchdog has repeatedly produced is a
+# state that looks correct because the evidence of its being wrong is absent.
 decide_tier() {
   local h=$1 psi=$2 refault=$3 proj=$4 now=$5
+  local want
+  SUPPRESSED=""
 
   if ((h < T_L1)); then ((C_L1 += 1)); else C_L1=0; fi
   if ((h < T_L2)); then ((C_L2 += 1)); else C_L2=0; fi
   if ((h < T_L3)); then ((C_L3 += 1)); else C_L3=0; fi
+
+  # Excursion tracking. An excursion opens the first time headroom falls below
+  # L1 and closes when it comes back above it; the rung-fired flags live for
+  # exactly that long. Recovery is what re-arms the ladder, not the passage of
+  # time, because time passing does not mean the pressure went away.
+  if ((h < T_L1)); then
+    if ((IN_EXCURSION == 0)); then
+      IN_EXCURSION=1
+      ((EXCURSIONS += 1))
+      RUNG_FIRED=()
+    fi
+  elif ((IN_EXCURSION == 1)); then
+    IN_EXCURSION=0
+    RUNG_FIRED=()
+  fi
 
   if ((h < T_L4)); then
     TIER=L4
     return 0
   fi
 
-  TIER=L0
+  want=L0
   if ((C_L3 >= DEBOUNCE_L3)); then
-    TIER=L3
+    want=L3
   elif ((C_L2 >= DEBOUNCE_L2)) &&
     { ((psi >= T_PSI_CENTI)) || ((refault >= T_REFAULT_RATE)); }; then
-    TIER=L2
+    want=L2
   elif ((C_L1 >= DEBOUNCE_L1)); then
-    TIER=L1
+    want=L1
   fi
 
   # Projection. Armed only once headroom is already below L1, so a momentary
   # allocation spike from an idle state cannot vault the ladder.
-  if [[ $TIER != "L0" ]] && ((proj < T_L4)); then
-    TIER=L3
+  if [[ $want != "L0" ]] && ((proj < T_L4)); then
+    want=L3
   fi
 
-  # Cooldown applies to the acting tiers only. L4 is exempt because by then the
-  # alternative to acting is an oom.group kill of everything in the pod.
-  if [[ $TIER == "L2" || $TIER == "L3" ]] && ((now - LAST_ACTION_AT < COOLDOWN)); then
-    TIER=L1
+  # Rate limiting, in two independent parts - see SETTLE above for why the
+  # single 180s cooldown they replace was worse than either.
+  if [[ $want == "L2" || $want == "L3" ]]; then
+    if ((LAST_ACTION_AT > 0)) && ((now - LAST_ACTION_AT < SETTLE)); then
+      SUPPRESSED="settling(${want})"
+      want=L1
+    elif [[ -n ${RUNG_FIRED[$want]:-} ]]; then
+      SUPPRESSED="already-fired-this-excursion(${want})"
+      want=L1
+    fi
   fi
+
+  TIER=$want
   return 0
 }
 
@@ -605,12 +866,71 @@ publish_headroom() {
   return 0
 }
 
+# How many processes the current scan found, how many of them the guards claimed,
+# and - the number that matters - how many remain eligible to be signalled at
+# all. A managed tree with zero eligible processes is the signature of a guard
+# that has swallowed everything, and it is worth more than any assertion about a
+# particular pid because it does not depend on knowing which pid to ask about.
+census_line() {
+  local pid role protected=0 eligible=0 pty_n=0
+  for pid in "${!SERVER_TREE[@]}"; do
+    if [[ -n ${PROTECTED[$pid]:-} ]]; then
+      ((protected += 1))
+      [[ ${PROTECT_REASON[$pid]:-} == "ptyhost" ]] && ((pty_n += 1))
+      continue
+    fi
+    role_of "$pid"
+    [[ $ROLE == "ptyHost" ]] && continue
+    ((eligible += 1))
+  done
+  printf 'tree=%d protected=%d ptyhost=%d eligible=%d' \
+    "${#SERVER_TREE[@]}" "$protected" "$pty_n" "$eligible"
+}
+
+# The question "would enforce mode have been tolerable to live with?" answered
+# from observe mode, where it costs nothing to ask. Sheds per hour of uptime is
+# the number that decides whether the operator turns this on and leaves it on -
+# a watchdog that is switched off protects nothing, however correct each of its
+# individual decisions was.
+publish_summary() {
+  local now=$1 h=$2 tier=$3
+  local up=$((now - STARTED_AT))
+  ((up > 0)) || up=1
+  local total=$((${ACTIONS[L2]:-0} + ${ACTIONS[L3]:-0} + ${ACTIONS[L4]:-0}))
+  {
+    printf 'mode=%s uptime_s=%d tier=%s\n' "$MODE" "$up" "$tier"
+    printf 'h=%s h_min=%s h_max=%s\n' \
+      "$(fmt_gib "$h")" "$(fmt_gib "$H_MIN_SEEN")" "$(fmt_gib "$H_MAX_SEEN")"
+    printf 'thresholds l1=%s l2=%s l3=%s l4=%s (reserve=%s of memory.max=%s)\n' \
+      "$(fmt_gib "$T_L1")" "$(fmt_gib "$T_L2")" "$(fmt_gib "$T_L3")" \
+      "$(fmt_gib "$T_L4")" "$(fmt_gib "$C_RESERVE")" "$(fmt_gib "$M_MAX")"
+    printf 'excursions=%d sheds l2=%d l3=%d l4=%d total=%d\n' \
+      "$EXCURSIONS" "${ACTIONS[L2]:-0}" "${ACTIONS[L3]:-0}" "${ACTIONS[L4]:-0}" "$total"
+    # Per day rather than per hour: the operator's question is "not every 15
+    # minutes", and an hourly rate computed over a few minutes of uptime reads
+    # as a huge number for one event.
+    printf 'shed_rate_per_day=%d.%02d\n' \
+      "$((total * 86400 / up))" "$((total * 86400 * 100 / up % 100))"
+    printf '%s\n' "$(census_line)"
+  } >"${STATE_DIR}/summary.tmp" &&
+    mv -f "${STATE_DIR}/summary.tmp" "${STATE_DIR}/summary"
+  return 0
+}
+
+CSV_HEADER="ts,mem_max,mem_current,u,h,anon,shmem,unevictable,slab_unreclaimable,slab_reclaimable,kernel_stack,pagetables,sec_pagetables,percpu,sock,file,psi_full_avg10_centi,refault_file_per_s,pgscan_direct_per_s,tier,server_pid,tree_procs,tree_rss,protected,eligible,t_l1,t_l4"
+
 append_calibration() {
-  local csv="${STATE_DIR}/calibration.csv"
+  local csv="${STATE_DIR}/calibration.csv" first=""
+  if [[ -s $csv ]]; then
+    # A file written by an earlier version has fewer columns, and appending to it
+    # would produce one CSV that is silently two different schemas. Rotate it.
+    read -r first <"$csv" 2>/dev/null
+    if [[ $first != "$CSV_HEADER" ]]; then
+      mv -f "$csv" "${csv}.1" 2>/dev/null
+    fi
+  fi
   if [[ ! -s $csv ]]; then
-    printf '%s\n' \
-      "ts,mem_max,mem_current,u,h,anon,shmem,unevictable,slab_unreclaimable,slab_reclaimable,kernel_stack,pagetables,sec_pagetables,percpu,sock,file,psi_full_avg10_centi,refault_file_per_s,pgscan_direct_per_s,tier,server_pid,tree_procs,tree_rss" \
-      >"$csv"
+    printf '%s\n' "$CSV_HEADER" >"$csv"
   fi
   printf '%s\n' "$*" >>"$csv"
   ((CSV_LINES += 1))
@@ -689,13 +1009,29 @@ shed_load() {
   local -a targets=()
 
   select_candidates "$tier"
-  ((${#CANDIDATES[@]})) || return 0
+
+  # An acting tier that signals nothing is the exact shape of the bug that hid a
+  # broken guard through two clean-looking test runs: enforce mode logged
+  # tier=L3 with no signal and no REFUSED line, a state the code is otherwise
+  # supposed to make impossible. It is now impossible for a different reason -
+  # every path out of here says something.
+  if ((${#CANDIDATES[@]} == 0)); then
+    log_action "no-candidates tier=${tier} $(census_line)"
+    return 0
+  fi
 
   for row in "${CANDIDATES[@]}"; do
     rss=${row%% *}
     pid=${row#* }
     role=${pid#* }
     pid=${pid%% *}
+    # Below L4, a shed has to pay for itself. Killing something small does not
+    # move headroom, and it spends the rung as surely as killing something big
+    # would - see MIN_SHED_RSS. At L4 the tree is going down regardless.
+    if [[ $tier != "L4" ]] && ((rss < MIN_SHED_RSS)); then
+      log_action "no-worthwhile-candidate tier=${tier} best=${pid} role=${role} rss=${rss} min=${MIN_SHED_RSS}"
+      break
+    fi
     if signal_pid TERM "$pid" "${tier} ${role} rss=${rss}"; then
       acted=1
       targets+=("$pid")
@@ -718,7 +1054,11 @@ shed_load() {
     done
   fi
 
-  ((acted)) && LAST_ACTION_AT=$now
+  if ((acted)); then
+    LAST_ACTION_AT=$now
+    RUNG_FIRED[$tier]=1
+    ACTIONS[$tier]=$((${ACTIONS[$tier]:-0} + 1))
+  fi
   return 0
 }
 
@@ -771,8 +1111,24 @@ scan_once() {
     return 2
   fi
   ((rc == 0)) || return 1
+  # Derived once, from the pod's own limit, on the first successful read.
+  if [[ -z $T_L4 ]]; then
+    derive_limits "$M_MAX"
+    log_action "derived memory.max=$(fmt_gib "$M_MAX") reserve=$(fmt_gib "$C_RESERVE") ladder L1=$(fmt_gib "$T_L1") L2=$(fmt_gib "$T_L2") L3=$(fmt_gib "$T_L3") L4=$(fmt_gib "$T_L4")"
+    local r
+    for r in serverMain extensionHost tsserver languageServer fileWatcher; do
+      log_action "derived ceiling role=${r} rlimit_data=$(fmt_gib "${CEILING[$r]}")"
+    done
+    if ((TOO_SMALL)) && [[ $MODE == "enforce" ]]; then
+      MODE=observe
+      log_action "WARNING memory.max=$(fmt_gib "$M_MAX") leaves no room above L1=$(fmt_gib "$T_L1"); a pod this size would sit in the shedding tiers permanently, so enforce mode is refused and this run is observe-only"
+    fi
+  fi
   read_cgroup_pressure
   read_process_table
+
+  ((M_H > H_MAX_SEEN)) && H_MAX_SEEN=$M_H
+  ((H_MIN_SEEN == 0 || M_H < H_MIN_SEEN)) && H_MIN_SEEN=$M_H
 
   # Rates. Elapsed time is tracked explicitly because the sample interval is
   # adaptive, so a fixed denominator would be wrong exactly when it matters.
@@ -797,14 +1153,22 @@ scan_once() {
     tree_rss=$((tree_rss + ${P_RSS[$pid]:-0}))
   done
 
+  local census
+  census="$(census_line)"
+  local n_protected=${census#*protected=}
+  n_protected=${n_protected%% *}
+  local n_eligible=${census##*eligible=}
+
   if ((CYCLE % CALIBRATION_EVERY == 0)); then
-    append_calibration "${now},${M_MAX},${M_CURRENT},${M_U},${M_H},${M_ANON},${M_SHMEM},${M_UNEVICTABLE},${M_SLAB_UNRECLAIMABLE},${M_SLAB_RECLAIMABLE},${M_KERNEL_STACK},${M_PAGETABLES},${M_SEC_PAGETABLES},${M_PERCPU},${M_SOCK},${M_FILE},${M_PSI_CENTI},${refault_rate},${pgscan_rate},${TIER},${SERVER_PID:--},${#SERVER_TREE[@]},${tree_rss}"
+    append_calibration "${now},${M_MAX},${M_CURRENT},${M_U},${M_H},${M_ANON},${M_SHMEM},${M_UNEVICTABLE},${M_SLAB_UNRECLAIMABLE},${M_SLAB_RECLAIMABLE},${M_KERNEL_STACK},${M_PAGETABLES},${M_SEC_PAGETABLES},${M_PERCPU},${M_SOCK},${M_FILE},${M_PSI_CENTI},${refault_rate},${pgscan_rate},${TIER},${SERVER_PID:--},${#SERVER_TREE[@]},${tree_rss},${n_protected},${n_eligible},${T_L1},${T_L4}"
   fi
 
   [[ -n $SERVER_PID ]] && apply_ceilings
+  publish_summary "$now" "$M_H" "$TIER"
+  check_calibration
 
   if [[ $TIER != "L0" && $TIER != "$PREV_TIER" ]]; then
-    log_action "tier=${TIER} h=$(fmt_gib "$M_H") u=$(fmt_gib "$M_U") psi_full10=${M_PSI_CENTI} refault/s=${refault_rate} dU/s=${du_rate} projected=$(fmt_gib "$projected") tree=${#SERVER_TREE[@]}"
+    log_action "tier=${TIER} h=$(fmt_gib "$M_H") u=$(fmt_gib "$M_U") psi_full10=${M_PSI_CENTI} refault/s=${refault_rate} dU/s=${du_rate} projected=$(fmt_gib "$projected") ${census}${SUPPRESSED:+ suppressed=${SUPPRESSED}}"
   fi
 
   case "$TIER" in
@@ -819,16 +1183,22 @@ scan_once() {
   return 0
 }
 
-warn_if_thresholds_oversized() {
-  local raw=""
-  read -r raw <"${CGROUP_DIR}/memory.max" 2>/dev/null
-  [[ $raw =~ ^[0-9]+$ ]] || return 0
-  # An 8 GiB pod rests at U ~1.9 GiB and so has ~6 GiB of headroom. A 4 GiB pod
-  # has ~2 GiB and would sit permanently at L1/L2 against these absolute
-  # thresholds. That is a calibration problem, not something to paper over with a
-  # clamp, so say it once, loudly, in the log the operator will actually read.
-  ((T_L1 * 2 > raw)) &&
-    log_action "WARNING memory.max=${raw} is small relative to T_L1=${T_L1}; the ladder will sit low permanently - recalibrate before enabling enforce mode"
+# The previous version of this check compared T_L1 against memory.max and warned
+# when the ratio looked wrong - a hardcoded rule about hardcoded numbers, which
+# could only ever restate the assumption it was meant to test. Now that the
+# ladder is derived, the honest check is the observation itself: has this pod, in
+# its own life, ever had enough headroom to sit above the first rung? If not, the
+# derivation is wrong for this workload whatever the arithmetic says, and the
+# operator should see that before switching enforce on rather than after.
+CALIBRATION_WARMUP="${WATCHDOG_CALIBRATION_WARMUP:-30}" # cycles
+
+check_calibration() {
+  ((CALIBRATION_WARNED)) && return 0
+  ((CYCLE >= CALIBRATION_WARMUP)) || return 0
+  CALIBRATION_WARNED=1
+  if ((H_MAX_SEEN < T_L1)); then
+    log_action "WARNING best headroom seen since start is $(fmt_gib "$H_MAX_SEEN"), below L1=$(fmt_gib "$T_L1") on memory.max=$(fmt_gib "$M_MAX") - this pod never leaves the ladder, so recalibrate or resize before enabling enforce mode"
+  fi
   return 0
 }
 
@@ -842,10 +1212,10 @@ main() {
   trap 'release_singleton; exit 0' HUP INT TERM
   trap release_singleton EXIT
 
-  log_action "started mode=${MODE} pid=$$ cgroup=${CGROUP_DIR} thresholds L1=${T_L1} L2=${T_L2} L3=${T_L3} L4=${T_L4}"
-  warn_if_thresholds_oversized
-
   local now interval
+  STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
+  log_action "started mode=${MODE} pid=$$ cgroup=${CGROUP_DIR}"
+
   while :; do
     now=${WATCHDOG_NOW:-$EPOCHSECONDS}
     scan_once "$now"
