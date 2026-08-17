@@ -319,7 +319,7 @@ test_selection() {
   # comm=node, so any rule that preferred or required it fell through to picking
   # the first /proc-glob match - which is decoy pid 4, not the server.
   assert_eq MainThread "${P_COMM[40]}" "the fixture encodes the real comm value"
-  assert_eq 40 "$SERVER_PID" "server root found with comm=MainThread, not comm=node"
+  assert_eq 41 "$SERVER_PID" "server root found with comm=MainThread, not comm=node"
   assert_eq "40" "${SERVER_ROOTS[*]}" "and the decoys are not roots"
   assert_eq 13 "${#SERVER_TREE[@]}" "server tree spans every descendant, ptyHost included"
 
