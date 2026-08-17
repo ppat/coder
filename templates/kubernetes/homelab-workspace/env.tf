@@ -8,13 +8,15 @@ resource "coder_env" "welcome_message" {
 # headroom and logs what it would have done; "enforce" additionally sets
 # RLIMIT_DATA ceilings and sheds load.
 #
-# Deliberately left at "observe". The ceilings and tier thresholds in
-# script-memory-watchdog.sh were derived from role and an 8 GiB budget, not from
-# measurement - too low kills a healthy extension host mid-edit, too high makes
-# the mechanism inert. Flip this only once the numbers have been set from the
-# calibration data the watchdog is collecting.
+# Set from a mutable workspace parameter rather than hardcoded here, because the
+# right value is a per-workspace judgement: the tier thresholds are absolute
+# bytes sized for an 8 GiB pod, so the same setting that is right there sits
+# permanently near L1 on a 4 GiB one. It defaults to "observe" and should stay
+# there until the ceilings and thresholds have been set from the calibration data
+# the watchdog collects - too low kills a healthy extension host mid-edit, too
+# high makes the mechanism inert.
 resource "coder_env" "memory_watchdog_mode" {
   agent_id = coder_agent.main.id
   name     = "WATCHDOG_MODE"
-  value    = "observe"
+  value    = local.validated_watchdog_mode
 }

@@ -61,8 +61,39 @@ data "coder_parameter" "system_packages" {
   type         = "list(string)"
 }
 
+data "coder_parameter" "memory_watchdog_mode" {
+  name = "memory_watchdog_mode"
+
+  default      = "observe"
+  display_name = "Memory Watchdog"
+  description  = "What the memory watchdog is allowed to do when the pod runs low on unreclaimable-memory headroom"
+  icon         = "/icon/memory.svg"
+  mutable      = true
+
+  option {
+    name        = "Observe only"
+    value       = "observe"
+    description = "Measure, publish headroom and log what it would have done. Sets no limits and sends no signals"
+  }
+  option {
+    name        = "Enforce"
+    value       = "enforce"
+    description = "Also cap helper processes with RLIMIT_DATA and shed load as headroom falls. Do not enable before the thresholds have been set from calibration data"
+  }
+}
+
 
 locals {
+  # Coder already constrains this to the two option values server-side, but it
+  # reaches the agent as an environment variable and from there a shell, and it
+  # is the single switch that decides whether the watchdog may signal processes.
+  # So it goes through the same validate-then-use step as the list parameters
+  # below, and anything unrecognised falls back to the inert mode rather than to
+  # whatever was supplied.
+  validated_watchdog_mode = contains(
+    ["observe", "enforce"], data.coder_parameter.memory_watchdog_mode.value
+  ) ? data.coder_parameter.memory_watchdog_mode.value : "observe"
+
   validated_system_packages = (data.coder_parameter.system_packages.value != "") ? [
     for str in jsondecode(data.coder_parameter.system_packages.value) :
     str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
