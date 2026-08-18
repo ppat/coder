@@ -8,13 +8,12 @@
 #
 # CI runs it too, in the `watchdog` job of .github/workflows/test.yaml, which
 # fails the build on the first failed assertion. It exists so that the two
-# things in the watchdog that can actually hurt the operator - the
-# unreclaimable-memory arithmetic and the process-selection rules - can be
-# changed with evidence rather than hope.
+# things in the watchdog that can actually hurt the operator - which processes it
+# is willing to kill, and when - can be changed with evidence rather than hope.
 #
 # The important cases here are the negative ones. A test that asserts "the
-# watchdog did not signal the memory hog" proves nothing unless the same fixture,
-# with the ptyHost marker removed, produces the opposite result - so each
+# watchdog did not signal the agent session" proves nothing unless the same
+# fixture, with one rule removed, produces the opposite result - so each
 # exclusion is paired with the mutation that must flip it.
 #
 # The fixtures are transcribed from a live workspace, not written from a reading
@@ -22,6 +21,11 @@
 # version of this file assumed `comm` would be `node` for the server processes,
 # it is `MainThread` on every real tree, and the whole suite was green while the
 # detection it was guarding picked the wrong process.
+#
+# `kill` is shadowed by a function throughout. The fixture pids are small
+# integers - 1, 40, 41 - which in this container name real processes, and a
+# harness that sent a real SIGTERM to pid 41 to prove it would have sent one is
+# not a harness anybody should run.
 set -uo pipefail
 
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,6 +34,7 @@ trap 'rm -rf "${WORK}"' EXIT
 
 PASS=0
 FAIL=0
+SIGNALS=""
 
 ok() {
   PASS=$((PASS + 1))
@@ -50,6 +55,24 @@ assert_eq() {
   fi
 }
 
+assert_contains() {
+  local hay=$1 needle=$2 what=$3
+  if [[ $hay == *"$needle"* ]]; then
+    ok "$what"
+  else
+    bad "${what}: '${needle}' not found"
+  fi
+}
+
+assert_absent() {
+  local hay=$1 needle=$2 what=$3
+  if [[ $hay == *"$needle"* ]]; then
+    bad "${what}: '${needle}' is present and should not be"
+  else
+    ok "$what"
+  fi
+}
+
 # assert_protected <pid> <yes|no> <description>
 assert_protected() {
   local pid=$1 want=$2 what=$3 got=no
@@ -61,22 +84,32 @@ assert_protected() {
   fi
 }
 
-# Seeds the debounce state the watchdog carries between samples. These are
-# globals of the sourced script, which shellcheck cannot see assigned here.
-# shellcheck disable=SC2034
-reset_tier_state() {
-  C_L1=0
-  C_L2=0
-  C_L3=0
-  LAST_ACTION_AT=${1:-0}
-  RUNG_FIRED=()
-  IN_EXCURSION=0
-  EXCURSIONS=0
+# assert_armed <role> <yes|no> <description>
+assert_armed() {
+  local role=$1 want=$2 what=$3 got=no
+  role_is_armed "$role" && got=yes
+  assert_eq "$want" "$got" "$what"
+}
+
+# assert_policed <pid> <role|no> <description>
+assert_policed() {
+  local pid=$1 want=$2 what=$3
+  assert_eq "$want" "${POLICED[$pid]:-no}" "$what"
+}
+
+# The stand-in for the kill builtin. Every signal the watchdog believes it sent
+# is recorded here and nothing leaves this process.
+# shellcheck disable=SC2317,SC2329  # called indirectly, from the sourced watchdog
+kill() {
+  SIGNALS+="${1#-}:$2 "
+  return 0
 }
 
 # --------------------------------------------------------------------------- #
 # fixtures
 # --------------------------------------------------------------------------- #
+
+UPTIME_S=100000
 
 # memory.stat as read from the real 8 GiB workspace pod at rest, trimmed to the
 # fields the watchdog reads plus the ones it must be careful to ignore.
@@ -109,19 +142,23 @@ EOF
 }
 
 # add_proc <procdir> <pid> <ppid> <comm> <rss-bytes> <argv...>
+#
+# Every process is old by default; the ones whose age matters set it explicitly
+# with set_age. stat's field 22, starttime, is written for real because every
+# piece of state the watchdog carries between sweeps is keyed on pid:starttime -
+# a recycled pid must not inherit another process's dwell clock.
 add_proc() {
   local dir=$1 pid=$2 ppid=$3 comm=$4 rss=$5
   shift 5
   local d="${dir}/${pid}"
   mkdir -p "$d"
-  printf '%s (%s) S %s 0 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 0\n' \
+  # stat fields 5, 6 and 7 are pgrp, session and tty. The session is the one the
+  # helper walk keys on, so it is written for real; everything shares session 1
+  # unless set_sid says otherwise.
+  printf '%s (%s) S %s 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 100\n' \
     "$pid" "$comm" "$ppid" >"${d}/stat"
-  # statm: size resident shared text lib data dt. `data` is what RLIMIT_DATA
-  # accounts, and on a real V8 process it is several times resident - see
-  # set_proc_data, and read_rss() in the watchdog for the live measurements.
-  # Defaulting it to resident keeps the fixtures honest about which field is
-  # being read without asserting a relationship that does not hold.
   printf '0 %s 0 0 0 %s 0\n' "$((rss / 4096))" "$((rss / 4096))" >"${d}/statm"
+  set_pss "$dir" "$pid" "$rss"
   cat >"${d}/limits" <<'EOF'
 Limit                     Soft Limit           Hard Limit           Units
 Max data size             unlimited            unlimited            bytes
@@ -133,24 +170,50 @@ EOF
   done
 }
 
-# set_proc_data <procdir> <pid> <rss-bytes> <data-bytes>
-set_proc_data() {
-  local dir=$1 pid=$2 rss=$3 data=$4
-  printf '0 %s 0 0 0 %s 0\n' "$((rss / 4096))" "$((data / 4096))" >"${dir}/${pid}/statm"
+# set_pss <procdir> <pid> <bytes>. PSS is what every budget is compared against,
+# so it is the fixture knob the drift tests turn.
+set_pss() {
+  local dir=$1 pid=$2 bytes=$3
+  cat >"${dir}/${pid}/smaps_rollup" <<EOF
+55a4c0000000-7ffd0f7ff000 ---p 00000000 00:00 0                          [rollup]
+Rss:            $((bytes / 1024)) kB
+Pss:            $((bytes / 1024)) kB
+Pss_Anon:       $((bytes / 2048)) kB
+Private_Dirty:  $((bytes / 2048)) kB
+EOF
+}
+
+# set_sid <procdir> <pid> <sid>. Claude Code detaches every Bash tool call into
+# its own session; this is how a fixture says so.
+set_sid() {
+  local dir=$1 pid=$2 sid=$3
+  local -a f
+  read -r -a f <"${dir}/${pid}/stat"
+  f[4]=$sid
+  f[5]=$sid
+  printf '%s\n' "${f[*]}" >"${dir}/${pid}/stat"
+}
+
+# set_age <procdir> <pid> <seconds>
+set_age() {
+  local dir=$1 pid=$2 age=$3 line rest
+  read -r line <"${dir}/${pid}/stat"
+  rest=${line% *}
+  printf '%s %s\n' "$rest" "$(((UPTIME_S - age) * 100))" >"${dir}/${pid}/stat"
+}
+
+write_uptime() {
+  printf '%s.00 %s.00\n' "$UPTIME_S" "$((UPTIME_S * 4))" >"${1}/uptime"
 }
 
 # A representative tree, transcribed from `ps -eo pid,ppid,comm,args` on a live
-# workspace with a VS Code server attached. Argument shapes, argv[0] paths and -
-# the part that matters most - the `comm` values are what that capture showed,
-# not what a reading of the VS Code source would suggest.
+# workspace with a VS Code server attached, and extended with the second
+# population this watchdog now polices: the helpers an agent session spawns.
 #
 # The `comm` values are load-bearing. Every node process in a real server tree
 # reports MainThread, because V8 renames its main thread with prctl(PR_SET_NAME).
 # An earlier version of this fixture wrote `node`, and that one wrong string hid
 # a root-selection bug that only a real tree could expose.
-#
-# The hog is three levels below ptyHost, exactly like a tmux session or an agent
-# started from a VS Code integrated terminal.
 #
 #   1  coder agent
 #   +- 30  bash -l
@@ -166,12 +229,19 @@ set_proc_data() {
 #   |                   |   +- 47  claude-code cli.js  (mise's node, not VS Code's)
 #   |                   |   +- 48  an extension task   (mise's node, not VS Code's)
 #   |                   +- 42  fileWatcher
-#   |                   +- 43  ptyHost               <- excised, whole subtree
+#   |                   +- 43  ptyHost               <- positional protection
 #   |                       +- 50  bash
 #   |                           +- 51  tmux: server
-#   |                               +- 52  claude
+#   |                               +- 52  claude    (a session in a VS Code terminal)
+#   |                               |   +- 54  python MCP server  <- policed
 #   |                               +- 53  node (the hog)
-#   +- 60  claude (outside the tree)
+#   +- 60  claude (a session under `coder ssh`)
+#       +- 61  python MCP server                     <- policed
+#       +- 62  node MCP server                       <- policed
+#       +- 63  bash -c (a tool call)                 <- boundary
+#       |   +- 64  a build the session is running    <- never policed
+#       +- 65  claude (a child session)
+#           +- 66  python MCP server of the child    <- policed
 #
 # Decoys 3 and 4 both sort before 40 in /proc glob order, which is how the root
 # used to be picked when no process had comm=node - i.e. always, on a real tree.
@@ -184,6 +254,7 @@ build_tree() {
   # The operator's node, from mise, on PATH. Nothing to do with VS Code's.
   local mnode="/home/coder/.local/share/mise/installs/node/22.14.0/bin/node"
   mkdir -p "$dir"
+  write_uptime "$dir"
   add_proc "$dir" 1 0 coder 14208 ./coder agent
   # Mentions both marker strings, and carries a ptyHost-like flag inside a larger
   # argument. Substring matching over the joined command line would elect it.
@@ -205,14 +276,14 @@ build_tree() {
 
   add_proc "$dir" 40 34 "$nc" 300000000 "${sdir}/node" "$srv" \
     --connection-token=remotessh --start-server --enable-remote-auto-shutdown
-  add_proc "$dir" 41 40 "$nc" 1500000000 "${sdir}/node" \
+  add_proc "$dir" 41 40 "$nc" 500000000 "${sdir}/node" \
     --dns-result-order=ipv4first "${sdir}/out/bootstrap-fork" \
     --type=extensionHost --transformURIs --useHostProxy=false
-  add_proc "$dir" 44 41 "$nc" 2000000000 "${sdir}/node" \
+  add_proc "$dir" 44 41 "$nc" 400000000 "${sdir}/node" \
     "${ext}/ms-vscode.typescript/lib/tsserver.js" --useInferredProjectPerProjectRoot
-  add_proc "$dir" 45 41 "$nc" 400000000 "${sdir}/node" \
+  add_proc "$dir" 45 41 "$nc" 120000000 "${sdir}/node" \
     "${ext}/redhat.vscode-yaml-1.24.0/dist/languageserver.js" --node-ipc --clientProcessId=41
-  add_proc "$dir" 46 41 terraform-ls 800000000 \
+  add_proc "$dir" 46 41 terraform-ls 300000000 \
     "${ext}/hashicorp.terraform-2.40.0-linux-x64/bin/terraform-ls" serve
   # Two processes the extension host spawned that run the *operator's* node, not
   # VS Code's. There is no /usr/bin/node and nothing named node on PATH in this
@@ -224,15 +295,44 @@ build_tree() {
     "${ext}/anthropic.claude-code-2.1.232/resources/claude-code/cli.js" --ide
   add_proc "$dir" 48 41 "$nc" 600000000 "$mnode" \
     "${ext}/hverlin.mise-vscode-1.6.0/dist/taskRunner.js" --cwd /home/coder/code
-  add_proc "$dir" 42 40 "$nc" 250000000 "${sdir}/node" \
+  add_proc "$dir" 42 40 "$nc" 40000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" --type=fileWatcher
   add_proc "$dir" 43 40 "$nc" 100000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" "$ptyhost_arg" --logsPath "${vsc}/data/logs/20260816T162519"
   add_proc "$dir" 50 43 bash 20000000 /bin/bash -l
   add_proc "$dir" 51 50 "tmux: server" 5000000 tmux new -s work
   add_proc "$dir" 52 51 claude 900000000 claude
+  # Deliberately inside its budget: this one is in the fixture to prove it is
+  # *reachable*, and a second process over budget would make every assertion
+  # about which pid was killed depend on hash iteration order.
+  add_proc "$dir" 54 52 python3 300000000 \
+    /usr/bin/python3 -m mcp_server_terminal --stdio
   add_proc "$dir" 53 51 "$nc" 3000000000 node -e "const a=[];setInterval(()=>a.push(Buffer.alloc(1)),1)"
+
+  # A session started with `coder ssh`, i.e. a child of the agent rather than of
+  # the editor, and the helpers it spawned. This is the population the
+  # tree-scoped selection could not see at all.
   add_proc "$dir" 60 1 claude 700000000 claude
+  add_proc "$dir" 61 60 python3 1660000000 \
+    /home/coder/.local/share/mise/installs/python/3.13/bin/python3 \
+    -m homelab_mcp.server --transport stdio
+  add_proc "$dir" 62 60 MainThread 200000000 \
+    /home/coder/.local/share/mise/installs/node/22.14.0/bin/node \
+    /home/coder/.local/share/npm/mcp-server-github/dist/index.js
+  add_proc "$dir" 63 60 bash 3000000 /bin/bash -c "cargo build --release"
+  add_proc "$dir" 64 63 cargo 2000000000 cargo build --release
+  # Measured on the live workspace: a session root has sid = the login shell's
+  # session, and every Bash tool call has pgid = sid = its own pid. The build
+  # below therefore has two independent reasons not to be policed, and the tests
+  # remove them one at a time.
+  set_sid "$dir" 63 63
+  set_sid "$dir" 64 63
+  # The shape that makes the session rule matter on its own: a tool call whose
+  # shell exec'd itself away, so there is no shell left in the chain at all.
+  add_proc "$dir" 67 60 python3 1500000000 /usr/bin/python3 ./scripts/train.py
+  set_sid "$dir" 67 67
+  add_proc "$dir" 65 60 claude 400000000 claude --child-session
+  add_proc "$dir" 66 65 python3 300000000 /usr/bin/python3 -m mcp_server_fetch
 }
 
 # A second, stale server left behind by --reconnection-grace-time, on a different
@@ -250,38 +350,74 @@ add_second_server() {
     "${sdir}/out/bootstrap-fork" --type=fileWatcher
 }
 
+# Always set explicitly, and never left at its default: the real default is
+# /proc/1/fd/1, i.e. the container's own stdout.
+#
+# This is not hypothetical. The first run of this suite after the stdout path was
+# added - before load_watchdog set the seam - wrote its fixture kill lines into
+# the live workspace's container log, where they reached Loki labelled as that
+# workspace and reading `event=kill role=extensionHost pss_mb=1907`. Nothing was
+# signalled (kill is shadowed), but for as long as those lines are retained they
+# describe kills that never happened, on a real workspace, in the exact format a
+# post-mortem would trust. A test fixture that can write into production
+# telemetry is a defect in the test, so the seam is asserted below rather than
+# merely set.
+STDOUT_FILE=""
+
 load_watchdog() {
+  local mode=${3:-observe}
+  STDOUT_FILE="${WORK}/stdout.log"
+  : >"$STDOUT_FILE"
   WATCHDOG_SOURCE_ONLY=1 \
     WATCHDOG_CGROUP_DIR="$1" \
     WATCHDOG_PROC_DIR="$2" \
     WATCHDOG_STATE_DIR="${WORK}/state" \
-    WATCHDOG_MODE=observe \
+    WATCHDOG_STDOUT_PATH="$STDOUT_FILE" \
+    WATCHDOG_MODE="$mode" \
     . "${SELF_DIR}/script-memory-watchdog.sh"
+  # Not an assertion - a refusal. If the seam ever fails to take, every later
+  # test in this file writes fixture actions to the container's real stdout.
+  if [[ ${STDOUT_PATH:-} != "$STDOUT_FILE" ]]; then
+    printf 'FATAL: the stdout seam did not take (STDOUT_PATH=%s); refusing to run\n' \
+      "${STDOUT_PATH:-unset}" >&2
+    exit 1
+  fi
   mkdir -p "${WORK}/state"
-  # The thresholds and the RLIMIT_DATA ceilings are derived from memory.max on
-  # the first successful scan rather than being constants, so a harness that
-  # skipped this would be testing a watchdog with an empty ladder - which is not
-  # a state the real thing is ever in, and which silently passes any assertion
-  # about *not* acting.
-  read_cgroup_memory && derive_limits "$M_MAX"
+  SIGNALS=""
+  # Budgets are derived from memory.max on the first cycle rather than being
+  # constants, so a harness that skipped this would be testing a watchdog with no
+  # budgets at all - which is not a state the real thing is ever in, and which
+  # silently passes any assertion about not killing anything.
+  read_cgroup_memory && derive_budgets "$M_MAX"
+  read_cgroup_pressure
 }
 
 scan_fixture() {
-  read_cgroup_memory
-  read_cgroup_pressure
+  read_uptime
   read_process_table
   build_server_tree
   compute_protected
+  compute_policed
+  read_usage "${PIDS[@]}"
 }
 
-candidate_pids() {
-  select_candidates "$1"
-  local row pid acc=""
-  for row in "${CANDIDATES[@]}"; do
-    pid=${row#* }
-    acc+="${pid%% *} "
-  done
-  printf '%s' "${acc% }"
+sweep_at() {
+  sweep_once "$1"
+  SWEEPS=$((SWEEPS + 1))
+}
+
+# Replaces the watchdog's role classifier with the one this file used before a
+# live tree was consulted: keyed on the joined command line rather than on
+# argv[0]. Defined here rather than inline so that the tests below can call
+# role_of before the mutation exists.
+mutate_role_of_to_cmdline() {
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  role_of() {
+    case " ${P_CMD[$1]:-} " in
+    *"/.vscode-server/extensions/"*) ROLE=extensionHelper ;;
+    *) ROLE=other ;;
+    esac
+  }
 }
 
 # --------------------------------------------------------------------------- #
@@ -304,16 +440,14 @@ test_measurement() {
   # The whole reason this formula exists: the naive readings disagree by 4x.
   assert_eq 23 "$((M_U * 100 / M_MAX))" "U is 23% of the limit"
   assert_eq 91 "$((M_CURRENT * 100 / M_MAX))" "memory.current is 91% of the limit"
+  assert_eq ok "$PRESSURE" "and the pod is labelled comfortable, because it is"
 
-  # Found on a live pod: the projection term is routinely negative, and bash
-  # division truncates toward zero, so a naive formatter prints "-27.-79 GiB".
   assert_eq "6.14 GiB" "$(fmt_gib 6594088184)" "headroom formats as GiB"
-  assert_eq "-1.50 GiB" "$(fmt_gib -1610612736)" "a negative projection formats with one sign"
-  assert_eq "0.00 GiB" "$(fmt_gib 0)" "zero formats without a sign"
+  assert_eq "-1.50 GiB" "$(fmt_gib -1610612736)" "a negative value formats with one sign"
+  assert_eq "512 MiB" "$(fmt_mib 536870912)" "budgets format as MiB"
 
   read_cgroup_pressure
   assert_eq 0 "$M_PSI_CENTI" "psi full avg10 parses as 0"
-
   write_cgroup "${WORK}/cg" 8589934592 12.34
   read_cgroup_pressure
   assert_eq 1234 "$M_PSI_CENTI" "psi full avg10 parses to centi-units"
@@ -321,10 +455,28 @@ test_measurement() {
   write_cgroup "${WORK}/cg" max 0.00
   read_cgroup_memory
   assert_eq 2 "$?" "an unlimited cgroup is reported, not treated as huge headroom"
+
+  # PSS is the quantity every budget is compared against, and it is not RSS.
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  load_watchdog "${WORK}/cg" "$pdir"
+  scan_fixture
+  set_pss "$pdir" 41 123456789
+  read_usage 41
+  assert_eq 123456512 "${P_PSS[41]}" "PSS is read from smaps_rollup"
+  assert_eq 499998720 "${P_RSS[41]}" "and RSS separately from statm"
+  assert_eq 0 "$PSS_UNAVAILABLE" "with PSS available, nothing is flagged"
+
+  # And the fallback, which must be visible rather than silent: RSS is the larger
+  # number, so substituting it quietly would make every budget look tighter.
+  rm -f "${pdir}/41/smaps_rollup"
+  read_usage 41
+  assert_eq 499998720 "${P_PSS[41]}" "without smaps_rollup, RSS stands in"
+  assert_eq 1 "$PSS_UNAVAILABLE" "and the substitution is recorded, not hidden"
+  set_pss "$pdir" 41 500000000
 }
 
 # --------------------------------------------------------------------------- #
-# 2. process selection - the part that can hurt the operator
+# 2. what is policed, and what is never touched
 # --------------------------------------------------------------------------- #
 
 test_selection() {
@@ -341,7 +493,7 @@ test_selection() {
   assert_eq MainThread "${P_COMM[40]}" "the fixture encodes the real comm value"
   assert_eq 40 "$SERVER_PID" "server root found with comm=MainThread, not comm=node"
   assert_eq "40" "${SERVER_ROOTS[*]}" "and the decoys are not roots"
-  assert_eq 13 "${#SERVER_TREE[@]}" "server tree spans every descendant, ptyHost included"
+  assert_eq 14 "${#SERVER_TREE[@]}" "server tree spans every descendant, ptyHost included"
 
   local d
   for d in 3 4; do
@@ -351,8 +503,6 @@ test_selection() {
       ok "decoy pid ${d} stays out of the tree"
     fi
   done
-  # The CLI and the shells above the server are ancestors, not descendants: the
-  # root is server-main.js, so scoping starts there and not at `code command-shell`.
   for d in 30 31 32 33 34; do
     if [[ -n ${SERVER_TREE[$d]:-} ]]; then
       bad "ancestor pid ${d} joined the tree"
@@ -371,105 +521,155 @@ test_selection() {
   assert_eq extensionHost "$ROLE" "the real extension-host argv reads as extensionHost"
   role_of 42
   assert_eq fileWatcher "$ROLE" "the real file-watcher argv reads as fileWatcher"
+  role_of 44
+  assert_eq tsserver "$ROLE" "tsserver reads as tsserver"
   role_of 45
   assert_eq languageServer "$ROLE" "a node language server under extensions/ keeps its role"
   role_of 46
   assert_eq extensionHelper "$ROLE" "terraform-ls reads as a native extension helper"
-  # It is sheddable but never pre-emptively capped - see role_of() for why a
-  # ceiling that is graceful for V8 is an abrupt abort for a Go runtime.
-  if [[ -n ${CEILING[extensionHelper]:-} ]]; then
-    bad "a native extension helper was given an RLIMIT_DATA ceiling"
-  else
-    ok "a native extension helper is given no RLIMIT_DATA ceiling"
-  fi
 
   # ptyHost is matched loosely on purpose, unlike every other role. Reading
-  # something as ptyHost that is not only ever protects more than necessary;
-  # reading something as extensionHost that is not gets it signalled at L3.
+  # something as ptyHost that is not only ever protects more than necessary.
   # shellcheck disable=SC2034  # P_CMD is a global of the sourced watchdog
   P_CMD[9001]="/usr/bin/node fork --type=ptyHostSomethingNew"
   role_of 9001
   assert_eq ptyHost "$ROLE" "an unrecognised ptyHost variant still reads as ptyHost"
   unset 'P_CMD[9001]'
 
-  local p
-  for p in 43 50 51 52 53; do
-    if [[ -n ${PROTECTED[$p]:-} ]]; then
-      ok "pid ${p} in the ptyHost subtree is protected"
-    else
-      bad "pid ${p} in the ptyHost subtree is NOT protected"
-    fi
-  done
+  assert_policed 40 serverMain "the server root is policed"
+  assert_policed 41 extensionHost "so is the extension host"
+  assert_policed 42 fileWatcher "so is the file watcher"
+  assert_policed 44 tsserver "so is tsserver"
+  assert_policed 46 extensionHelper "so is terraform-ls"
+
+  assert_policed 43 no "the ptyHost fork itself is never policed"
+  assert_policed 50 no "nor the shell beneath it"
+  assert_policed 51 no "nor tmux"
+  assert_policed 52 no "nor a session running in a VS Code terminal"
+  assert_policed 53 no "nor the hog that session started"
+  assert_policed 47 no "nor an agent session the extension host spawned"
+  assert_policed 48 no "nor an extension task on the operator's node"
+  assert_policed 60 no "nor a session under coder ssh"
+  assert_policed 64 no "nor a build a session is running"
+  assert_policed 1 no "nor the coder agent"
+
   assert_protected 1 yes "pid 1 is protected"
-  assert_protected 60 yes "a claude outside the tree is protected"
-
-  assert_eq "44 46 45 42" "$(candidate_pids L2)" \
-    "L2 offers only kill-safe helpers, heaviest first"
-  assert_eq "41" "$(candidate_pids L3)" "L3 offers only the extension host"
-  # Ordered by RSS, so serverMain (300M) precedes fileWatcher (250M).
-  assert_eq "44 41 46 45 40 42" "$(candidate_pids L4)" \
-    "L4 offers the whole tree except the ptyHost subtree"
-
-  # The negative assertion, stated explicitly for every tier.
-  local tier all
-  for tier in L2 L3 L4; do
-    all=" $(candidate_pids "$tier") "
-    if [[ $all == *" 53 "* ]]; then
-      bad "${tier} would signal the hog inside a VS Code terminal"
-    else
-      ok "${tier} never signals the hog inside a VS Code terminal"
-    fi
-  done
+  assert_protected 60 yes "an agent session is protected"
+  assert_protected 52 yes "including one inside a terminal"
 }
 
 # --------------------------------------------------------------------------- #
-# 3. the mutation that must flip the result
+# 2b. the second population: helpers an agent session spawned
 #
-# Without this, "the hog was not selected" is unfalsifiable - it would pass just
-# as happily against a watchdog that selects nothing at all.
+# These are what the tree-scoped selection could not see at all, and where the
+# largest single offender ever measured lived - 1.66 GB of python. The rule is
+# structural: descend from a session root, stop at any shell, police what is
+# left. The shell boundary is the difference between "anything a session invokes
+# is fair game" as a principle and as a foot-gun, because below a shell is the
+# session's in-flight work and nothing restarts that.
 # --------------------------------------------------------------------------- #
 
-test_selection_is_falsifiable() {
-  printf 'selection is falsifiable\n'
+test_claude_helpers() {
+  printf 'helpers spawned by an agent session\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
-  local pdir="${WORK}/proc3"
-  # Same tree, but pid 43 is no longer marked as the ptyHost fork.
-  build_tree "$pdir" --type=notThePtyHost
+  local pdir="${WORK}/proc2b"
+  build_tree "$pdir"
   load_watchdog "${WORK}/cg" "$pdir"
   scan_fixture
-  # The hog runs the operator's node, so the path rule protects it too. It is
-  # dropped here so that this test measures the ptyHost subtree rule and only
-  # that; the path rule has its own mutation in the previous test.
-  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
-  is_vscode_binary() { return 0; }
-  compute_protected
 
-  assert_protected 53 no "without the ptyHost marker the hog loses subtree protection"
-  if [[ " $(candidate_pids L4) " == *" 53 "* ]]; then
-    ok "and L4 would then select it - the exclusion is what keeps it safe"
+  assert_eq 3 "${#CLAUDE_ROOTS[@]}" "every session root is found, including a child session"
+  assert_policed 61 claudeHelper "the python MCP server is policed"
+  assert_policed 62 claudeHelper "and the node one"
+  assert_policed 66 claudeHelper "and a child session's MCP server"
+  assert_policed 63 no "a tool call's shell is not"
+  assert_policed 64 no "and neither is what that shell is running"
+  assert_policed 67 no "nor a tool call whose shell exec'd itself away - the session says so"
+  assert_policed 65 no "a child session is a session, not a helper"
+
+  # The identity breadcrumb is what makes the sweep log answerable later: three
+  # of these are `python3` or `node` and only the argument distinguishes them.
+  assert_eq "homelab_mcp.server" "$(identity_of 61 claudeHelper)" \
+    "a python MCP server is identified by its module, not by python3"
+  assert_eq "index" "$(identity_of 62 claudeHelper)" \
+    "and a node one by its script, not by node"
+  assert_eq "terraform-ls" "$(identity_of 46 extensionHelper)" \
+    "a native extension helper by its binary"
+
+  # The case the ptyHost hole exists for. A session in a VS Code terminal is the
+  # same thing to the operator as one under `coder ssh`; only its terminal
+  # differs. Its MCP server is policed, and everything that makes it a terminal
+  # is not.
+  assert_policed 54 claudeHelper "an MCP server of a session in a VS Code terminal is policed"
+  local p
+  for p in 43 50 51 52 53; do
+    if [[ -n ${NOT_EDITOR[$p]:-} ]]; then
+      ok "pid ${p} is inside the ptyHost subtree"
+    else
+      bad "pid ${p} is NOT inside the ptyHost subtree"
+    fi
+  done
+  if signal_pid TERM 53 other "test"; then
+    bad "the hog in a terminal could be signalled"
   else
-    bad "L4 still ignores the hog, so the ptyHost assertion proves nothing"
+    ok "the hog in a terminal is refused by the positional guard"
+  fi
+  if signal_pid TERM 52 claudeHelper "test"; then
+    bad "a session in a terminal could be signalled by claiming a helper role"
+  else
+    ok "a session in a terminal is refused whatever role is claimed"
   fi
 
-  # The name-based net still holds independently of tree position.
-  assert_protected 52 yes "claude is still protected by name with the subtree rule disabled"
-  assert_protected 51 yes "tmux is still protected by name with the subtree rule disabled"
+  # Falsification. All of the above would pass equally against a watchdog that
+  # polices nothing at all, so each rule is removed in turn and must flip a
+  # result.
+  #
+  # Mutation 1 - the session boundary is removed, the shell test kept. The
+  # exec'd-away tool call has nothing left and becomes policed; the ordinary one
+  # is still held by its shell. That asymmetry is the measurement of what each
+  # rule is doing, and why neither may be dropped as redundant.
+  local saved_sid=${P_SID[63]}
+  P_SID[63]=1
+  P_SID[64]=1
+  P_SID[67]=1
+  compute_policed
+  assert_policed 67 claudeHelper "without the session rule, an exec'd-away tool call is policed"
+  assert_policed 64 no "while the shell rule still holds the ordinary one"
+  P_SID[63]=$saved_sid
+  P_SID[64]=$saved_sid
+  P_SID[67]=67
+
+  # Mutation 2 - shells stop being a boundary, sessions kept. The build is still
+  # spared, because its session differs.
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  is_shell_like() { return 1; }
+  compute_policed
+  assert_policed 64 no "with the session rule alone, a running build is still spared"
+  P_SID[63]=1
+  P_SID[64]=1
+  compute_policed
+  assert_policed 64 claudeHelper "and with neither rule it is policed - which is the harm both prevent"
+
+  # Mutation 3 - session roots stop being recognised. Every helper disappears
+  # from the policed set, which proves the walk is what put them there.
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  is_claude_root() { return 1; }
+  compute_policed
+  assert_policed 61 no "with no session roots there are no session helpers"
+  assert_policed 54 no "including the one in a terminal"
 }
 
 # --------------------------------------------------------------------------- #
-# 2b. the operator's runtime is never a VS Code helper
+# 2c. the operator's runtime is never a VS Code helper
 #
-# The failure this guards against is the one the whole design exists to prevent,
-# arriving through the detection layer instead of the action layer: an agent
-# session spawned by an extension is a child of the extension host, is not under
-# ptyHost, and would be stamped with an RLIMIT_DATA ceiling and shed at L2/L3 by
-# anything that decides "is this a VS Code helper" by asking "is this node".
+# An agent session spawned by an extension is a child of the extension host, is
+# not under ptyHost, and would be policed by anything that decides "is this a VS
+# Code helper" by asking "is this node".
 # --------------------------------------------------------------------------- #
 
 test_operator_runtime_is_never_a_helper() {
   printf 'the operator runtime is never a VS Code helper\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
-  local pdir="${WORK}/proc2b"
+  local pdir="${WORK}/proc2c"
   build_tree "$pdir"
   load_watchdog "${WORK}/cg" "$pdir"
   scan_fixture
@@ -478,69 +678,42 @@ test_operator_runtime_is_never_a_helper() {
   assert_eq other "$ROLE" "an agent session under the extension host is not a helper role"
   role_of 48
   assert_eq other "$ROLE" "nor is an extension task run on the operator's node"
-  # Same directory in the arguments, opposite classification - argv[0] is the
-  # only thing separating pid 46 from pid 47.
   role_of 46
   assert_eq extensionHelper "$ROLE" "while the extension's own binary still is one"
 
-  assert_protected 47 yes "the agent session is protected"
-  assert_protected 48 yes "and so is the extension task"
-  local tier all p
-  for tier in L2 L3 L4; do
-    all=" $(candidate_pids "$tier") "
-    for p in 47 48; do
-      if [[ $all == *" $p "* ]]; then
-        bad "${tier} would signal pid ${p}, which runs the operator's node"
-      else
-        ok "${tier} never signals pid ${p}, which runs the operator's node"
-      fi
-    done
-  done
+  assert_protected 47 yes "the agent session is protected by identity"
+  assert_protected 48 no "the extension task is not - it is excluded by position and by role"
+  assert_policed 48 no "and so it is not policed"
+  assert_policed 47 no "nor is the agent session"
 
   # Two guards stand between these processes and a signal, and each is mutated
   # separately so that neither can be credited with the other's work.
   #
-  # Mutation 1 - drop the path rule, keep the name guard. The agent session
-  # survives on its name; the extension task has nothing left and is reachable.
-  # That asymmetry is the measurement of how much the path rule is doing, and why
-  # the name guard must not be relied on by itself.
+  # Mutation 1 - drop the tree-position rule that says "this does not run VS
+  # Code's binary". The agent session survives on its name, which is identity and
+  # absolute; the extension task loses its only positional protection and is left
+  # standing on one thing alone - that role_of keys on argv[0].
   # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
   is_vscode_binary() { return 0; }
   compute_protected
-  assert_protected 47 yes "without the path rule the agent session still has its name"
-  assert_protected 48 no "but the extension task has nothing left"
-  if [[ " $(candidate_pids L4) " == *" 48 "* ]]; then
-    ok "and L4 would then select it - the path rule is what prevents that"
-  else
-    bad "L4 still ignores it, so the path assertion proves nothing"
-  fi
+  compute_policed
+  assert_protected 47 yes "without the position rule the agent session still has its name"
+  assert_policed 47 no "and is still not policed"
+  assert_policed 48 no "the extension task is spared by role_of keying on argv[0], not by position"
 
   # Mutation 2 - additionally key roles on the joined command line instead of on
   # argv[0], which is what this file did before a live tree was consulted. The
   # extension task's arguments name the extension directory, so it is classified
-  # as a sheddable helper and L2 - the corroborated, everyday tier - picks it up.
-  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
-  role_of() {
-    case " ${P_CMD[$1]:-} " in
-    *"/.vscode-server/extensions/"*) ROLE=extensionHelper ;;
-    *) ROLE=other ;;
-    esac
-  }
-  if [[ " $(candidate_pids L2) " == *" 48 "* ]]; then
-    ok "keying roles on arguments instead of argv[0] makes L2 shed the extension task"
-  else
-    bad "the role assertion proves nothing - argv[0] keying is not what excludes it"
-  fi
+  # as a sheddable helper and policed.
+  mutate_role_of_to_cmdline
+  compute_policed
+  assert_policed 48 extensionHelper \
+    "keying roles on arguments instead of argv[0] is what would police it"
+  assert_policed 47 no "while the name guard still keeps the session out"
 }
 
 # --------------------------------------------------------------------------- #
-# 3a. comm is not a selection criterion, and must never become one again
-#
-# Pinning the fixture to MainThread would only trade one hardcoded assumption for
-# another. What is actually required is that comm does not participate in the
-# decision at all, so the same tree is built under three different comm values -
-# the real one, the one the fixtures used to assume, and a value nothing has ever
-# reported - and the root must come out the same every time.
+# 2d. comm is not a selection criterion, and must never become one again
 # --------------------------------------------------------------------------- #
 
 test_comm_is_not_a_criterion() {
@@ -554,18 +727,13 @@ test_comm_is_not_a_criterion() {
     load_watchdog "${WORK}/cg" "$pdir"
     scan_fixture
     assert_eq 40 "$SERVER_PID" "comm=${comm}: the server root is still pid 40"
-    assert_eq 13 "${#SERVER_TREE[@]}" "comm=${comm}: the tree is still complete"
-    assert_protected 53 yes "comm=${comm}: the hog under ptyHost is still protected"
+    assert_eq 14 "${#SERVER_TREE[@]}" "comm=${comm}: the tree is still complete"
+    assert_policed 53 no "comm=${comm}: the hog in a terminal is still not policed"
   done
 }
 
 # --------------------------------------------------------------------------- #
-# 3b. more than one server, and none of them named `node`
-#
-# --reconnection-grace-time keeps a disconnected server alive for eight hours, so
-# two live server trees is an ordinary state, not an exotic one. Electing a
-# single root would leave the other tree's ptyHost subtree un-excised, because
-# excision only runs inside the tree that was discovered.
+# 2e. more than one server, and none of them named `node`
 # --------------------------------------------------------------------------- #
 
 test_two_servers() {
@@ -578,31 +746,26 @@ test_two_servers() {
   scan_fixture
 
   assert_eq "40 70" "${SERVER_ROOTS[*]}" "both server roots are discovered"
-  assert_eq 17 "${#SERVER_TREE[@]}" "the managed tree is the union of both subtrees"
-  assert_protected 71 yes "the second server's ptyHost is protected"
-  assert_protected 72 yes "and so is the shell beneath it"
-  if [[ " $(candidate_pids L4) " == *" 73 "* ]]; then
-    ok "the second server's fileWatcher is reachable at L4"
+  assert_eq 18 "${#SERVER_TREE[@]}" "the managed tree is the union of both subtrees"
+  assert_policed 73 fileWatcher "the second server's file watcher is policed"
+  assert_policed 72 no "and the shell under its ptyHost is not"
+  if [[ -n ${NOT_EDITOR[71]:-} ]]; then
+    ok "the second server's ptyHost subtree is recognised"
   else
     bad "the second server's tree is not managed at all"
   fi
 }
 
 # --------------------------------------------------------------------------- #
-# 3c. the guards are precise, and each of them is reachable
+# 2f. the guards are precise, and each of them is reachable
 #
 # Both historical over-matches were substring matches over the joined command
 # line, both were found by accident, and both were invisible to a green suite -
 # the second one protected every process in a fixture harness because the
 # harness's own directory path contained the string the guard matched on, so two
 # full runs asserted nothing at all. The decoys below are those exact paths.
-#
-# Each rule is also asserted to be *reachable*: a guard that no fixture can
-# trigger is not being tested, it is only being carried.
 # --------------------------------------------------------------------------- #
 
-# Three processes that all run VS Code's own node, inside the tree, outside the
-# ptyHost subtree - so nothing structural separates them. Only the guards do.
 add_decoys() {
   local dir=$1
   local vsc="/home/coder/.vscode-server"
@@ -618,23 +781,23 @@ add_decoys() {
   add_proc "$dir" 81 41 MainThread 600000000 "${sdir}/node" \
     "${ext}/redhat.vscode-yaml-1.24.0/dist/languageserver.js" \
     --config /home/coder/watchdog-live-evidence/memory-watchdog-run2/settings.json
-  # The case the payload rule genuinely exists for, and the reason it cannot
-  # simply be deleted: an agent session that an extension started with the
-  # editor's own interpreter. argv[0] is VS Code's node, so is_vscode_binary
-  # says "editor"; it is not under ptyHost, so the subtree rule never sees it.
+  # The case the payload rule genuinely exists for: an agent session that an
+  # extension started with the editor's own interpreter. argv[0] is VS Code's
+  # node, so is_vscode_binary says "editor"; it is not under ptyHost, so the
+  # positional rule never sees it.
   add_proc "$dir" 82 41 MainThread 900000000 "${sdir}/node" \
     "${ext}/anthropic.claude-code-2.1.232/resources/claude-code/cli.js" --ide
   # Outside the tree, and the reason argv[0] is consulted at all: for a script
   # with a shebang the kernel sets comm from the *interpreter*, so a launcher on
-  # PATH called `claude` reports comm=bash. The name the operator knows it by
-  # survives only in argv[0].
+  # PATH called `claude` reports comm=bash.
   add_proc "$dir" 83 1 bash 500000000 /home/coder/.local/bin/claude --resume
+  add_proc "$dir" 84 83 python3 800000000 /usr/bin/python3 -m mcp_server_git
 }
 
 test_guards_are_precise() {
   printf 'the guards are precise\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
-  local pdir="${WORK}/proc3c"
+  local pdir="${WORK}/proc2f"
   build_tree "$pdir"
   add_decoys "$pdir"
   load_watchdog "${WORK}/cg" "$pdir"
@@ -646,27 +809,17 @@ test_guards_are_precise() {
   assert_eq payload "${PROTECT_REASON[82]}" "and it is the payload rule that claims it"
   assert_protected 83 yes "a shebang launcher named claude is protected"
   assert_eq argv0 "${PROTECT_REASON[83]}" "by argv[0], since its comm is the interpreter"
+  assert_policed 84 claudeHelper "and its MCP server is policed, so the launcher counts as a session root"
 
-  # Falsification: if the two decoys were unreachable for some other reason, the
-  # assertions above would pass against a watchdog that selects nothing.
-  local l4
-  l4=" $(candidate_pids L4) "
-  for p in 80 81; do
-    if [[ $l4 == *" $p "* ]]; then
-      ok "decoy pid ${p} is genuinely reachable, so its non-protection means something"
-    else
-      bad "decoy pid ${p} is unreachable anyway - the assertion proves nothing"
-    fi
-  done
-  if [[ $l4 == *" 82 "* ]]; then
-    bad "the claude-code payload is reachable at L4"
-  else
-    ok "the claude-code payload is not reachable at any tier"
-  fi
+  # Falsification: if the two decoys were unpoliced for some other reason, the
+  # assertions above would pass against a watchdog that polices nothing.
+  assert_policed 80 fileWatcher "decoy pid 80 is genuinely policed, so its non-protection means something"
+  assert_policed 81 languageServer "and so is decoy pid 81"
+  assert_policed 82 no "while the claude-code payload is policed by nothing"
 
   # Every guard the code can apply is applied to something here. A rule nothing
   # exercises is a rule nobody has established the correctness of.
-  local want got reasons=" "
+  local want reasons=" " p
   for p in "${!PROTECT_REASON[@]}"; do
     reasons+="${PROTECT_REASON[$p]} "
   done
@@ -678,452 +831,511 @@ test_guards_are_precise() {
     fi
   done
 
-  # And the census says something usable about all of it: a managed tree with
-  # nothing eligible is the shape of the harness bug, whatever the cause.
-  got="$(census_line)"
-  if [[ $got == *"eligible=0" ]]; then
-    bad "census reports no eligible processes on a healthy tree: ${got}"
+  # And the watchdog's own kin, which is structural rather than named: the
+  # harness process is this process, so it must claim itself.
+  compute_watchdog_kin
+  if [[ -n ${WATCHDOG_KIN[$$]:-} ]]; then
+    ok "the watchdog recognises its own pid structurally"
   else
-    ok "census reports the tree, the guards and what is left: ${got}"
+    bad "the watchdog does not recognise itself"
   fi
 }
 
 # --------------------------------------------------------------------------- #
-# 3d. an acting tier never acts silently
+# 3. the budgets
 #
-# The bug that hid the second over-match was not the over-match: it was that
-# enforce mode logged tier=L3 with no signal line and no refusal line, a state
-# that reads as "nothing needed doing". Whatever the guards do, every path out of
-# an acting tier must now say what happened.
+# The failure this section exists to prevent has happened twice in this design,
+# both times the same way: a limit derived from the pod that sat below what the
+# process already held at rest. In observe mode that is a log line; in enforce
+# mode it is a process that dies on its next allocation, restarts, and dies
+# again. So the properties asserted here are about the *relationship* between a
+# budget and the measured resting size of the role, not about the arithmetic.
 # --------------------------------------------------------------------------- #
 
-test_acting_tier_never_acts_silently() {
-  printf 'an acting tier never acts silently\n'
+budgets_at() {
+  BUDGET=()
+  derive_budgets "$1"
+}
+
+test_budgets() {
+  printf 'budgets\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
-  local pdir="${WORK}/proc3d"
+  load_watchdog "${WORK}/cg" "${WORK}/proc2"
+
+  # 8 GiB: the pod the roles were measured on. The operator's 512 MiB instinct
+  # applies unchanged to the helpers. The extension host does not get it, and
+  # does not even get the pod share: measured at rest on a reconnected, idle
+  # 8 GiB workspace it holds 713 MB, so the resting floor lifts it above the
+  # 1024 MiB share. That is the correction this table exists to survive - the
+  # first version of these numbers was calibrated against a *fresh* tree, where
+  # the same process is 471 MB.
+  budgets_at 8589934592
+  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
+    "8 GiB: the extension host is lifted above the pod share by its resting size"
+  assert_eq 1 "${FLOORED[extensionHost]}" "and that lift is recorded, not silent"
+  assert_eq 536870912 "${BUDGET[serverMain]}" "8 GiB: serverMain gets 512 MiB"
+  assert_eq 268435456 "${BUDGET[fileWatcher]}" "8 GiB: the file watcher gets 256 MiB"
+  assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 88 MB resting is well under it"
+  assert_eq 536870912 "${BUDGET[claudeHelper]}" "8 GiB: an MCP server gets 512 MiB"
+
+  # 4 GiB: the pod share is 512 MiB, far below what the extension host holds at
+  # rest. The floor overrides it rather than issuing a standing kill order.
+  budgets_at 4294967296
+  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
+    "4 GiB: the resting floor overrides the pod share for the extension host"
+  assert_eq 268435456 "${BUDGET[fileWatcher]}" "4 GiB: the file watcher is unaffected"
+
+  # The property that matters more than any of the numbers: no budget may sit
+  # below the size the role was measured at while idle, at any pod size, ever.
+  local m r
+  for m in 2147483648 4294967296 8589934592; do
+    budgets_at $m
+    for r in "${!RESTING_ROLE[@]}"; do
+      # shellcheck disable=SC2004
+      # The $ is NOT unnecessary here: these are associative arrays, whose
+      # subscripts are strings inside (( )), so dropping it looks up the literal
+      # key "r" and silently reads 0. That defect shipped once already.
+      if ((BUDGET[$r] > RESTING_ROLE[$r])); then
+        ok "memory.max=${m}: ${r} is budgeted above its resting size"
+      else
+        bad "memory.max=${m}: ${r} budget ${BUDGET[$r]} is at or below resting ${RESTING_ROLE[$r]}"
+      fi
+    done
+  done
+
+  local max role budget resting
+  for max in 2147483648 4294967296 8589934592 17179869184; do
+    budgets_at "$max"
+    for role in "${!BUDGET[@]}"; do
+      budget=${BUDGET[$role]}
+      resting=${RESTING_ROLE[$role]:-0}
+      if ((resting == 0)) || ((budget > resting)); then
+        ok "memory.max=${max}: the ${role} budget is above its measured resting size"
+      else
+        bad "memory.max=${max}: the ${role} budget (${budget}) is at or below resting (${resting}) - a kill loop"
+      fi
+      if ((budget < max)); then
+        ok "memory.max=${max}: the ${role} budget is inside the pod"
+      else
+        bad "memory.max=${max}: the ${role} budget (${budget}) is the whole pod - inert"
+      fi
+    done
+  done
+
+  # An explicit budget must win, or a number cannot be tried on a live workspace
+  # without editing the script under test.
+  BUDGET=()
+  WATCHDOG_BUDGET_extensionHost=268435456 derive_budgets 8589934592
+  assert_eq 268435456 "${BUDGET[extensionHost]}" "an explicit budget overrides the derivation"
+  assert_eq 536870912 "${BUDGET[serverMain]}" "while the rest is still derived"
+  budgets_at 8589934592
+
+  # Arming is by role and by mode, because the blast radius differs: nothing in
+  # the helper set is visible to the operator when it restarts, and both members
+  # of the editor set are.
+  # MODE is a global of the sourced watchdog, set here to ask each mode what it
+  # would arm.
+  # shellcheck disable=SC2034
+  MODE=observe
+  assert_armed claudeHelper no "observe mode arms nothing"
+  # shellcheck disable=SC2034
+  MODE=enforce
+  assert_armed claudeHelper yes "enforce arms MCP servers"
+  assert_armed fileWatcher yes "enforce arms the file watcher"
+  assert_armed extensionHost no "enforce leaves the extension host alone"
+  # shellcheck disable=SC2034
+  MODE=enforce-all
+  assert_armed extensionHost yes "enforce-all arms the extension host"
+  assert_armed serverMain yes "enforce-all arms serverMain"
+  # shellcheck disable=SC2034
+  MODE=observe
+}
+
+# --------------------------------------------------------------------------- #
+# 4. dwell: drift is killed, load is not
+#
+# The whole point of a dwell requirement is that a helper which balloons while
+# doing work and then hands the memory back is load, not drift. A watchdog
+# without one would kill tsserver every time it indexed a large project, which is
+# the "disruption every fifteen minutes" that gets the thing switched off.
+# --------------------------------------------------------------------------- #
+
+test_dwell() {
+  printf 'dwell\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc4"
   build_tree "$pdir"
   rm -rf "${WORK}/state"
-  load_watchdog "${WORK}/cg" "$pdir"
-  scan_fixture
+  load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  # Reproduce the failure exactly: a guard that swallows the entire tree.
-  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
-  is_operator_payload() { return 0; }
-  compute_protected
-  : >"${WORK}/state/actions.log"
-  shed_load L3 1000
-  if [[ "$(cat "${WORK}/state/actions.log")" == *"no-candidates tier=L3"* ]]; then
-    ok "a tier with nothing left to signal says so, with the census"
-  else
-    bad "an acting tier signalled nothing and logged nothing - the original bug"
-  fi
-
-  # And the other silent path: a candidate too small to be worth the disruption.
-  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
-  is_operator_payload() { return 1; }
-  compute_protected
-  : >"${WORK}/state/actions.log"
-  WATCHDOG_MIN_SHED_RSS_SAVED=$MIN_SHED_RSS
-  MIN_SHED_RSS=999999999999
-  shed_load L2 1000
-  MIN_SHED_RSS=$WATCHDOG_MIN_SHED_RSS_SAVED
-  if [[ "$(cat "${WORK}/state/actions.log")" == *"no-worthwhile-candidate tier=L2"* ]]; then
-    ok "declining to shed something too small is logged, not skipped quietly"
-  else
-    bad "a tier declined to act and said nothing"
-  fi
-}
-
-# --------------------------------------------------------------------------- #
-# 4. the tier ladder
-# --------------------------------------------------------------------------- #
-
-# step_tier <H> <psi-centi> <refault/s> <projected-H> <now>
-#
-# Called in the current shell on purpose. The debounce counters are state carried
-# between samples, and running decide_tier in a command substitution would throw
-# them away - which is exactly the bug this ladder had before it was tested.
-step_tier() {
-  decide_tier "$1" "$2" "$3" "$4" "$5"
-}
-
-# assert_tier <want> <H> <psi> <refault> <projected-H> <now> <description>
-assert_tier() {
-  step_tier "$2" "$3" "$4" "$5" "$6"
-  assert_eq "$1" "$TIER" "$7"
-}
-
-test_tiers() {
-  printf 'tier ladder\n'
-  write_cgroup "${WORK}/cg" 8589934592 0.00
-  load_watchdog "${WORK}/cg" "${WORK}/proc2"
-
-  local big=6594088184 mid=2500000000 low=1800000000 crit=1000000000 dead=700000000
-
-  reset_tier_state
-  assert_tier L0 "$big" 0 0 "$big" 1000 "idle at 6 GiB headroom is L0"
-  # This is the case a naive memory.current > 85% trigger gets wrong: the real
-  # pod sits here permanently.
-  assert_tier L0 "$big" 0 0 "$big" 1000 "and stays L0 while nothing changes"
-
-  reset_tier_state
-  assert_tier L0 "$mid" 0 0 "$mid" 1000 "first sample below L1 does not act"
-  assert_tier L0 "$mid" 0 0 "$mid" 1000 "second sample below L1 does not act"
-  assert_tier L1 "$mid" 0 0 "$mid" 1000 "third consecutive sample is L1"
-  assert_tier L0 "$big" 0 0 "$big" 1000 "recovery resets the debounce"
-
-  reset_tier_state
-  step_tier "$low" 0 0 "$low" 1000
-  step_tier "$low" 0 0 "$low" 1000
-  assert_tier L1 "$low" 0 0 "$low" 1000 \
-    "below L2 without PSI or refault corroboration stays at L1"
-
-  reset_tier_state
-  step_tier "$low" 1500 0 "$low" 1000
-  step_tier "$low" 1500 0 "$low" 1000
-  assert_tier L2 "$low" 1500 0 "$low" 1000 "below L2 with PSI >= 10 is L2"
-
-  reset_tier_state
-  step_tier "$low" 0 50000 "$low" 1000
-  step_tier "$low" 0 50000 "$low" 1000
-  assert_tier L2 "$low" 0 50000 "$low" 1000 "or with a high refault rate"
-
-  reset_tier_state
-  step_tier "$crit" 0 0 "$crit" 1000
-  assert_tier L3 "$crit" 0 0 "$crit" 1000 "L3 needs two samples and no corroboration"
-
-  reset_tier_state
-  assert_tier L4 "$dead" 0 0 "$dead" 1000 "L4 acts on the first sample"
-
-  # Projection: headroom is fine-ish but falling fast enough to hit L4 inside the
-  # horizon. Only armed once the ladder has already left L0.
-  reset_tier_state
-  step_tier "$mid" 0 0 "$mid" 1000
-  step_tier "$mid" 0 0 "$mid" 1000
-  assert_tier L3 "$mid" 0 0 100000000 1000 "a 60s projection into L4 escalates to L3"
-
-  reset_tier_state
-  assert_tier L0 "$big" 0 0 100000000 1000 \
-    "but a spike from idle does not - the projection is disarmed at L0"
-
-  # Cooldown holds the acting tiers back; L4 is exempt.
-  reset_tier_state 1000
-  step_tier "$crit" 0 0 "$crit" 1010
-  assert_tier L1 "$crit" 0 0 "$crit" 1010 "L3 is suppressed inside the cooldown"
-  reset_tier_state 1000
-  assert_tier L4 "$dead" 0 0 "$dead" 1010 "L4 ignores the cooldown"
-}
-
-# --------------------------------------------------------------------------- #
-# 4b. the ladder is derived from the pod, and stays sane at every pod size
-#
-# The thresholds used to be absolute bytes chosen for an 8 GiB pod, which made
-# the 4 GiB workspace sit permanently on the first rung - the watchdog detected
-# that itself and declined to be useful. What is asserted here is not that the
-# arithmetic is what it is, but that the properties that make the ladder usable
-# hold across every size the workspace is offered at, and past both ends of it.
-# --------------------------------------------------------------------------- #
-
-# ladder_at <memory.max> -> "L4 L3 L2 L1"
-ladder_at() {
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  derive_limits "$1"
-  printf '%s %s %s %s' "$T_L4" "$T_L3" "$T_L2" "$T_L1"
-}
-
-test_derivation() {
-  printf 'the ladder is derived from the pod\n'
-  write_cgroup "${WORK}/cg" 8589934592 0.00
-  load_watchdog "${WORK}/cg" "${WORK}/proc2"
-
-  # 8 GiB is the only size the original absolute numbers were ever reasoned
-  # about, so the derivation has to land near them or it has thrown away the one
-  # piece of thinking that existed. 0.80/1.20/2.00/3.20 against 0.75/1.25/2.00/3.00.
-  assert_eq "858993459 1288490188 2147483647 3435973836" "$(ladder_at 8589934592)" \
-    "8 GiB reproduces the hand-tuned ladder it replaces"
-  # 4 GiB: the case that forced this change. Resting headroom on the live 4 GiB
-  # workspace was 3.36 GiB, which has to be comfortably clear of L1.
-  assert_eq "429496729 644245093 1073741822 1717986916" "$(ladder_at 4294967296)" \
-    "4 GiB scales the whole ladder down rather than sitting on it"
-  # 16 GiB: the objection that made the thresholds absolute in the first place -
-  # a plain percentage would reserve 1.6 GiB and shed with real headroom left.
-  assert_eq "1073741824 1610612736 2684354560 4294967296" "$(ladder_at 17179869184)" \
-    "16 GiB is capped rather than scaled into absurdity"
-  # 1 GiB: far below anything offered. The floor holds, and the ladder stays
-  # ordered - the failure to design out is a rung that overtakes another.
-  local small
-  small="$(ladder_at 1073741824)"
-  assert_eq "402653184 603979776 1006632960 1610612736" "$small" \
-    "a pod below the floor gets the floor, not a ladder of noise"
-
-  local max l4 l3 l2 l1
-  for max in 1073741824 2147483648 4294967296 8589934592 17179869184 34359738368; do
-    # Not via a command substitution: TOO_SMALL is state the derivation sets, and
-    # a subshell would discard exactly the answer being asserted on.
-    T_L1="" T_L2="" T_L3="" T_L4=""
-    CEILING=()
-    derive_limits "$max"
-    l4=$T_L4 l3=$T_L3 l2=$T_L2 l1=$T_L1
-    if ((l4 < l3 && l3 < l2 && l2 < l1)); then
-      ok "memory.max=${max}: the rungs stay strictly ordered"
-    else
-      bad "memory.max=${max}: rungs out of order (${l4} ${l3} ${l2} ${l1})"
-    fi
-    # Either the pod has room above its own first rung, or the watchdog has
-    # declared the pod too small to act on. What must never happen is a pod that
-    # boots inside the shedding tiers while still believing it may shed - that is
-    # the "kills the editor every fifteen minutes" failure, reached by arithmetic
-    # rather than by bad luck.
-    if ((l1 * 2 <= max)); then
-      ok "memory.max=${max}: the pod has room above L1"
-    elif ((TOO_SMALL == 1)); then
-      ok "memory.max=${max}: too small for the ladder, and says so"
-    else
-      bad "memory.max=${max}: L1 (${l1}) crowds the limit and enforce is not refused"
-    fi
-  done
-
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  derive_limits 1073741824
-  assert_eq 1 "$TOO_SMALL" "a 1 GiB pod is marked too small for the ladder"
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  derive_limits 4294967296
-  assert_eq 0 "$TOO_SMALL" "a 4 GiB pod is not"
-
-  # Ceilings scale for the same reason and with the same failure modes: a 3 GiB
-  # extension-host ceiling on a 4 GiB pod is not cautious, it is unreachable.
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  derive_limits 8589934592
-  assert_eq 1610612736 "${CEILING[serverMain]}" "8 GiB keeps the reasoned serverMain ceiling"
-  assert_eq 3221225472 "${CEILING[extensionHost]}" "and the extension-host one"
-  assert_eq 3758096384 "${CEILING[tsserver]}" "and tsserver's"
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  derive_limits 4294967296
-  assert_eq 1610612736 "${CEILING[extensionHost]}" "4 GiB halves the extension-host ceiling"
-  assert_eq 536870912 "${CEILING[fileWatcher]}" "and floors the small ones rather than shrinking them to nothing"
-  local role
-  for role in serverMain extensionHost tsserver languageServer fileWatcher; do
-    if ((${CEILING[$role]} < 4294967296)); then
-      ok "4 GiB pod: the ${role} ceiling is inside the pod"
-    else
-      bad "4 GiB pod: the ${role} ceiling (${CEILING[$role]}) is the whole pod - inert"
-    fi
-  done
-
-  # An explicit environment value must win, or the live demonstration cannot
-  # force a ceiling to bite without editing the script under test.
-  T_L1="" T_L2="" T_L3="" T_L4=""
-  CEILING=()
-  WATCHDOG_CEILING_extensionHost=268435456 derive_limits 8589934592
-  assert_eq 268435456 "${CEILING[extensionHost]}" "an explicit ceiling overrides the derivation"
-  T_L1="" T_L2="" T_L3=""
-  T_L4=123456789 # as WATCHDOG_T_L4 would have left it at startup
-  CEILING=()
-  derive_limits 8589934592
-  assert_eq 123456789 "$T_L4" "and an explicit rung overrides its share of the ladder"
-  assert_eq 3435973836 "$T_L1" "while the rest of the ladder is still derived"
-}
-
-# --------------------------------------------------------------------------- #
-# 4c. how often it acts
-#
-# Shedding the editor is the right trade against an oom.group kill. Shedding it
-# every fifteen minutes is not, because the operator switches the watchdog off
-# and then it protects nothing. Correctness and frequency are both requirements.
-# --------------------------------------------------------------------------- #
-
-# LAST_ACTION_AT and RUNG_FIRED are globals of the sourced watchdog, standing in
-# here for the bookkeeping shed_load would have done after a real signal.
-# shellcheck disable=SC2034
-test_shedding_is_rate_limited() {
-  printf 'shedding is rate limited\n'
-  write_cgroup "${WORK}/cg" 8589934592 0.00
-  load_watchdog "${WORK}/cg" "${WORK}/proc2"
-
-  local mid=2500000000 low=1800000000 crit=1000000000 big=6594088184
+  # The python MCP server at the size it was actually observed at: 1.66 GB
+  # against a 512 MiB budget.
   local t=1000
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "the first sweep over budget signals nothing"
+  assert_eq "$t" "${OVER_SINCE[61:100]}" "but it starts the dwell clock"
 
-  reset_tier_state
-  # Reach L2 and let it fire.
-  step_tier "$low" 1500 0 "$low" $t
-  step_tier "$low" 1500 0 "$low" $t
-  assert_tier L2 "$low" 1500 0 "$low" $t "the first L2 of an excursion acts"
-  RUNG_FIRED[L2]=1
-  LAST_ACTION_AT=$t
+  t=$((t + DWELL_SECONDS - 60))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "nor does one just short of the dwell period"
 
-  # Still bad, well past the settle window: the old cooldown would have let L2
-  # fire again every 180s for as long as the pressure lasted.
-  t=$((t + 600))
-  assert_tier L1 "$low" 1500 0 "$low" $t \
-    "and no later sample in the same excursion sheds again at L2"
-
-  # Escalation is untouched - this is what the fixed cooldown got wrong, by
-  # demoting L3 to L1 for three minutes after an L2 shed.
-  step_tier "$crit" 0 0 "$crit" $t
-  assert_tier L3 "$crit" 0 0 "$crit" $t "but a worse rung still fires during the same excursion"
-  RUNG_FIRED[L3]=1
-  LAST_ACTION_AT=$t
-
-  # Recovery above L1 is what re-arms, not the clock.
   t=$((t + 60))
-  assert_tier L0 "$big" 0 0 "$big" $t "recovery above L1 ends the excursion"
-  step_tier "$low" 1500 0 "$low" $t
-  step_tier "$low" 1500 0 "$low" $t
-  assert_tier L2 "$low" 1500 0 "$low" $((t + 100)) "and the next excursion may shed again"
+  sweep_at $t
+  assert_eq "TERM:61 " "$SIGNALS" "and at the dwell period it is asked to exit"
+  assert_eq 1 "${KILLS[claudeHelper]:-0}" "the kill is counted against its role"
 
-  # The settle window still separates two actions inside one excursion, so the
-  # ladder sees the effect of a kill before deciding it was not enough.
-  reset_tier_state
-  step_tier "$crit" 0 0 "$crit" 2000
-  assert_tier L3 "$crit" 0 0 "$crit" 2000 "L3 acts"
-  LAST_ACTION_AT=2000
-  RUNG_FIRED=()
-  assert_tier L1 "$crit" 0 0 "$crit" 2005 "another action 5s later is held back by the settle window"
+  # It ignored SIGTERM. The escalation is deliberately not an in-loop sleep: a
+  # process shutting down politely gets the whole grace period.
+  SIGNALS=""
+  t=$((t + KILL_GRACE - 5))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "inside the grace period it is left alone"
+  t=$((t + 10))
+  sweep_at $t
+  assert_eq "KILL:61 " "$SIGNALS" "past it, SIGKILL"
 
-  # L4 is exempt from all of it: by then the alternative is the whole pod.
-  reset_tier_state 2000
-  RUNG_FIRED[L4]=1
-  assert_tier L4 700000000 0 0 700000000 2001 "L4 ignores both the settle window and the rung flag"
+  # Load, not drift: a helper that goes over budget and comes back must survive.
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  t=2000
+  set_pss "$pdir" 44 900000000 # tsserver indexing, over its 768 MiB budget
+  sweep_at $t
+  t=$((t + 300))
+  sweep_at $t
+  set_pss "$pdir" 44 400000000 # indexing finished, memory handed back
+  t=$((t + 60))
+  sweep_at $t
+  assert_eq "" "${OVER_SINCE[44:100]:-}" "coming back under budget clears the dwell clock"
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_absent "$SIGNALS" "44" "a helper that recovered is never killed for the earlier excursion"
 
-  # An excursion is one continuous dip, not one sample below the line.
-  reset_tier_state
-  step_tier "$mid" 0 0 "$mid" 3000
-  assert_eq 1 "$EXCURSIONS" "a dip below L1 opens exactly one excursion"
-  step_tier "$mid" 0 0 "$mid" 3010
-  assert_eq 1 "$EXCURSIONS" "and staying down does not open another"
-  step_tier "$big" 0 0 "$big" 3020
-  step_tier "$mid" 0 0 "$mid" 3030
-  assert_eq 2 "$EXCURSIONS" "recovering and falling again does"
+  # Young processes are exempt: something over budget seconds after it started is
+  # a spike, and spikes are the kernel's problem, not this one's.
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  set_age "$pdir" 62 30
+  set_pss "$pdir" 62 900000000
+  t=3000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS + 60))
+  sweep_at $t
+  assert_absent "$SIGNALS" "62" "a process younger than MIN_AGE is not killed for drift"
+  set_age "$pdir" 62 50000
+  set_pss "$pdir" 62 200000000
 }
 
 # --------------------------------------------------------------------------- #
-# 4d. a ceiling is never a kill order for a healthy process
+# 4b. the kill loop, and the circuit breaker that stops it
 #
-# This is a regression test for a defect found by running the derivation against
-# a live 4 GiB workspace rather than against these fixtures. RLIMIT_DATA accounts
-# data_vm, not RSS, and on a V8 process the two differ by roughly an order of
-# magnitude: the live file watcher held 622 MB of data while resident in 66 MB.
-# The derived file-watcher ceiling for that pod was 512 MB - below what the
-# process already had - so enforcing it would have killed a perfectly healthy
-# file watcher on its next allocation, and again on every restart.
-#
-# The numbers below are that measurement, not an invention.
+# This is the failure mode that makes drift policing actively harmful, and it
+# arrives looking exactly like the watchdog working: kill the extension host, VS
+# Code restarts it, it reloads every extension, it exceeds again, kill. What
+# distinguishes a drifting role from a wrongly-budgeted one is only how often the
+# same role has to be killed, so that is what the breaker measures.
 # --------------------------------------------------------------------------- #
 
-# CEILING_LOGGED is a memo global of the sourced watchdog, cleared here so the
-# second half of the test can observe a fresh proposal.
-# shellcheck disable=SC2034
-test_ceiling_is_never_below_observed_usage() {
-  printf 'a ceiling is never below what the process already holds\n'
-  write_cgroup "${WORK}/cg" 4294967296 0.00
-  local pdir="${WORK}/proc4d"
+test_kill_loop_breaker() {
+  printf 'the kill loop breaker\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc4b"
   build_tree "$pdir"
-  # Live 4 GiB workspace, at rest, VS Code 1.132: pid 918 fileWatcher and pid
-  # 907 extensionHost.
-  set_proc_data "$pdir" 42 67000000 637184000
-  set_proc_data "$pdir" 41 509220000 1028004000
   rm -rf "${WORK}/state"
-  load_watchdog "${WORK}/cg" "$pdir"
-  scan_fixture
+  load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  # The case is real only if the derived ceiling really is below observed usage.
-  # Without this the assertion below would pass on a pod where nothing was wrong.
-  if ((CEILING[fileWatcher] < P_DATA[42])); then
-    ok "the derived file-watcher ceiling really is below observed usage on a 4 GiB pod"
+  local t=1000 i
+  for ((i = 1; i <= LOOP_KILLS; i++)); do
+    # A fresh incarnation of the same role, as a supervisor restart would give.
+    printf '%s (python3) S 60 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 %s\n' \
+      61 $((i * 1000)) >"${pdir}/61/stat"
+    set_pss "$pdir" 61 1660000000
+    sweep_at $t
+    t=$((t + DWELL_SECONDS))
+    sweep_at $t
+    t=$((t + 60))
+  done
+  assert_eq "$LOOP_KILLS" "${KILLS[claudeHelper]:-0}" "the role was killed once per incarnation"
+  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
+    ok "and after ${LOOP_KILLS} kills inside the window the role is disarmed"
   else
-    bad "the fixture does not reproduce the condition - the test proves nothing"
+    bad "the role kept being killed - there is no circuit breaker"
+  fi
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=disarmed role=claudeHelper" \
+    "the breaker says so in the log rather than going quiet"
+
+  # And it stays disarmed: the next incarnation is watched, reported, and left
+  # alone.
+  SIGNALS=""
+  printf '%s (python3) S 60 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 99000\n' 61 \
+    >"${pdir}/61/stat"
+  set_pss "$pdir" 61 1660000000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS + 60))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "a disarmed role is not killed again"
+  assert_contains "$(cat "${WORK}/state/sweep.latest")" "disarmed" \
+    "and the sweep records that it is over budget and deliberately spared"
+
+  # Falsification: with a window short enough that the kills fall outside it, the
+  # same three kills must NOT disarm anything - otherwise the assertion above is
+  # about the count and not about the rate, and any long-lived workspace would
+  # eventually disarm itself.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  LOOP_WINDOW=60
+  t=10000
+  for ((i = 1; i <= LOOP_KILLS; i++)); do
+    record_kill claudeHelper $t
+    t=$((t + 600))
+  done
+  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
+    bad "kills spread over hours still disarm the role - the breaker counts, it does not measure a rate"
+  else
+    ok "kills spread beyond the window do not disarm the role"
   fi
 
-  apply_ceilings
+  # The global breaker: a budget wrong in a way that spreads across roles.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  t=20000
+  for ((i = 1; i <= GLOBAL_LOOP_KILLS; i++)); do
+    record_kill "role${i}" $t
+  done
+  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
+    ok "enough kills across unrelated roles disarms everything"
+  else
+    bad "no global circuit breaker"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
+# 5. observe mode really is inert, and says what it would have done
+# --------------------------------------------------------------------------- #
+
+test_observe_mode() {
+  printf 'observe mode\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc5b"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+
+  local t=1000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "observe mode signals nothing"
   local log
   log="$(cat "${WORK}/state/actions.log")"
-  local line want
-  for pid in 42 41; do
-    line=$(printf '%s\n' "$log" | grep "pid=${pid} " | head -1)
-    want=${line##*rlimit_data=}
-    want=${want%% *}
-    if [[ -n $want ]] && ((want > ${P_DATA[$pid]:-0})); then
-      ok "pid ${pid}: proposed ceiling ${want} is above its observed ${P_DATA[$pid]:-0} bytes of data"
-    else
-      bad "pid ${pid}: proposed ceiling '${want}' would kill it at once (data=${P_DATA[$pid]:-0})"
-    fi
-  done
+  assert_contains "$log" "event=would-kill armed=no pid=61" \
+    "but it logs the kill it would have made"
+  assert_contains "$log" "mode=observe" "and records the mode it was in"
+  assert_eq 0 "${KILLS[claudeHelper]:-0}" "a kill it did not make is not counted"
+  assert_contains "$(cat "${WORK}/state/sweep.latest")" "would-kill" \
+    "the sweep row says would-kill rather than killed"
 
-  # And the growth allowance is the reserve, so the ceiling means "may grow by
-  # this much", not "may be this big".
-  line=$(printf '%s\n' "$log" | grep "pid=42 " | head -1)
-  want=${line##*rlimit_data=}
-  want=${want%% *}
-  assert_eq "$((P_DATA[42] + 2 * C_RESERVE))" "$want" \
-    "the ceiling is observed usage plus two critical reserves"
+  # Enforce mode arms helpers but not the editor, so the extension host is
+  # reported and spared in exactly the same way.
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  set_pss "$pdir" 41 2000000000
+  t=5000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_absent "$SIGNALS" "TERM:41" "enforce mode does not kill the extension host"
+  assert_contains "$(cat "${WORK}/state/actions.log")" "pid=41" \
+    "but it does report it as over budget"
 
-  # A ceiling that could only be set above memory.max bounds nothing. Saying so
-  # is better than setting it and looking protected.
-  set_proc_data "$pdir" 42 67000000 4000000000
-  read_rss 42
-  : >"${WORK}/state/actions.log"
-  CEILING_LOGGED=()
-  apply_ceilings
-  if [[ "$(cat "${WORK}/state/actions.log")" == *"no-ceiling pid=42"* ]]; then
-    ok "a process already too large to cap is reported, not silently capped"
-  else
-    bad "a process too large to cap was handled silently"
-  fi
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce-all
+  t=8000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_contains "$SIGNALS" "TERM:41" "enforce-all does kill it"
+  set_pss "$pdir" 41 500000000
 }
 
 # --------------------------------------------------------------------------- #
-# 4e. the sample interval is chosen by rate, not by tier
+# 6. the sweep log
 #
-# Measured, not supposed. A runaway at the rate seen in production took the test
-# workspace from idle to OOMKilled in 43 seconds while the watchdog ran in
-# enforce mode, never left L0 and logged nothing: at a 10-second idle interval it
-# had four samples in which to satisfy a three-sample debounce and climb three
-# rungs. Tier cannot be the input to the interval, because tier is the lagging
-# indicator of the very thing being raced.
+# Every post-mortem in this investigation was unanswerable because the watchdog
+# computed this table on every cycle and threw it away. The log is therefore a
+# deliverable in its own right, not decoration on the killing.
 # --------------------------------------------------------------------------- #
 
-# shellcheck disable=SC2034  # TIME_TO_LIMIT and PREV_TIER are the sourced globals
-test_interval_is_chosen_by_rate() {
-  printf 'the sample interval is chosen by rate\n'
-  write_cgroup "${WORK}/cg" 4294967296 0.00
-  load_watchdog "${WORK}/cg" "${WORK}/proc2"
+test_sweep_log() {
+  printf 'the sweep log\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc6"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  sweep_at 1000
 
-  TIME_TO_LIMIT=0
-  PREV_TIER=L0
-  assert_eq 10 "$(next_interval)" "an idle pod that is not growing polls slowly"
+  local log
+  log="$(cat "${WORK}/state/sweep.log")"
+  assert_contains "$log" "pss_kb" "the log carries a header naming its columns"
+  assert_contains "$log" "	extensionHost	" "a policed process appears with its role"
+  assert_contains "$log" "	claudeHelper	" "so does an MCP server"
+  assert_contains "$log" "homelab_mcp.server" "with the identity that survives a restart"
+  assert_contains "$log" "	TOTAL	" "and each sweep ends with a totals row"
+  assert_contains "$log" "policed=" "which carries the census"
 
-  PREV_TIER=L1
-  assert_eq 2 "$(next_interval)" "a pod already on the ladder polls faster"
+  # The processes it does NOT manage are the ones every OOM in this investigation
+  # actually involved, so they are recorded too - as unmanaged, not as absent.
+  assert_contains "$log" "	unmanaged	" "large unmanaged processes are recorded"
+  local line
+  line=$(printf '%s\n' "$log" | grep -m1 '	60	')
+  assert_contains "$line" "unmanaged" "including the agent session itself"
 
-  # 3.96 GiB of headroom disappearing at 91 MB/s - the reproduced production
-  # rate - is 43 seconds from the limit while still reading L0.
-  TIME_TO_LIMIT=43
-  PREV_TIER=L0
-  assert_eq 1 "$(next_interval)" \
-    "but a rate that reaches the limit inside the horizon overrides L0 entirely"
-
-  # The case that must not become chatty: growth so slow it will never matter.
-  TIME_TO_LIMIT=3600
-  PREV_TIER=L0
-  assert_eq 10 "$(next_interval)" "slow growth does not spin the loop up"
-
-  # With a 1-second interval the debounce that could not complete in the live run
-  # completes with time to spare: three samples is three seconds, against the 43
-  # the event took.
-  if ((DEBOUNCE_L1 * 1 < 43 && DEBOUNCE_L3 * 1 < 43)); then
-    ok "at the fast interval the debounces fit inside the observed event"
+  # Small processes are not, or a sweep is a hundred rows of shells.
+  if printf '%s\n' "$log" | grep -q '	31	'; then
+    bad "a 3 MB shell was written to the sweep log"
   else
-    bad "the debounces still cannot complete inside a 43-second event"
+    ok "processes below the log floor are omitted"
   fi
+
+  # Secrets in argv are redacted at the point of writing, because this file is
+  # the one thing here that might later be shipped somewhere.
+  assert_absent "$log" "remotessh" "a connection token never reaches the log"
+  assert_eq "node --connection-token=<redacted> --start" \
+    "$(redact "node --connection-token=remotessh --start")" \
+    "the value is replaced in place, so the shape is still visible"
+  assert_eq "python3 --api-key=<redacted>" "$(redact "python3 --api-key=sk-live-1234")" \
+    "and the same for a key on an MCP server's command line"
+
+  # The summary file is what the operator reads first, so its numbers have to be
+  # the real ones. Asserted because they were not: `$((BUDGET[role]))` reads the
+  # *key* "role" inside an arithmetic context and every budget printed as 0M,
+  # which looked like a watchdog with no budgets at all.
+  publish_summary 1000
+  local summary
+  summary="$(cat "${WORK}/state/summary")"
+  assert_contains "$summary" "claudeHelper=512M" "the summary prints real budgets"
+  assert_contains "$summary" "extensionHost=1069M" "including the ones the resting floor lifted"
+  assert_contains "$summary" "policed=" "and the size of the policed set"
+
+  # The visibility check: a watchdog that manages nothing looks exactly like a
+  # watchdog with nothing to do, and only the log can tell them apart.
+  rm -rf "${WORK}/state"
+  local empty="${WORK}/proc6b"
+  mkdir -p "$empty"
+  write_uptime "$empty"
+  add_proc "$empty" 1 0 coder 14208 ./coder agent
+  load_watchdog "${WORK}/cg" "$empty" observe
+  SWEEPS=$VISIBILITY_WARMUP
+  sweep_at 1000
+  check_visibility
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=warning reason=nothing-policed" \
+    "an empty policed set is reported rather than passing for health"
 }
 
 # --------------------------------------------------------------------------- #
-# 4f. a stale pidfile does not disarm the watchdog forever
+# 6b. the action lines reach the container's stdout
+#
+# The cluster's log agent tails container stdout and nothing else, and PID 1 in
+# the workspace container is the coder agent - so /proc/1/fd/1 is the only route
+# out of this pod, and it is free. What goes through it is deliberately limited
+# to actions: the sweep is dozens of rows a minute and belongs in the local file.
+# --------------------------------------------------------------------------- #
+
+test_stdout_emission() {
+  printf 'action lines reach container stdout\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc6c"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+
+  # Driven through cycle_once rather than sweep_once, because the budget and
+  # census lines are emitted by the cycle and a test that only swept would be
+  # asserting on half the output.
+  # shellcheck disable=SC2034  # globals of the sourced watchdog
+  SWEEP_EVERY=1
+  # Emptied so the first cycle derives its budgets exactly as the daemon does at
+  # startup, and emits them.
+  BUDGET=()
+  local t=1000
+  cycle_once $t
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  CYCLE=1
+  t=$((t + DWELL_SECONDS))
+  cycle_once $t
+
+  local out
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" "event=kill sig=TERM" "a kill is emitted to stdout"
+  assert_contains "$out" "event=budget role=" "so are the budgets in force"
+  assert_contains "$out" "floored=1" "including which of them the resting floor lifted"
+  assert_contains "$out" "event=census" "and a census line"
+  assert_contains "$out" "id=homelab_mcp.server" "with the identity breadcrumb, not just a pid"
+  assert_contains "$out" "top_role=" "and the census carries the standing population's largest member"
+
+  # Queryable without anyone adding a stream label: every line is logfmt and
+  # starts with the same key, so `|= "component=memory-watchdog" | logfmt` works.
+  local line n=0 bad_lines=0
+  while IFS= read -r line; do
+    [[ -z $line ]] && continue
+    n=$((n + 1))
+    [[ $line == "component=memory-watchdog time="* ]] || bad_lines=$((bad_lines + 1))
+    [[ $line == *" event="* ]] || bad_lines=$((bad_lines + 1))
+  done <"$STDOUT_FILE"
+  assert_eq 0 "$bad_lines" "every emitted line is logfmt with component and event first (${n} lines)"
+
+  # Free text is quoted, so a sentence in detail= cannot become five bogus keys.
+  record_action "event=warning reason=test detail=@a sentence with spaces in it@"
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" 'detail="a sentence with spaces in it"' \
+    "free text is quoted rather than spilling into the parse"
+  assert_absent "$out" "detail=a sentence" "an unquoted sentence never reaches the line"
+
+  # The volume rule: the sweep stays local. This is the assertion that stops a
+  # later change from putting forty thousand rows a day into the log pipeline.
+  assert_absent "$out" "	unmanaged	" "sweep rows are not emitted to stdout"
+  assert_absent "$out" "pss_kb" "nor the sweep header"
+  assert_contains "$(cat "${WORK}/state/sweep.log")" "	unmanaged	" "they are in the local sweep log"
+
+  # Observe mode emits what it *would* have done, which is the data anyone needs
+  # before arming this on a live workspace.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  t=5000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" "event=would-kill armed=no" "observe mode emits the kill it would have made"
+  assert_contains "$out" "mode=observe" "labelled with the mode, so the two cannot be confused"
+  assert_absent "$out" "event=kill " "and never emits a kill it did not make"
+
+  # Best effort, always. The fd may not be writable in some contexts, and a
+  # watchdog that died because logging failed would be worse than any bug it
+  # prevents.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  STDOUT_PATH="${WORK}/no-such-dir/stdout.log"
+  record_action "event=kill sig=TERM pid=1234 role=claudeHelper"
+  assert_eq 0 "$STDOUT_OK" "an unwritable stdout path disables itself"
+  local log
+  log="$(cat "${WORK}/state/actions.log")"
+  assert_contains "$log" "reason=stdout-unavailable" "and says so once, locally"
+  assert_contains "$log" "event=kill sig=TERM pid=1234" "while the local record is unaffected"
+  record_action "event=kill sig=TERM pid=1235 role=claudeHelper"
+  assert_contains "$(cat "${WORK}/state/actions.log")" "pid=1235" "and later actions still record"
+  assert_eq 1 "$(grep -c "reason=stdout-unavailable" "${WORK}/state/actions.log")" \
+    "the warning is not repeated on every action"
+}
+
+# --------------------------------------------------------------------------- #
+# 7. a stale pidfile does not disarm the watchdog forever
 #
 # Found on the live test workspace, not here. The pod was OOM-killed, the
 # watchdog died by SIGKILL without running its EXIT trap, and its pidfile
@@ -1135,12 +1347,11 @@ test_interval_is_chosen_by_rate() {
 test_singleton_survives_a_hard_kill() {
   printf 'a stale pidfile does not disarm the watchdog\n'
   write_cgroup "${WORK}/cg" 4294967296 0.00
-  local pdir="${WORK}/proc4f"
+  local pdir="${WORK}/proc7"
   build_tree "$pdir"
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir"
 
-  # A pid from the previous container that no longer exists at all.
   printf '99999\n' >"${WORK}/state/watchdog.pid"
   if acquire_singleton; then
     ok "a pidfile naming a dead process is taken over"
@@ -1148,8 +1359,6 @@ test_singleton_survives_a_hard_kill() {
     bad "a dead process's pidfile locks the watchdog out"
   fi
 
-  # A pid that does exist in this container but is something else entirely -
-  # the recycled-pid case, which is the normal case after a restart.
   printf '44\n' >"${WORK}/state/watchdog.pid"
   if acquire_singleton; then
     ok "a pidfile naming an unrelated live process is taken over"
@@ -1157,7 +1366,6 @@ test_singleton_survives_a_hard_kill() {
     bad "an unrelated process holding a recycled pid locks the watchdog out"
   fi
 
-  # An empty pidfile - what a truncated or half-written file looks like.
   : >"${WORK}/state/watchdog.pid"
   if acquire_singleton; then
     ok "an empty pidfile is taken over"
@@ -1170,7 +1378,7 @@ test_singleton_survives_a_hard_kill() {
   # watchdog with no singleton guard at all.
   local d="${pdir}/4242"
   mkdir -p "$d"
-  printf '4242 (bash) S 1 0 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 0\n' >"${d}/stat"
+  printf '4242 (bash) S 1 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 100\n' >"${d}/stat"
   printf '/bin/bash\0%s\0' "${SELF_DIR}/script-memory-watchdog.sh" >"${d}/cmdline"
   printf '4242\n' >"${WORK}/state/watchdog.pid"
   if acquire_singleton; then
@@ -1179,7 +1387,6 @@ test_singleton_survives_a_hard_kill() {
     ok "a live process running this same script does hold the lock"
   fi
 
-  # Releasing must not steal a pidfile owned by someone else.
   printf '4242\n' >"${WORK}/state/watchdog.pid"
   release_singleton
   if [[ -s "${WORK}/state/watchdog.pid" ]]; then
@@ -1190,39 +1397,36 @@ test_singleton_survives_a_hard_kill() {
 }
 
 # --------------------------------------------------------------------------- #
-# 5. observe mode really is inert
+# 8. pid recycling
+#
+# Every piece of state carried between sweeps is keyed on pid:starttime. Without
+# the starttime a recycled pid inherits the dwell clock of whatever held that
+# number before it, and can be killed for someone else's drift.
 # --------------------------------------------------------------------------- #
 
-test_observe_mode_is_inert() {
-  printf 'observe mode\n'
+test_pid_recycling() {
+  printf 'pid recycling\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
-  local pdir="${WORK}/proc4"
+  local pdir="${WORK}/proc8"
   build_tree "$pdir"
   rm -rf "${WORK}/state"
-  load_watchdog "${WORK}/cg" "$pdir"
-  scan_fixture
+  load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  apply_ceilings
-  local limits_now
-  limits_now="$(cat "${pdir}/41/limits")"
-  if [[ $limits_now == *"unlimited            unlimited"* ]]; then
-    ok "observe mode changed no RLIMIT_DATA"
-  else
-    bad "observe mode wrote a limit"
-  fi
-  if [[ -s "${WORK}/state/actions.log" ]] &&
-    [[ "$(cat "${WORK}/state/actions.log")" == *"[observe] ceiling"* ]]; then
-    ok "observe mode logged the ceilings it would have set"
-  else
-    bad "observe mode logged nothing"
-  fi
+  local t=1000
+  sweep_at $t
+  assert_eq "$t" "${OVER_SINCE[61:100]}" "the dwell clock is keyed on pid and starttime"
 
-  # ptyHost must never appear in the ceiling log, at any tier, in any mode: a
-  # soft RLIMIT_DATA there is inherited by every terminal the operator opens.
-  if [[ "$(cat "${WORK}/state/actions.log")" == *"pid=43"* ]]; then
-    bad "a ceiling was proposed for the ptyHost fork"
+  # Same pid, different process. The starttime changes, so the key changes.
+  printf '61 (python3) S 60 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 55500\n' \
+    >"${pdir}/61/stat"
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "a recycled pid does not inherit the previous dwell"
+  assert_eq "$t" "${OVER_SINCE[61:55500]}" "it starts its own clock"
+  if [[ -n ${OVER_SINCE[61:100]:-} ]]; then
+    bad "the dead process's dwell entry was left behind to grow forever"
   else
-    ok "no ceiling is ever proposed for the ptyHost fork"
+    ok "and the dead process's entry is pruned"
   fi
 }
 
@@ -1231,19 +1435,19 @@ test_observe_mode_is_inert() {
 main() {
   test_measurement
   test_selection
+  test_claude_helpers
   test_operator_runtime_is_never_a_helper
-  test_selection_is_falsifiable
-  test_guards_are_precise
-  test_acting_tier_never_acts_silently
   test_comm_is_not_a_criterion
   test_two_servers
-  test_tiers
-  test_derivation
-  test_shedding_is_rate_limited
-  test_ceiling_is_never_below_observed_usage
-  test_interval_is_chosen_by_rate
+  test_guards_are_precise
+  test_budgets
+  test_dwell
+  test_kill_loop_breaker
+  test_observe_mode
+  test_sweep_log
+  test_stdout_emission
   test_singleton_survives_a_hard_kill
-  test_observe_mode_is_inert
+  test_pid_recycling
   printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
   ((FAIL == 0))
 }
