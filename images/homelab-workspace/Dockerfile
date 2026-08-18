@@ -66,7 +66,6 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       git \
       htop \
       inetutils-tools \
-      iotop \
       iputils-ping \
       iputils-tracepath \
       less \
