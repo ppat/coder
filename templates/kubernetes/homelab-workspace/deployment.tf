@@ -79,8 +79,14 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         container {
-          name    = "workspace"
-          command = ["/bin/bash", "/workspace-init.sh"]
+          name = "workspace"
+          # Not Coder's generated /workspace-init.sh directly: the entrypoint
+          # wipes /tmp and then execs it. The wipe has to happen before the
+          # agent unpacks its CLI into /tmp, and this is the only hook that runs
+          # on a container-only restart within a live Pod (init containers do
+          # not) - see script-container-entrypoint.sh and the "tmp" volume
+          # below.
+          command = ["/bin/bash", "/container-entrypoint.sh"]
           image   = var.workspace_image
           env {
             name  = "CODER_AGENT_TOKEN"
@@ -130,6 +136,11 @@ resource "kubernetes_deployment_v1" "deployment" {
             mount_path = "/agent-startup.sh"
             name       = "coder-scripts"
             sub_path   = "agent_startup_script"
+          }
+          volume_mount {
+            mount_path = "/container-entrypoint.sh"
+            name       = "coder-scripts"
+            sub_path   = "container_entrypoint_script"
           }
           volume_mount {
             mount_path = "/memory-watchdog.sh"
@@ -222,8 +233,12 @@ resource "kubernetes_deployment_v1" "deployment" {
         # node notices. Its lifecycle matches the Pod's (created fresh, deleted
         # with it) - like the "system" volume above, that means a Pod restart
         # gets a clean volume but a container-only restart within a live Pod
-        # does not, which is why script-agent-startup.sh also wipes /tmp's
-        # contents explicitly on every agent start instead of relying on this.
+        # does not, which is why the container's entrypoint
+        # (script-container-entrypoint.sh) wipes /tmp's contents explicitly on
+        # every container start instead of relying on this. That wipe belongs in
+        # the entrypoint and nowhere later: the Coder agent unpacks its own CLI
+        # into /tmp before it runs anything else, so a wipe from the agent
+        # startup script deletes it.
         volume {
           name = "tmp"
           ephemeral {
