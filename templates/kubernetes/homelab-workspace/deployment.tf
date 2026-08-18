@@ -48,10 +48,6 @@ resource "kubernetes_deployment_v1" "deployment" {
           command = ["/bin/bash", "/prepare-workspace-script.sh"]
           image   = var.workspace_image
           env {
-            name  = "SYSTEM_PACKAGES"
-            value = length(local.validated_system_packages) > 0 ? join(" ", local.validated_system_packages) : "NONE"
-          }
-          env {
             name  = "HOMEBREW_PREFIX"
             value = local.homebrew_directory
           }
@@ -69,10 +65,6 @@ resource "kubernetes_deployment_v1" "deployment" {
             mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
             sub_path   = "prepare_workspace_script"
-          }
-          volume_mount {
-            name       = "system"
-            mount_path = "/updated"
           }
           security_context {
             run_as_user = 0
@@ -157,21 +149,6 @@ resource "kubernetes_deployment_v1" "deployment" {
             sub_path   = "workspace_init_script"
           }
           volume_mount {
-            mount_path = "/usr"
-            name       = "system"
-            sub_path   = "usr"
-          }
-          volume_mount {
-            mount_path = "/etc"
-            name       = "system"
-            sub_path   = "etc"
-          }
-          volume_mount {
-            mount_path = "/var"
-            name       = "system"
-            sub_path   = "var"
-          }
-          volume_mount {
             mount_path = "/tmp"
             name       = "tmp"
           }
@@ -213,12 +190,6 @@ resource "kubernetes_deployment_v1" "deployment" {
           config_map {
             name         = "init-scripts-${data.coder_workspace.me.id}"
             default_mode = "0750"
-          }
-        }
-        volume {
-          name = "system"
-          empty_dir {
-            size_limit = "10Gi"
           }
         }
         # /tmp is scratch space (agent/tool tempfiles, build caches, downloaded

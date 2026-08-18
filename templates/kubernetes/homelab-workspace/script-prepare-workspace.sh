@@ -67,29 +67,6 @@ setup_homebrew() {
   echo 'Done'
 }
 
-setup_system_packages() {
-  echo '------------------------------------------------------------'
-  echo 'Running apt-get update...'
-  apt-get update 2>&1 | sed -E -n 's|^|    |p'
-  echo 'Running apt-file update...'
-  apt-file update 2>&1 | sed -E -n 's|^|    |p'
-  echo '------------------------------------------------------------'
-  echo 'Installing additinal apt packages...'
-  echo "    Packages: $SYSTEM_PACKAGES"
-  echo
-  if [[ "$SYSTEM_PACKAGES" != "NONE" ]]; then
-    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -yq $SYSTEM_PACKAGES 2>&1 | sed -E -n 's|^|    |p'
-  fi
-  echo '------------------------------------------------------------'
-  echo 'Rsyncing (etc, usr, var) to /updated...'
-  rsync -aH --stats /etc /usr /var /updated 2>&1 | sed -E -n 's|^|    |p'
-  echo '------------------------------------------------------------'
-  echo 'Updated system size...'
-  du -h -d 1 /updated 2>&1 | sed -E -n 's|^|    |p'
-  echo '------------------------------------------------------------'
-  echo 'Done'
-}
-
 prepare_environment() {
   echo '------------------------------------------------------------'
   grep -v '^PATH=' /etc/environment > /tmp/environment.bak
@@ -104,9 +81,6 @@ prepare_environment() {
 }
 
 main() {
-  echo "Setting up system packages..."
-  setup_system_packages | sed -E -n 's|^|    |p'
-  echo
   echo "Setting up homebrew..."
   setup_homebrew | sed -E -n 's|^|    |p'
   echo
