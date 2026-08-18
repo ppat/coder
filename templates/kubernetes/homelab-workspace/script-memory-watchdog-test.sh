@@ -350,14 +350,38 @@ add_second_server() {
     "${sdir}/out/bootstrap-fork" --type=fileWatcher
 }
 
+# Always set explicitly, and never left at its default: the real default is
+# /proc/1/fd/1, i.e. the container's own stdout.
+#
+# This is not hypothetical. The first run of this suite after the stdout path was
+# added - before load_watchdog set the seam - wrote its fixture kill lines into
+# the live workspace's container log, where they reached Loki labelled as that
+# workspace and reading `event=kill role=extensionHost pss_mb=1907`. Nothing was
+# signalled (kill is shadowed), but for as long as those lines are retained they
+# describe kills that never happened, on a real workspace, in the exact format a
+# post-mortem would trust. A test fixture that can write into production
+# telemetry is a defect in the test, so the seam is asserted below rather than
+# merely set.
+STDOUT_FILE=""
+
 load_watchdog() {
   local mode=${3:-observe}
+  STDOUT_FILE="${WORK}/stdout.log"
+  : >"$STDOUT_FILE"
   WATCHDOG_SOURCE_ONLY=1 \
     WATCHDOG_CGROUP_DIR="$1" \
     WATCHDOG_PROC_DIR="$2" \
     WATCHDOG_STATE_DIR="${WORK}/state" \
+    WATCHDOG_STDOUT_PATH="$STDOUT_FILE" \
     WATCHDOG_MODE="$mode" \
     . "${SELF_DIR}/script-memory-watchdog.sh"
+  # Not an assertion - a refusal. If the seam ever fails to take, every later
+  # test in this file writes fixture actions to the container's real stdout.
+  if [[ ${STDOUT_PATH:-} != "$STDOUT_FILE" ]]; then
+    printf 'FATAL: the stdout seam did not take (STDOUT_PATH=%s); refusing to run\n' \
+      "${STDOUT_PATH:-unset}" >&2
+    exit 1
+  fi
   mkdir -p "${WORK}/state"
   SIGNALS=""
   # Budgets are derived from memory.max on the first cycle rather than being
@@ -839,21 +863,45 @@ test_budgets() {
   load_watchdog "${WORK}/cg" "${WORK}/proc2"
 
   # 8 GiB: the pod the roles were measured on. The operator's 512 MiB instinct
-  # applies unchanged to the helpers; the extension host gets twice its measured
-  # resting size instead, because 512 MiB is 40 MiB above where it starts.
+  # applies unchanged to the helpers. The extension host does not get it, and
+  # does not even get the pod share: measured at rest on a reconnected, idle
+  # 8 GiB workspace it holds 713 MB, so the resting floor lifts it above the
+  # 1024 MiB share. That is the correction this table exists to survive - the
+  # first version of these numbers was calibrated against a *fresh* tree, where
+  # the same process is 471 MB.
   budgets_at 8589934592
-  assert_eq 1073741824 "${BUDGET[extensionHost]}" "8 GiB: the extension host gets 1 GiB"
+  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
+    "8 GiB: the extension host is lifted above the pod share by its resting size"
+  assert_eq 1 "${FLOORED[extensionHost]}" "and that lift is recorded, not silent"
   assert_eq 536870912 "${BUDGET[serverMain]}" "8 GiB: serverMain gets 512 MiB"
   assert_eq 268435456 "${BUDGET[fileWatcher]}" "8 GiB: the file watcher gets 256 MiB"
+  assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 88 MB resting is well under it"
   assert_eq 536870912 "${BUDGET[claudeHelper]}" "8 GiB: an MCP server gets 512 MiB"
 
-  # 4 GiB: the pod share would give the extension host 512 MiB, which is above
-  # its resting 471 MB by 40 MB - i.e. a kill loop. The resting floor overrides
-  # it. This is the assertion that would have caught both historical defects.
+  # 4 GiB: the pod share is 512 MiB, far below what the extension host holds at
+  # rest. The floor overrides it rather than issuing a standing kill order.
   budgets_at 4294967296
-  assert_eq 740818944 "${BUDGET[extensionHost]}" \
+  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
     "4 GiB: the resting floor overrides the pod share for the extension host"
   assert_eq 268435456 "${BUDGET[fileWatcher]}" "4 GiB: the file watcher is unaffected"
+
+  # The property that matters more than any of the numbers: no budget may sit
+  # below the size the role was measured at while idle, at any pod size, ever.
+  local m r
+  for m in 2147483648 4294967296 8589934592; do
+    budgets_at $m
+    for r in "${!RESTING_ROLE[@]}"; do
+      # shellcheck disable=SC2004
+      # The $ is NOT unnecessary here: these are associative arrays, whose
+      # subscripts are strings inside (( )), so dropping it looks up the literal
+      # key "r" and silently reads 0. That defect shipped once already.
+      if ((BUDGET[$r] > RESTING_ROLE[$r])); then
+        ok "memory.max=${m}: ${r} is budgeted above its resting size"
+      else
+        bad "memory.max=${m}: ${r} budget ${BUDGET[$r]} is at or below resting ${RESTING_ROLE[$r]}"
+      fi
+    done
+  done
 
   local max role budget resting
   for max in 2147483648 4294967296 8589934592 17179869184; do
@@ -1014,7 +1062,7 @@ test_kill_loop_breaker() {
   else
     bad "the role kept being killed - there is no circuit breaker"
   fi
-  assert_contains "$(cat "${WORK}/state/actions.log")" "DISARMED role=claudeHelper" \
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=disarmed role=claudeHelper" \
     "the breaker says so in the log rather than going quiet"
 
   # And it stays disarmed: the next incarnation is watched, reported, and left
@@ -1082,9 +1130,9 @@ test_observe_mode() {
   assert_eq "" "$SIGNALS" "observe mode signals nothing"
   local log
   log="$(cat "${WORK}/state/actions.log")"
-  assert_contains "$log" "[observe] would-kill pid=61" \
+  assert_contains "$log" "event=would-kill armed=no pid=61" \
     "but it logs the kill it would have made"
-  assert_contains "$log" "armed=no" "and records that the role was not armed"
+  assert_contains "$log" "mode=observe" "and records the mode it was in"
   assert_eq 0 "${KILLS[claudeHelper]:-0}" "a kill it did not make is not counted"
   assert_contains "$(cat "${WORK}/state/sweep.latest")" "would-kill" \
     "the sweep row says would-kill rather than killed"
@@ -1171,7 +1219,7 @@ test_sweep_log() {
   local summary
   summary="$(cat "${WORK}/state/summary")"
   assert_contains "$summary" "claudeHelper=512M" "the summary prints real budgets"
-  assert_contains "$summary" "extensionHost=1024M" "including the derived ones"
+  assert_contains "$summary" "extensionHost=1069M" "including the ones the resting floor lifted"
   assert_contains "$summary" "policed=" "and the size of the policed set"
 
   # The visibility check: a watchdog that manages nothing looks exactly like a
@@ -1185,8 +1233,105 @@ test_sweep_log() {
   SWEEPS=$VISIBILITY_WARMUP
   sweep_at 1000
   check_visibility
-  assert_contains "$(cat "${WORK}/state/actions.log")" "WARNING no process has been policed" \
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=warning reason=nothing-policed" \
     "an empty policed set is reported rather than passing for health"
+}
+
+# --------------------------------------------------------------------------- #
+# 6b. the action lines reach the container's stdout
+#
+# The cluster's log agent tails container stdout and nothing else, and PID 1 in
+# the workspace container is the coder agent - so /proc/1/fd/1 is the only route
+# out of this pod, and it is free. What goes through it is deliberately limited
+# to actions: the sweep is dozens of rows a minute and belongs in the local file.
+# --------------------------------------------------------------------------- #
+
+test_stdout_emission() {
+  printf 'action lines reach container stdout\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc6c"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+
+  # Driven through cycle_once rather than sweep_once, because the budget and
+  # census lines are emitted by the cycle and a test that only swept would be
+  # asserting on half the output.
+  # shellcheck disable=SC2034  # globals of the sourced watchdog
+  SWEEP_EVERY=1
+  # Emptied so the first cycle derives its budgets exactly as the daemon does at
+  # startup, and emits them.
+  BUDGET=()
+  local t=1000
+  cycle_once $t
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  CYCLE=1
+  t=$((t + DWELL_SECONDS))
+  cycle_once $t
+
+  local out
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" "event=kill sig=TERM" "a kill is emitted to stdout"
+  assert_contains "$out" "event=budget role=" "so are the budgets in force"
+  assert_contains "$out" "floored=1" "including which of them the resting floor lifted"
+  assert_contains "$out" "event=census" "and a census line"
+  assert_contains "$out" "id=homelab_mcp.server" "with the identity breadcrumb, not just a pid"
+  assert_contains "$out" "top_role=" "and the census carries the standing population's largest member"
+
+  # Queryable without anyone adding a stream label: every line is logfmt and
+  # starts with the same key, so `|= "component=memory-watchdog" | logfmt` works.
+  local line n=0 bad_lines=0
+  while IFS= read -r line; do
+    [[ -z $line ]] && continue
+    n=$((n + 1))
+    [[ $line == "component=memory-watchdog time="* ]] || bad_lines=$((bad_lines + 1))
+    [[ $line == *" event="* ]] || bad_lines=$((bad_lines + 1))
+  done <"$STDOUT_FILE"
+  assert_eq 0 "$bad_lines" "every emitted line is logfmt with component and event first (${n} lines)"
+
+  # Free text is quoted, so a sentence in detail= cannot become five bogus keys.
+  record_action "event=warning reason=test detail=@a sentence with spaces in it@"
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" 'detail="a sentence with spaces in it"' \
+    "free text is quoted rather than spilling into the parse"
+  assert_absent "$out" "detail=a sentence" "an unquoted sentence never reaches the line"
+
+  # The volume rule: the sweep stays local. This is the assertion that stops a
+  # later change from putting forty thousand rows a day into the log pipeline.
+  assert_absent "$out" "	unmanaged	" "sweep rows are not emitted to stdout"
+  assert_absent "$out" "pss_kb" "nor the sweep header"
+  assert_contains "$(cat "${WORK}/state/sweep.log")" "	unmanaged	" "they are in the local sweep log"
+
+  # Observe mode emits what it *would* have done, which is the data anyone needs
+  # before arming this on a live workspace.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  t=5000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" "event=would-kill armed=no" "observe mode emits the kill it would have made"
+  assert_contains "$out" "mode=observe" "labelled with the mode, so the two cannot be confused"
+  assert_absent "$out" "event=kill " "and never emits a kill it did not make"
+
+  # Best effort, always. The fd may not be writable in some contexts, and a
+  # watchdog that died because logging failed would be worse than any bug it
+  # prevents.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  STDOUT_PATH="${WORK}/no-such-dir/stdout.log"
+  record_action "event=kill sig=TERM pid=1234 role=claudeHelper"
+  assert_eq 0 "$STDOUT_OK" "an unwritable stdout path disables itself"
+  local log
+  log="$(cat "${WORK}/state/actions.log")"
+  assert_contains "$log" "reason=stdout-unavailable" "and says so once, locally"
+  assert_contains "$log" "event=kill sig=TERM pid=1234" "while the local record is unaffected"
+  record_action "event=kill sig=TERM pid=1235 role=claudeHelper"
+  assert_contains "$(cat "${WORK}/state/actions.log")" "pid=1235" "and later actions still record"
+  assert_eq 1 "$(grep -c "reason=stdout-unavailable" "${WORK}/state/actions.log")" \
+    "the warning is not repeated on every action"
 }
 
 # --------------------------------------------------------------------------- #
@@ -1300,6 +1445,7 @@ main() {
   test_kill_loop_breaker
   test_observe_mode
   test_sweep_log
+  test_stdout_emission
   test_singleton_survives_a_hard_kill
   test_pid_recycling
   printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"

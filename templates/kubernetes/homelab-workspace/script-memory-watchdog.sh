@@ -142,8 +142,18 @@ GLOBAL_LOOP_KILLS="${WATCHDOG_GLOBAL_LOOP_KILLS:-8}"
 # the operator's number where it is right, and a number anchored on its own
 # measured resting size where it is not.
 #
-# The reference column is that measurement. It is not a budget; it is the floor
-# below which a budget is a kill order rather than a limit.
+# The reference column is that measurement, and it is the *resting* one rather
+# than the fresh one, which is the correction that produced these numbers. A
+# freshly started extension host is 471 MB PSS; the same extension host on a
+# reconnected, idle 8 GiB workspace is 713 MB, and the tree around it 1093 MB
+# rather than the 727 MB this design was first calibrated against. "Calibrated
+# against fresh, deployed against resting" is the same error that produced a
+# file-watcher ceiling below what an idle file watcher already held, so the
+# references below are the largest resting figure measured for each role, and
+# a role with no measurement gets none rather than a guess.
+#
+# It is not a budget; it is the floor below which a budget is a kill order
+# rather than a limit.
 declare -gA BUDGET_ROLE=(
   [extensionHost]=1073741824  # 1024 MiB, against 471 MB resting
   [serverMain]=536870912      #  512 MiB, against 160 MB resting
@@ -157,9 +167,10 @@ declare -gA BUDGET_ROLE=(
   #                              better than one that holds 300 MB.
 )
 declare -gA RESTING_ROLE=(
-  [extensionHost]=493879296 # 471 MB
-  [serverMain]=167772160    # 160 MB
-  [fileWatcher]=35651584    #  34 MB
+  [extensionHost]=747634688 # 713 MB resting (471 MB fresh)
+  [serverMain]=167772160    # 160 MB resting (90 MB on a second measurement)
+  [fileWatcher]=92274688    #  88 MB resting (34 MB fresh)
+  [languageServer]=56623104 #  54 MB resting
 )
 # A budget is never allowed below the role's measured resting size times this,
 # whatever the pod arithmetic says. This is the guard against the class of error
@@ -178,13 +189,33 @@ HELPER_ROLES=" tsserver languageServer fileWatcher extensionHelper claudeHelper 
 EDITOR_ROLES=" extensionHost serverMain "
 
 # Filled by derive_budgets().
-declare -gA BUDGET=()
+declare -gA BUDGET=() FLOORED=()
 
 # Only processes at or above this are written to the sweep log, plus every
 # process the watchdog is policing regardless of size. The floor keeps a sweep
 # from being a hundred rows of 2 MB shells while still recording anything that
 # could plausibly matter later.
 SWEEP_LOG_FLOOR="${WATCHDOG_SWEEP_LOG_FLOOR:-33554432}" # 32 MiB
+
+# Where the action lines also go, so that they survive the pod.
+#
+# The cluster's log agent tails container stdout and nothing else, so no file in
+# this pod can reach Loki - but PID 1 in this container is the coder agent, and
+# /proc/1/fd/1 *is* the container's stdout. Writing there needs no new
+# infrastructure, no configuration anywhere, and the lines arrive already
+# labelled by namespace, pod and container.
+#
+# Only *actions* go there: kills, refusals, disarms, the budgets in force, and a
+# low-rate census line. The per-process sweep stays in the local file, because a
+# few dozen rows a minute is not something to put through a log pipeline, and
+# the local file remains the detailed record either way.
+#
+# Every write is best-effort. The fd may not be writable in every context - a
+# harness, a different container layout, a future PID 1 that closes it - and a
+# watchdog that died because logging failed would be a worse bug than any it
+# prevents. The first failure disables the path and says so once, locally.
+STDOUT_PATH="${WATCHDOG_STDOUT_PATH:-/proc/1/fd/1}"
+CENSUS_EVERY="${WATCHDOG_CENSUS_EVERY:-3600}" # seconds between census lines
 
 MAX_LOG_LINES="${WATCHDOG_MAX_LOG_LINES:-20000}"
 MAX_CSV_LINES="${WATCHDOG_MAX_CSV_LINES:-50000}"
@@ -224,6 +255,8 @@ KILL_TIMES_ALL=""
 LAST_KILL_AT=0
 PSS_UNAVAILABLE=0
 VISIBILITY_WARNED=0
+STDOUT_OK=1
+LAST_CENSUS_AT=0
 STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
 
 # --------------------------------------------------------------------------- #
@@ -242,6 +275,7 @@ derive_budgets() {
   local max=$1 role want share floor var
   share=$((max / POD_SHARE_DEN))
   BUDGET=()
+  FLOORED=()
   for role in "${!BUDGET_ROLE[@]}"; do
     var="WATCHDOG_BUDGET_${role}"
     if [[ -n ${!var:-} ]]; then
@@ -251,7 +285,15 @@ derive_budgets() {
     want=${BUDGET_ROLE[$role]}
     ((want > share)) && want=$share
     floor=$(((${RESTING_ROLE[$role]:-0} * RESTING_FACTOR_NUM) / RESTING_FACTOR_DEN))
-    ((want < floor)) && want=$floor
+    # The floor winning is not an error, but it is worth saying out loud: it
+    # means this pod is too small to bound this role at the share it was meant
+    # to have, and the role keeps its budget because the alternative is a kill
+    # loop. On the 8 GiB workspace the extension host reaches this, which is why
+    # it is reported rather than silently applied.
+    if ((want < floor)); then
+      want=$floor
+      FLOORED[$role]=1
+    fi
     BUDGET[$role]=$want
   done
   return 0
@@ -945,16 +987,41 @@ LOG_LINES=0
 CSV_LINES=0
 SWEEP_LINES=0
 
-log_action() {
-  local msg="$*" stamp
-  printf -v stamp '%(%Y-%m-%dT%H:%M:%S%z)T' -1
-  [[ $MODE == "observe" ]] && msg="[observe] ${msg}"
-  printf '%s %s\n' "$stamp" "$msg" >>"${STATE_DIR}/actions.log"
+# Appends one line to the local action log and nothing else. Used directly only
+# by emit_stdout, so that a failure to reach stdout cannot recurse into itself.
+append_action_log() {
+  printf '%s\n' "$1" >>"${STATE_DIR}/actions.log"
   ((LOG_LINES += 1))
   if ((LOG_LINES > MAX_LOG_LINES)); then
     mv -f "${STATE_DIR}/actions.log" "${STATE_DIR}/actions.log.1" 2>/dev/null
     LOG_LINES=0
   fi
+  return 0
+}
+
+emit_stdout() {
+  ((STDOUT_OK)) || return 0
+  [[ -n $STDOUT_PATH ]] || return 0
+  if ! printf '%s\n' "$1" >>"$STDOUT_PATH" 2>/dev/null; then
+    STDOUT_OK=0
+    append_action_log "component=memory-watchdog event=warning reason=stdout-unavailable path=${STDOUT_PATH} detail=@action lines are local-only from here@"
+  fi
+  return 0
+}
+
+# The one way an action is recorded. Arguments are logfmt pairs, and the whole
+# line is logfmt - `component` first, so that a LogQL line filter
+# (|= "component=memory-watchdog") and the logfmt parser both work on it without
+# anyone adding a stream label. Free text goes in a detail= field and is quoted
+# here rather than at each call site, because a call site that forgot would
+# produce a line that parses into the wrong fields rather than an obvious error.
+record_action() {
+  local stamp line="$*"
+  printf -v stamp '%(%Y-%m-%dT%H:%M:%S%z)T' -1
+  line=${line//@/\"}
+  line="component=memory-watchdog time=${stamp} mode=${MODE} ${line}"
+  append_action_log "$line"
+  emit_stdout "$line"
   return 0
 }
 
@@ -1046,14 +1113,14 @@ signal_pid() {
   # Second, independent guard. Selection already excluded these; this exists so
   # that a defect in tree-walking still cannot reach a protected process.
   if [[ -n ${PROTECTED[$pid]:-} ]] || is_never_signal "$pid"; then
-    log_action "REFUSED sig=${sig} pid=${pid} reason=protected (${why})"
+    record_action "event=refused sig=${sig} pid=${pid} role=${role} reason=protected detail=@${why}@"
     return 1
   fi
   # And the positional rules, restated independently of selection: inside the
   # server tree, the only thing that may be signalled without being one of the
   # editor's own helpers is a helper a session spawned directly.
   if [[ -n ${NOT_EDITOR[$pid]:-} && $role != "claudeHelper" ]]; then
-    log_action "REFUSED sig=${sig} pid=${pid} reason=${PROTECT_REASON[$pid]:-not-editor} role=${role} (${why})"
+    record_action "event=refused sig=${sig} pid=${pid} role=${role} reason=${PROTECT_REASON[$pid]:-not-editor} detail=@${why}@"
     return 1
   fi
   [[ $MODE == "observe" ]] || kill "-${sig}" "$pid" 2>/dev/null
@@ -1090,12 +1157,12 @@ record_kill() {
 
   if ((n >= LOOP_KILLS)); then
     DISARMED[$role]=1
-    log_action "DISARMED role=${role} reason=kill-loop kills=${n} window=${LOOP_WINDOW}s budget=$(fmt_mib "${BUDGET[$role]:-0}") - a role that has to be killed this often does not have a drift problem, it has a wrong budget; raise WATCHDOG_BUDGET_${role} or accept the size, but this watchdog will not keep restarting it"
+    record_action "event=disarmed role=${role} reason=kill-loop kills=${n} window_s=${LOOP_WINDOW} budget_mb=$((${BUDGET[$role]:-0} / MIB)) detail=@a role that has to be killed this often does not have a drift problem, it has a wrong budget; raise WATCHDOG_BUDGET_${role} or accept the size, but this watchdog will not keep restarting it@"
   fi
   if ((na >= GLOBAL_LOOP_KILLS)); then
     local r
     for r in "${!BUDGET[@]}"; do DISARMED[$r]=1; done
-    log_action "DISARMED role=all reason=global-kill-loop kills=${na} window=${LOOP_WINDOW}s - too many kills across roles for the budgets to be right; enforcement is off until the watchdog restarts"
+    record_action "event=disarmed role=all reason=global-kill-loop kills=${na} window_s=${LOOP_WINDOW} detail=@too many kills across roles for the budgets to be right; enforcement is off until the watchdog restarts@"
   fi
   return 0
 }
@@ -1178,14 +1245,14 @@ sweep_once() {
           # is reported once per dwell period rather than on every sweep for the
           # rest of its life.
           state=would-kill
-          log_action "would-kill pid=${pid} role=${role} id=${id} pss=${pss} budget=${budget} over_s=${over_s} age=${age} mode=${MODE} armed=no"
+          record_action "event=would-kill armed=no pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} age_s=${age}"
           OVER_SINCE[$key]=$now
         elif [[ -n ${KILLED_AT[$key]:-} ]]; then
           # Already asked politely. Escalate once the grace has elapsed.
           if ((now - KILLED_AT[$key] >= KILL_GRACE)); then
             if signal_pid KILL "$pid" "$role" "drift ${role}"; then
               state=killed-9
-              log_action "kill sig=KILL pid=${pid} role=${role} id=${id} pss=${pss} budget=${budget} over_s=${over_s} (still over budget ${KILL_GRACE}s after SIGTERM)"
+              record_action "event=kill sig=KILL pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} detail=@still over budget ${KILL_GRACE}s after SIGTERM@"
             fi
           else
             state=terminating
@@ -1195,7 +1262,7 @@ sweep_once() {
             KILLED_AT[$key]=$now
             state=killed
             ((killed_n += 1))
-            log_action "kill sig=TERM pid=${pid} role=${role} id=${id} pss=${pss} budget=${budget} over_s=${over_s} age=${age} mode=${MODE}"
+            record_action "event=kill sig=TERM pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} age_s=${age}"
             record_kill "$role" "$now"
           fi
         fi
@@ -1249,8 +1316,26 @@ check_visibility() {
   ((SWEEPS >= VISIBILITY_WARMUP)) || return 0
   VISIBILITY_WARNED=1
   if ((POLICED_MAX_SEEN == 0)); then
-    log_action "WARNING no process has been policed in ${SWEEPS} sweeps - either nothing this watchdog manages has run, or selection is finding nothing; sweep.latest shows what was there"
+    record_action "event=warning reason=nothing-policed sweeps=${SWEEPS} detail=@either nothing this watchdog manages has run, or selection is finding nothing; sweep.latest shows what was there@"
   fi
+  return 0
+}
+
+# One line an hour, whatever is happening. Two reasons it earns its place in a
+# log pipeline that the sweep does not: it answers "was the watchdog alive and
+# what was it seeing" for any window in the past, which no in-pod file can once
+# the pod is gone; and it is the trend series for the standing population - the
+# thing this watchdog exists to bound - at 24 lines a day rather than 40,000.
+emit_census() {
+  local now=$1 role disarmed=""
+  for role in "${!DISARMED[@]}"; do disarmed+="${role} "; done
+  LAST_CENSUS_AT=$now
+  record_action "event=census sweeps=${SWEEPS} uptime_s=$((now - STARTED_AT))" \
+    "policed=${POLICED_N:-0} over_budget=${OVER_N:-0} sessions=${#CLAUDE_ROOTS[@]}" \
+    "tree=${#SERVER_TREE[@]} kills_total=${KILLS_TOTAL} disarmed=@${disarmed% }@" \
+    "h_mb=$((M_H / MIB)) u_mb=$((M_U / MIB)) pressure=${PRESSURE} psi_full10=${M_PSI_CENTI}" \
+    "top_role=${TOP_ROLE:-none} top_id=${TOP_ID:-none} top_pss_mb=$((${TOP_PSS:-0} / MIB))" \
+    "top_budget_pct=${TOP_PCT:-0}"
   return 0
 }
 
@@ -1349,7 +1434,7 @@ cycle_once() {
   read_cgroup_memory
   rc=$?
   if ((rc == 2)); then
-    log_action "memory.max is unlimited - nothing to budget against, exiting"
+    record_action "event=exit reason=no-memory-limit detail=@memory.max is unlimited, so there is nothing to budget against@"
     return 2
   fi
   ((rc == 0)) || return 1
@@ -1358,12 +1443,11 @@ cycle_once() {
     derive_budgets "$M_MAX"
     local role
     for role in extensionHost serverMain tsserver languageServer fileWatcher extensionHelper claudeHelper; do
-      log_action "budget role=${role} pss=$(fmt_mib "${BUDGET[$role]}") (pod share $(fmt_mib "$((M_MAX / POD_SHARE_DEN))"), resting reference $(fmt_mib "${RESTING_ROLE[$role]:-0}"))"
+      record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) pod_share_mb=$((M_MAX / POD_SHARE_DEN / MIB)) resting_mb=$((${RESTING_ROLE[$role]:-0} / MIB)) floored=${FLOORED[$role]:-0} armed=$(role_is_armed "$role" && printf yes || printf no)"
     done
-    log_action "armed roles: $(
+    record_action "event=budgets_derived memory_max_mb=$((M_MAX / MIB)) dwell_s=${DWELL_SECONDS} min_age_s=${MIN_AGE} loop_window_s=${LOOP_WINDOW} loop_kills=${LOOP_KILLS} armed=@$(
       for role in "${!BUDGET[@]}"; do role_is_armed "$role" && printf '%s ' "$role"; done
-      printf '(mode=%s)' "$MODE"
-    )"
+    )@"
   fi
 
   read_cgroup_pressure
@@ -1387,6 +1471,11 @@ cycle_once() {
     ((SWEEPS += 1))
     check_visibility
     publish_summary "$now"
+    # The first census goes out immediately, so that a watchdog that starts and
+    # then dies has still said what it saw.
+    if ((LAST_CENSUS_AT == 0 || now - LAST_CENSUS_AT >= CENSUS_EVERY)); then
+      emit_census "$now"
+    fi
   fi
 
   PREV_AT=$now
@@ -1432,7 +1521,7 @@ main() {
 
   local now
   STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
-  log_action "started mode=${MODE} pid=$$ cgroup=${CGROUP_DIR} sweep_every=$((SAMPLE_INTERVAL * SWEEP_EVERY))s dwell=${DWELL_SECONDS}s"
+  record_action "event=started pid=$$ cgroup=${CGROUP_DIR} sweep_every_s=$((SAMPLE_INTERVAL * SWEEP_EVERY)) dwell_s=${DWELL_SECONDS} stdout=${STDOUT_PATH}"
 
   while :; do
     now=${WATCHDOG_NOW:-$EPOCHSECONDS}
