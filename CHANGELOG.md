@@ -2,6 +2,8 @@
 
 
 
+## [2.27.0](https://github.com/ppat/coder/compare/v2.26.0...v2.27.0) (2026-08-18)
+
 ## [2.26.0](https://github.com/ppat/coder/compare/v2.25.0...v2.26.0) (2026-08-18)
 
 ## [2.25.0](https://github.com/ppat/coder/compare/v2.24.0...v2.25.0) (2026-08-17)
