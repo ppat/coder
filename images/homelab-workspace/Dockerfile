@@ -2,14 +2,9 @@ FROM ubuntu:resolute@sha256:678c6550cc43645e08669028bc177f50be4e7c5b8cca677067b1
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
-# Place all __pycache__ and *.pyc within a location outside of /usr or /opt,
-# - so that it can be easily cleared by the user (as needed)
-# - so that they need not be built into the image
-ENV PYTHONPYCACHEPREFIX=/var/cache/python
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
-    --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     # enable caching of apt packages
@@ -30,20 +25,16 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     # generate locales (needed for many applications, specially python)
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
     echo "LANG=en_US.UTF-8" > /etc/locale.conf && \
-    LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 locale-gen en_US.UTF-8 && \
-    # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
-    find /usr -name __pycache__ -exec rm -rf {} +
+    LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 locale-gen en_US.UTF-8
 
 # ========================================================================================================
 FROM base AS system-base
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 
-ENV PYTHONPYCACHEPREFIX=/var/cache/python
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
-    --mount=type=tmpfs,target=/var/cache/python \
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
@@ -97,10 +88,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       wget \
       xz-utils \
       zip \
-      zstd \
-      && \
-    # Clean pycache created during apt-get install (as apt stills retains some crud in spite of PYTHONPYCACHEPREFIX)
-    find /usr -name __pycache__ -exec rm -rf {} +
+      zstd
 
 # Docker CLI only (no docker-ce/containerd.io) - this workspace pod is unprivileged by design and has no
 # local dockerd; the CLI talks to a remote daemon over `DOCKER_HOST=ssh://...`. A local docker group/sudo
@@ -131,8 +119,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     "/tmp/upx-${UPX_VERSION}-${TARGETARCH}_linux/upx" -q \
       /usr/libexec/docker/cli-plugins/docker-buildx \
       /usr/libexec/docker/cli-plugins/docker-compose && \
-    rm -rf "/tmp/upx.tar.xz" "/tmp/upx-${UPX_VERSION}-${TARGETARCH}_linux" && \
-    find /usr -name __pycache__ -exec rm -rf {} +
+    rm -rf "/tmp/upx.tar.xz" "/tmp/upx-${UPX_VERSION}-${TARGETARCH}_linux"
 
 # ========================================================================================================
 FROM system-base
@@ -143,9 +130,12 @@ WORKDIR /tmp
 # Instead of utilizing ENV statements, we make use of /etc/environment file to make the requisite
 # environment variables available to all users of this image (primarily 'root' and 'coder')
 # - set starting PATH variable value (this strips some Ubuntu defaults such as games and snap directories)
-# - Make typing unicode characters in the terminal work (w/ LC_ALL + LANG).
 RUN echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /etc/environment && \
+    # Place all __pycache__ and *.pyc within a location outside of /usr or /opt,
+    # - so that it can be easily cleared by the user (as needed)
+    # - so that they need not be built into the image
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
+    # - Make typing unicode characters in the terminal work (w/ LC_ALL + LANG).
     echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'LANG=en_US.UTF-8' >> /etc/environment && \
     # This image has no dbus session bus and never will (no session manager, no systemd --user). Without
