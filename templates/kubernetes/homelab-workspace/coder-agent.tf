@@ -60,5 +60,16 @@ resource "coder_agent" "main" {
     interval = 60
     timeout  = 1
   }
+  metadata {
+    display_name = "Largest Helper"
+    key          = "7_largest_helper"
+    # The biggest restartable helper as a share of its budget, also from the
+    # watchdog. This tile is the point of the drift half of the design: the
+    # operator used to obtain this number by running ps and then killing things
+    # by hand, and a number nobody can see is a number nobody acts on.
+    script   = "cat $${HOME}/.local/state/vscode-memory-watchdog/top 2>/dev/null || echo '-'"
+    interval = 60
+    timeout  = 1
+  }
 
 }

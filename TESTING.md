@@ -23,6 +23,15 @@ Both modes run the identical sequence of stages; only what each stage is permitt
 
 Because all three stages run for real in dry-run — just scoped away from production — a passing PR is a meaningful signal that a live release would also succeed, not a guess based on static checks alone.
 
+## The memory watchdog is the one part with runtime behaviour
+
+Everything else here is declarative and is covered by the stages above. `script-memory-watchdog.sh` decides at runtime whether to kill a process, so it gets two things neither lint nor a template push can provide:
+
+- **Fixtures** — `./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh`, also run by the `watchdog` job in `.github/workflows/test.yaml`. The suite is built around negative assertions paired with the mutation that must flip them: "it did not kill the agent session" proves nothing unless removing one rule makes it kill the agent session. `kill` is shadowed by a function throughout, because the fixture pids name real processes in whatever container runs the suite.
+- **A live drill on the `test` workspace**, which has disposable storage and can be wrecked freely. Fixtures cannot answer whether a real process tree classifies correctly, whether a supervisor really does respawn what was killed, or whether the circuit breaker stops a loop rather than joining it. The drill that has been run: a stand-in session root with an over-budget helper that a supervisor respawns, a second helper inside its budget, and a detached tool call larger than both. In `enforce` mode with the dwell shortened, the watchdog killed the drifted helper three times, disarmed that role on the third with the loop message, and left the fourth incarnation, the tool call, and the session roots untouched.
+
+Neither replaces the other, and the live one is where every defect that mattered in this component has been found.
+
 ## After merge
 
 Merging to `main` is what flips the pipeline into live mode — there's no separate promotion step afterward. The dry-run pass on the PR is the actual release gate.

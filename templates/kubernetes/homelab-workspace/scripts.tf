@@ -2,8 +2,10 @@
 # is the coder agent - so coder_script is the only thing that can start a daemon
 # or run something on a schedule here.
 
-# Starts the memory watchdog. See script-memory-watchdog.sh for why a userspace
-# watchdog is the only option, and DESIGN.md for the constraint that forces it.
+# Starts the memory watchdog, which bounds the standing population of
+# restartable helper processes. See script-memory-watchdog.sh for what it does
+# and does not attempt, and DESIGN.md for why the acute OOM half of its former
+# job is not one a poll loop can do.
 #
 # setsid --fork detaches the watchdog from the agent's script runner, so this
 # resource completes immediately and start_blocks_login stays honest. The
