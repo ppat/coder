@@ -28,17 +28,6 @@ data "coder_parameter" "preferred_nodes" {
   type         = "list(string)"
 }
 
-data "coder_parameter" "system_packages" {
-  name = "system_packages"
-
-  default      = jsonencode(["build-essential"])
-  display_name = "System Packages"
-  description  = "Additional system packages to install"
-  icon         = "/icon/ubuntu.svg"
-  mutable      = true
-  type         = "list(string)"
-}
-
 data "coder_parameter" "memory_watchdog_mode" {
   name = "memory_watchdog_mode"
 
@@ -77,10 +66,6 @@ locals {
     ["observe", "enforce", "enforce-all"], data.coder_parameter.memory_watchdog_mode.value
   ) ? data.coder_parameter.memory_watchdog_mode.value : "observe"
 
-  validated_system_packages = (data.coder_parameter.system_packages.value != "") ? [
-    for str in jsondecode(data.coder_parameter.system_packages.value) :
-    str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
-  ] : []
   validated_preferred_nodes = (data.coder_parameter.preferred_nodes.value != "") ? [
     for str in jsondecode(data.coder_parameter.preferred_nodes.value) :
     str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
