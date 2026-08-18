@@ -54,6 +54,13 @@ data "coder_parameter" "memory_watchdog_mode" {
   }
 }
 
+data "coder_parameter" "enable_filebrowser" {
+  name         = "enable_filebrowser"
+  display_name = "Enable File Browser"
+  type         = "bool"
+  form_type    = "checkbox"
+  default      = false
+}
 
 locals {
   # Coder already constrains this to the two option values server-side, but it
