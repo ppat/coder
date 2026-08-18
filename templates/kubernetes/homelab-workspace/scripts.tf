@@ -30,23 +30,23 @@ resource "coder_script" "memory_watchdog" {
 # Weekly garbage collection of ~/.vscode-server, which grows without bound and
 # inflates the dentry/inode slab.
 #
-# The split is deliberate: the logic operates on a personal directory and lives
-# in the operator's dotfiles repo, while the schedule has to live here because
-# coder_script's cron is the only scheduler this pod has. Missing script => no-op,
-# so this resource is safe before the dotfiles side lands.
+# This used to expect $HOME/.local/bin/vscode-server-gc from the operator's
+# dotfiles, gated by `[ -x ... ] && ... || true`. That broke on any workspace
+# without dotfiles applied - confirmed on the `test` workspace, which reached
+# ~11 GB of ~/.vscode-server with dotfiles never applied to it - because the
+# guard made "the script isn't there" indistinguishable from "the script ran
+# and had nothing to do": both report success on this cron. script-vscode-
+# server-gc.sh is template-owned instead: mounted into the pod via
+# configmap.tf/deployment.tf like script-agent-startup.sh and
+# script-memory-watchdog.sh, so it is guaranteed present whenever this
+# resource's cron fires, and invoked directly below with no existence check -
+# an actual failure now surfaces as a failed run in the Coder UI instead of
+# vanishing into `|| true`.
 resource "coder_script" "vscode_server_gc" {
   agent_id     = coder_agent.main.id
   display_name = "vscode-server GC"
   icon         = "/icon/code.svg"
   # Coder's cron is 6-field (seconds first), not the usual 5. Sundays at 04:00.
   cron   = "0 0 4 * * 0"
-  script = <<-EOT
-    set -u
-    gc="$${HOME}/.local/bin/vscode-server-gc"
-    if [ -x "$${gc}" ]; then
-      "$${gc}"
-    else
-      echo "no $${gc}; skipping"
-    fi
-  EOT
+  script = "/bin/bash /vscode-server-gc.sh"
 }
