@@ -47,11 +47,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     --mount=type=tmpfs,target=/tmp \
     --mount=type=tmpfs,target=/var/log \
     --mount=type=tmpfs,target=/var/tmp \
-    # need unminimized variants of tools in coder workspace image
     apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
-    sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
-    printf 'y\ny\n' | /usr/bin/unminimize && \
     # install system packages needed within coder workspace image
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       apt-file \
@@ -64,6 +60,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       dnsutils \
       file \
       fontconfig \
+      g++ \
+      gcc \
       gettext \
       git \
       htop \
@@ -71,11 +69,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       iotop \
       iputils-ping \
       iputils-tracepath \
-      ldap-utils \
       less \
       libarchive-tools \
-      libheif-dev \
-      libraw-dev \
+      libc6-dev \
       lsof \
       lz4 \
       make \
@@ -83,16 +79,10 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       netcat-openbsd \
       net-tools \
       openssh-client \
-      pipx \
       pkg-config \
-      postgresql-client \
       procps \
       psmisc \
       pv \
-      python-is-python3 \
-      python3 \
-      python3-pip \
-      python3-venv \
       rsync \
       screen \
       sshpass \
@@ -114,29 +104,11 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     find /usr -name __pycache__ -exec rm -rf {} +
 
 # Docker CLI only (no docker-ce/containerd.io) - this workspace pod is unprivileged by design and has no
-# local dockerd; the CLI talks to a remote daemon over `DOCKER_HOST=ssh://...` (wired up by the Terraform
-# template). A local docker group/sudo rule would authorize access to a local socket that doesn't exist
-# here - don't add one. buildx/compose are client-side plugins, so a remote daemon doesn't provide them;
-# the apt packages install to /usr/libexec/docker/cli-plugins, one of the docker CLI's default plugin
-# search paths, so `docker buildx`/`docker compose` resolve without extra configuration.
-#
-# docker-buildx and docker-compose are UPX-compressed in place afterwards (measured: to ~30% of their
-# installed size each). /usr/bin/docker itself is deliberately left uncompressed: UPX refuses to pack it
-# ("CantPackException: bad e_shstrtab", reproduced on UPX 4.2.2 and 5.2.0) because, unlike the other two,
-# it's dynamically-linked/PIE rather than statically linked; `strip`-ing it first works around that but
-# also drops its debug symbols, a separate trade-off not applied here without being asked for. UPX comes
-# from its own GitHub release rather than the `upx-ucl` apt package, so the tool and its dependency
-# closure never land in this layer and the version tracks upstream rather than whatever Ubuntu froze; it
-# is downloaded, used, and removed within this same RUN, into the tmpfs-mounted /tmp so it can't leave a
-# trace even if the explicit cleanup below were ever dropped. No sha256 pin on that download: the HTTPS
-# GET already authenticates via GitHub's TLS certificate, and a hand-computed checksum has no automated
-# way to be recomputed on a Renovate-driven UPX_VERSION bump, so it would just go stale and turn the next
-# bump into a guaranteed broken build - same reasoning (and same operator) as the docker-host VM's
-# cloud-init in homelab-ops-kubernetes-experiments, which omits checksums on its own
-# download.docker.com/github.com fetches for this exact reason. Compressing these apt-installed binaries
-# in place means `dpkg -V` will report them as modified - that's expected, not corruption. UPX-packed
-# binaries also decompress into memory on every exec, a small startup-time/RSS cost that's a non-issue for
-# an interactively-invoked CLI.
+# local dockerd; the CLI talks to a remote daemon over `DOCKER_HOST=ssh://...`. A local docker group/sudo
+# rule would authorize access to a local socket that doesn't exist here - don't add one. buildx/compose
+# are client-side plugins, so a remote daemon doesn't provide them; the apt packages install to
+# /usr/libexec/docker/cli-plugins, one of the docker CLI's default plugin search paths, so `docker buildx`/
+# `docker compose` resolve without extra configuration.
 # renovate: datasource=github-releases depName=upx/upx
 ARG UPX_VERSION="5.2.0"
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
