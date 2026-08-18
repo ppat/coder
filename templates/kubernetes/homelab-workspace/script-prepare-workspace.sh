@@ -73,9 +73,9 @@ prepare_environment() {
   local existing_system_path="$(grep '^PATH=' /etc/environment | cut -d'=' -f2)"
   local updated_system_path="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${existing_system_path}"
   echo PATH=${updated_system_path} >> /tmp/environment.bak
-  sort /tmp/environment.bak > /updated/etc/environment
+  sort /tmp/environment.bak > /etc/environment
   rm /tmp/environment.bak
-  cat /updated/etc/environment
+  cat /etc/environment
   echo '------------------------------------------------------------'
   echo 'Done'
 }
