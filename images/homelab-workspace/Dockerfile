@@ -51,7 +51,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
     apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -yq --no-install-recommends man-db unminimize && \
     sed -i 's|xargs dpkg -S|xargs -r dpkg -S|g' /usr/bin/unminimize && \
-    echo -e 'y\ny' | /usr/bin/unminimize && \
+    printf 'y\ny\n' | /usr/bin/unminimize && \
     # install system packages needed within coder workspace image
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -yq \
       apt-file \
@@ -176,7 +176,15 @@ WORKDIR /tmp
 RUN echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > /etc/environment && \
     echo 'PYTHONPYCACHEPREFIX=/var/cache/python' >> /etc/environment && \
     echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
-    echo 'LANG=en_US.UTF-8' >> /etc/environment
+    echo 'LANG=en_US.UTF-8' >> /etc/environment && \
+    # This image has no dbus session bus and never will (no session manager, no systemd --user). Without
+    # this, anything that touches libsecret (e.g. git credential helpers) triggers `dbus-launch
+    # --autolaunch` to spawn a `dbus-daemon --session` hunting for one; it never finds one, is reparented
+    # to pid 1 once its parent exits, and never exits itself - orphans accumulate one per invocation for
+    # the life of the pod. `disabled:` is dbus's own documented value for "do not autolaunch, fail fast
+    # instead" (see dbus_bus_get behavior), which is what every libsecret-using tool here already handles
+    # as "no keyring available" rather than as an error.
+    echo 'DBUS_SESSION_BUS_ADDRESS=disabled:' >> /etc/environment
 
 ARG CODER_GID="10001"
 ARG CODER_UID="10001"
@@ -192,5 +200,5 @@ RUN groupadd --gid "${CODER_GID}" coder && \
     # package installation is complete, users of resulting image need not cache downloaded packages
     rm -f /etc/apt/apt.conf.d/keep-cache
 
-USER coder
+USER ${CODER_UID}:${CODER_GID}
 WORKDIR /home/coder
