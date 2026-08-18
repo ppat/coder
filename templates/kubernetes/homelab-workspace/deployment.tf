@@ -106,7 +106,6 @@ resource "kubernetes_deployment_v1" "deployment" {
               "memory" = "1024Mi"
             }
             limits = {
-              "cpu"    = data.coder_parameter.resources_cpu.value
               "memory" = "${data.coder_parameter.resources_memory.value}Gi"
             }
           }

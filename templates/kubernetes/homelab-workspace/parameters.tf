@@ -1,25 +1,3 @@
-data "coder_parameter" "resources_cpu" {
-  name = "resources_cpu"
-
-  default      = "2"
-  description  = "The number of CPU cores"
-  display_name = "CPU Cores"
-  icon         = "/icon/memory.svg"
-  mutable      = true
-  option {
-    name  = "2 Cores"
-    value = "2"
-  }
-  option {
-    name  = "4 Cores"
-    value = "4"
-  }
-  option {
-    name  = "8 Cores"
-    value = "8"
-  }
-}
-
 data "coder_parameter" "resources_memory" {
   name = "memory"
 
