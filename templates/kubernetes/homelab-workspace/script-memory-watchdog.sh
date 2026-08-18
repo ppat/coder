@@ -10,8 +10,11 @@
 # workspace was a spike - 70 to 220 MB/s, idle to dead inside a minute - and the
 # victims named in the kernel log were agent sessions and node, never a VS Code
 # process. A poll loop cannot win that race: a generic biggest-RSS killer only
-# beats the kernel at a 0.3s interval, loses at 0.5s, and while
-# memory.oom.group=1 it is killed by the very event it lost to. The graded
+# beats the kernel at a 0.3s interval, loses at 0.5s, and under the
+# memory.oom.group=1 that applied at the time was killed by the very event it
+# lost to. The kubelet now sets singleProcessOOMKill, so a container created
+# since reads memory.oom.group=0 and an OOM takes the offending process only -
+# which is the acute job done properly, by the layer that can actually do it. The graded
 # shedding ladder that used to live here climbed correctly during a live spike
 # and then logged `no-candidates`, because the runaway was not in the tree it
 # managed. That ladder has been removed rather than tuned.
