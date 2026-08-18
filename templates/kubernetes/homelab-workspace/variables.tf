@@ -5,3 +5,7 @@ variable "workspace_image" {
 variable "test_mode" {
   type = bool
 }
+
+variable "enable_filebrowser" {
+  type = bool
+}
