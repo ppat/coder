@@ -60,6 +60,7 @@ data "coder_parameter" "enable_filebrowser" {
   type         = "bool"
   form_type    = "checkbox"
   default      = false
+  mutable      = true
 }
 
 locals {
