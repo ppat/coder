@@ -39,7 +39,10 @@ jobs:
 
   publish-image:
     needs: [create-release]
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@667d20d10c8756b11feeab1ee691825ccea8f991 # v5.0.1
+    permissions:
+      contents: read
+      packages: write
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@a6829b4b819f7c39adabf277c7d87a1e663c186d # v6.0.0 (unmerged PR #615 -- repoint to the v6.0.0 tag before merge)
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
@@ -47,7 +50,8 @@ jobs:
       platforms: linux/amd64,linux/arm64
       private_registry_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
       private_registry_build_cache: ${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
-      source_git_ref: ${{ needs.create-release.outputs.released_gitref }}
+      git_ref: ${{ needs.create-release.outputs.released_gitref }}
+      ghcr_repository: ${{ needs.create-release.outputs.released_version != 'v0.0.0' && 'ppat/coder-workspace' || '' }}
       timeout_minutes: 180
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
