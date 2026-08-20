@@ -42,7 +42,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@59629d576a6f1f02a5794257e7a6bea4f31f9992 # v6.0.0 (unmerged PR #615 -- repoint to the v6.0.0 tag before merge)
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@5a96ced8ceefd58062f6b91ee9d6f3a31cd06e1c # v6.0.0 (unmerged PR #615 -- repoint to the v6.0.0 tag before merge)
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
