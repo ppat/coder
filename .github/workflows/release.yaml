@@ -85,7 +85,7 @@ jobs:
       shell: bash
       # yamllint disable-line rule:indentation
       run: |
-        while ! curl -fsSL ${CODER_URL} > /dev/null; do
+        while ! curl -fsSL "${CODER_URL}" > /dev/null; do
           echo "Waiting for coder service to be ready... sleep 5s!"
           sleep 5
         done
@@ -93,7 +93,8 @@ jobs:
         echo
 
         echo "Generating authentication token..."
-        export CODER_SESSION_TOKEN=$(curl -X POST ${CODER_URL}/api/v2/users/login \
+        export CODER_SESSION_TOKEN
+        CODER_SESSION_TOKEN=$(curl -X POST "${CODER_URL}/api/v2/users/login" \
           -H 'Content-Type: application/json' \
           -H 'Accept: application/json' \
           --data '{"email": "'${{ secrets.CODER_EMAIL }}'", "password": "'${{ secrets.CODER_PASSWORD }}'"}' \
@@ -106,12 +107,13 @@ jobs:
         echo "Authentication token generated."
         echo
         echo "Determining coder version..."
-        export CODER_VERSION=$(curl -fsSL ${CODER_URL}/api/v2/buildinfo | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
+        export CODER_VERSION
+        CODER_VERSION=$(curl -fsSL "${CODER_URL}/api/v2/buildinfo" | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
         echo "Installing coder CLI..."
         curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
         echo
         echo "Logging into Coder..."
-        coder login --use-token-as-session ${CODER_URL}
+        coder login --use-token-as-session "${CODER_URL}"
 
     - name: Publish template
       id: publish-template
@@ -122,30 +124,33 @@ jobs:
       shell: bash
       # yamllint disable-line rule:indentation
       run: |
-        if echo $TEMPLATE_VERSION | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
-          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)"
+        if echo "$TEMPLATE_VERSION" | grep -E '[0-9]+\.[0-9]+\.[0-9]+'; then
+          export TEMPLATE_NAME
+          TEMPLATE_NAME="$(echo "${TEMPLATE_DIR}" | cut -d/ -f3)"
           export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${TEMPLATE_VERSION})"
           export TEST_MODE=false
         else
-          export TEMPLATE_NAME="$(echo ${TEMPLATE_DIR} | cut -d/ -f3)-test"
+          export TEMPLATE_NAME
+          TEMPLATE_NAME="$(echo "${TEMPLATE_DIR}" | cut -d/ -f3)-test"
           export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
           export TEST_MODE=true
         fi
         echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
         set -x
         coder template push \
-          --directory ${TEMPLATE_DIR} \
-          --var workspace_image=${WORKSPACE_IMAGE} \
+          --directory "${TEMPLATE_DIR}" \
+          --var "workspace_image=${WORKSPACE_IMAGE}" \
           --var test_mode=${TEST_MODE} \
-          --name ${TEMPLATE_VERSION} \
+          --name "${TEMPLATE_VERSION}" \
           --message "${RELEASE_MSG}" \
           --yes \
-          ${TEMPLATE_NAME}
+          "${TEMPLATE_NAME}"
         set +x
         echo
         echo "Confirming template has been published..."
         coder templates list --output json > /tmp/templates.json
-        export SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'${TEMPLATE_NAME}'")')
+        export SELECTED_TEMPLATE
+        SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'"${TEMPLATE_NAME}"'")')
         if [[ -z $SELECTED_TEMPLATE ]]; then
           echo "Could not find any template published as $TEMPLATE_NAME."
           exit 1

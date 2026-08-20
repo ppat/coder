@@ -71,7 +71,7 @@ jobs:
           TF_DIRS="[]"
           echo "No Terraform changes detected"
         fi
-        echo "dirs=$TF_DIRS" >> $GITHUB_OUTPUT
+        echo "dirs=$TF_DIRS" >> "$GITHUB_OUTPUT"
 
   commit-messages:
     if: ${{ github.event_name == 'pull_request' }}
