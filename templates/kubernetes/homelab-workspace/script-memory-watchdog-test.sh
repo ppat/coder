@@ -283,7 +283,13 @@ build_tree() {
   add_proc "$dir" 41 40 "$nc" 500000000 "${sdir}/node" \
     --dns-result-order=ipv4first "${sdir}/out/bootstrap-fork" \
     --type=extensionHost --transformURIs --useHostProxy=false
-  add_proc "$dir" 44 41 "$nc" 400000000 "${sdir}/node" \
+  # --max-old-space-size=3072 is transcribed from the live tree, not decoration:
+  # both tsserver instances on the real workspace carry it, it is VS Code's
+  # shipped typescript.tsserver.maxTsServerMemory default rather than anything
+  # this workspace configured, and it is the reason tsserver's 768 MiB budget is
+  # classified as a guess rather than a conservative limit. The editor sanctions
+  # four times what the watchdog would allow.
+  add_proc "$dir" 44 41 "$nc" 400000000 "${sdir}/node" --max-old-space-size=3072 \
     "${ext}/ms-vscode.typescript/lib/tsserver.js" --useInferredProjectPerProjectRoot
   add_proc "$dir" 45 41 "$nc" 120000000 "${sdir}/node" \
     "${ext}/redhat.vscode-yaml-1.24.0/dist/languageserver.js" --node-ipc --clientProcessId=41
@@ -967,7 +973,14 @@ test_tree_helpers() {
   # shellcheck disable=SC2034
   MODE=enforce
   assert_armed treeHelper no "enforce reports tree helpers and does not signal them"
-  assert_armed extensionHelper yes "while a role with a measured resting size is armed"
+  # This line used to read `assert_armed extensionHelper yes "while a role with
+  # a measured resting size is armed"`, and extensionHelper has never had a
+  # measured resting size - the description asserted the property the assertion
+  # was meant to demonstrate while naming a role that does not have it. Both
+  # halves are fixed: the contrast is now drawn against a role that really is
+  # measured, and extensionHelper appears below as the guess it is.
+  assert_armed fileWatcher yes "while a role with a measured resting size is armed"
+  assert_armed extensionHelper no "and one without a measurement is not, tree helper or otherwise"
   # shellcheck disable=SC2034
   MODE=enforce-all
   assert_armed treeHelper yes "enforce-all arms them, which is where the operator opts in"
@@ -1095,7 +1108,7 @@ test_budgets() {
   assert_eq 1 "${FLOORED[extensionHost]}" "and that lift is recorded, not silent"
   assert_eq 536870912 "${BUDGET[serverMain]}" "8 GiB: serverMain gets 512 MiB"
   assert_eq 268435456 "${BUDGET[fileWatcher]}" "8 GiB: the file watcher gets 256 MiB"
-  assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 88 MB resting is well under it"
+  assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 107 MiB resting is well under it"
   assert_eq 536870912 "${BUDGET[claudeHelper]}" "8 GiB: an MCP server gets 512 MiB"
 
   # FLOORED is documented as a diagnostic - "this pod is too small to bound this
@@ -1204,6 +1217,204 @@ test_budgets() {
   assert_armed serverMain yes "enforce-all arms serverMain"
   # shellcheck disable=SC2034
   MODE=observe
+}
+
+# --------------------------------------------------------------------------- #
+# 3b. where each budget came from
+#
+# The defect this section exists to prevent is not a wrong number, it is an
+# unmarked one. `resting x RESTING_FACTOR` is a floor, so the formula can only
+# err generously; a budget with a measurement behind it and a round number
+# picked without one therefore ship looking identical and are enforced
+# identically. BUDGET_BASIS makes the difference a declared, checkable property,
+# and the arming rule is derived from it so that "nobody measured this" produces
+# an unarmed role by construction rather than by somebody remembering.
+#
+# Every assertion below is paired with the production edit that must flip it.
+# --------------------------------------------------------------------------- #
+
+test_budget_basis() {
+  printf 'budget provenance\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  load_watchdog "${WORK}/cg" "${WORK}/proc2"
+  budgets_at 8589934592
+
+  local r n=0
+  # Mutation: add a role to BUDGET_ROLE without a BUDGET_BASIS entry. A budget
+  # with no declared provenance is exactly the state this table exists to end,
+  # and it would otherwise be enforced silently.
+  for r in "${!BUDGET_ROLE[@]}"; do
+    case "${BUDGET_BASIS[$r]:-}" in
+    measured | adversary | guess) ok "the ${r} budget declares where it came from" ;;
+    *) bad "the ${r} budget has no basis: an unmarked number is enforced exactly like a measured one" ;;
+    esac
+  done
+  # ...and the reverse, so a basis cannot outlive the budget it describes.
+  for r in "${!BUDGET_BASIS[@]}"; do
+    if [[ -n ${BUDGET_ROLE[$r]:-} ]]; then
+      ok "the ${r} basis describes a role that still has a budget"
+    else
+      bad "BUDGET_BASIS names ${r}, which has no budget"
+    fi
+  done
+
+  # The two classes have to be told apart by something other than the word.
+  # Mutation: relabel tsserver `measured` (it has no RESTING_ROLE entry), or
+  # relabel fileWatcher `guess` (it has one). Either flips this red.
+  for r in "${!BUDGET_ROLE[@]}"; do
+    case "${BUDGET_BASIS[$r]:-}" in
+    measured)
+      if ((${RESTING_ROLE[$r]:-0} > 0)); then
+        ok "${r} claims a measurement and has one"
+      else
+        bad "${r} claims basis=measured with no RESTING_ROLE entry: the word is doing the work of the evidence"
+      fi
+      ;;
+    guess)
+      if ((${RESTING_ROLE[$r]:-0} == 0)); then
+        ok "${r} is honestly labelled a guess"
+      else
+        bad "${r} claims basis=guess but has a measured resting size: it should be anchored on it"
+      fi
+      ;;
+    esac
+  done
+
+  # A `measured` budget must still clear its own floor - otherwise the label
+  # says a measurement is behind the number while the number is below it.
+  for r in "${!BUDGET_ROLE[@]}"; do
+    [[ ${BUDGET_BASIS[$r]:-} == measured ]] || continue
+    # shellcheck disable=SC2004
+    # The $ is NOT unnecessary: these subscripts are strings inside (( )), and
+    # dropping one looks up the literal key "r" and silently reads 0.
+    if ((BUDGET_ROLE[$r] >= (${RESTING_ROLE[$r]} * RESTING_FACTOR_NUM) / RESTING_FACTOR_DEN)); then
+      ok "the ${r} budget is at or above the measurement it claims"
+    else
+      bad "${r} is labelled measured but sits below its own resting floor"
+    fi
+    n=$((n + 1))
+  done
+  if ((n >= 4)); then
+    ok "and there are measured roles for that check to have run against"
+  else
+    bad "only ${n} role(s) are labelled measured: the check above is nearly vacuous"
+  fi
+
+  # The set is derived, not listed. Mutation: replace the loop that builds
+  # UNKNOWN_ROLES with the literal " treeHelper " it used to be, and tsserver
+  # and extensionHelper stop appearing here.
+  for r in "${!BUDGET_ROLE[@]}"; do
+    if [[ ${BUDGET_BASIS[$r]:-} == guess ]]; then
+      assert_contains "$UNKNOWN_ROLES" " ${r} " "a guessed budget lands in the unknown set by construction: ${r}"
+    else
+      assert_absent "$UNKNOWN_ROLES" " ${r} " "an anchored budget does not: ${r}"
+    fi
+  done
+
+  # The property, stated once: the default mode never signals a role whose
+  # budget nobody measured. Mutation: restore role_is_armed's enforce clause to
+  # `[[ $HELPER_ROLES == *" $role "* ]]` and tsserver and extensionHelper arm.
+  local saved=$MODE
+  # shellcheck disable=SC2034
+  MODE=enforce
+  for r in "${!BUDGET_ROLE[@]}"; do
+    if [[ ${BUDGET_BASIS[$r]:-} == guess ]]; then
+      assert_armed "$r" no "enforce will not act on a guessed budget: ${r}"
+    fi
+  done
+  # The counterweight, so the rule above cannot be satisfied by arming nothing:
+  # every role with a measurement or a measured adversary is still armed, which
+  # is what stops this becoming a quiet way of switching the watchdog off.
+  assert_armed fileWatcher yes "enforce still arms the file watcher (107 MiB measured)"
+  assert_armed languageServer yes "enforce still arms language servers (54 MiB measured)"
+  assert_armed claudeHelper yes "enforce still arms MCP servers (512 MiB against a measured 1.66 GB offender)"
+  # And the two specific roles this change moved, named rather than derived, so
+  # a future edit to the basis table shows up here as a decision.
+  assert_armed tsserver no "enforce no longer arms tsserver: VS Code gives it a 3072 MiB heap"
+  assert_armed extensionHelper no "nor extensionHelper: its only measured member ever is a 24 MB terraform-ls"
+
+  # shellcheck disable=SC2034
+  MODE=enforce-all
+  for r in "${!BUDGET_ROLE[@]}"; do
+    assert_armed "$r" yes "enforce-all arms every declared role, including the guesses: ${r}"
+  done
+  # shellcheck disable=SC2034
+  MODE=$saved
+
+  # The startup report is the only place this reaches a reader, so the ordered
+  # list it iterates has to name every role. Mutation: drop a role from
+  # BUDGET_ORDER, or add one to BUDGET_ROLE without adding it here, and a fully
+  # enforced budget goes unreported.
+  for r in "${!BUDGET_ROLE[@]}"; do
+    assert_contains "$BUDGET_ORDER" " ${r} " "the startup budget report names ${r}"
+  done
+  local o count=0
+  for o in $BUDGET_ORDER; do
+    if [[ -n ${BUDGET_ROLE[$o]:-} ]]; then
+      count=$((count + 1))
+    else
+      bad "BUDGET_ORDER names ${o}, which has no budget: the report would print an empty line"
+    fi
+  done
+  assert_eq "${#BUDGET_ROLE[@]}" "$count" "and names nothing else"
+}
+
+# The basis has to survive into the container log, because that is where the
+# operator reads it and the only place a coverage gap is visible after the pod
+# is gone. Mutation: remove `basis=` from the event=budget line.
+test_budget_report_carries_provenance() {
+  printf 'the startup budget report carries provenance\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc3b"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  BUDGET=()
+  cycle_once 1000 >/dev/null
+
+  local out
+  out="$(cat "$STDOUT_FILE")"
+  assert_contains "$out" "role=tsserver budget_mb=768" "tsserver's budget is reported"
+  assert_contains "$out" "role=tsserver budget_mb=768 pod_share_mb=1024 resting_mb=0 basis=guess floored=0 armed=no" \
+    "and reported as a guess that the default mode will not act on"
+  assert_contains "$out" "role=fileWatcher budget_mb=256 pod_share_mb=1024 resting_mb=107 basis=measured floored=0 armed=yes" \
+    "while a measured budget says so, with the measurement beside it"
+  assert_contains "$out" "role=claudeHelper budget_mb=512 pod_share_mb=1024 resting_mb=0 basis=adversary floored=0 armed=yes" \
+    "and the one number set against a measured offender is neither of the other two"
+  # Every declared role reaches the log, in the declared order.
+  local r
+  for r in "${!BUDGET_ROLE[@]}"; do
+    assert_contains "$out" "event=budget role=${r} " "the log carries a budget line for ${r}"
+  done
+}
+
+# tsserver end to end, mirroring the treeHelper case: the point of moving it is
+# that the breach still arrives, as evidence rather than as a dead process.
+test_tsserver_is_reported_not_killed_by_default() {
+  printf 'a drifted tsserver: reported under enforce, killed under enforce-all\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc3c"
+  build_tree "$pdir"
+
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  # 900 MB: over the 768 MiB budget, and a quarter of the 3072 MiB heap VS Code
+  # launched this process with. On a large TypeScript project this is a healthy
+  # tsserver, which is the whole reason the default mode must not shed it.
+  set_pss "$pdir" 44 900000000
+  sweep_at 1000
+  sweep_at $((1000 + DWELL_SECONDS))
+  assert_absent "$SIGNALS" ":44" "enforce does not kill a tsserver inside its launcher's own heap allowance"
+  assert_contains "$(cat "${WORK}/state/actions.log")" \
+    "event=would-kill armed=no pid=44 role=tsserver" \
+    "but records the breach with the identity to act on"
+
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce-all
+  set_pss "$pdir" 44 900000000
+  sweep_at 2000
+  sweep_at $((2000 + DWELL_SECONDS))
+  assert_contains "$SIGNALS" "TERM:44" "enforce-all is where an operator has asked for it to be shed"
 }
 
 # --------------------------------------------------------------------------- #
@@ -1789,6 +2000,9 @@ main() {
   test_tree_helpers
   test_tree_helper_arming_is_end_to_end
   test_budgets
+  test_budget_basis
+  test_budget_report_carries_provenance
+  test_tsserver_is_reported_not_killed_by_default
   test_dwell
   test_kill_loop_breaker
   test_disarm_completes_an_escalation_in_flight

@@ -43,19 +43,23 @@
 # back to observe when the value is anything else):
 #   observe     - measure, publish, and log the kill it *would* have made.
 #                 Signals nothing.
-#   enforce     - additionally kill drifted *helpers*: language servers, the
-#                 file watcher, native extension helpers, and helpers spawned by
-#                 an agent session (MCP servers). This is the template default,
-#                 because every one of them restarts without the operator
-#                 noticing.
-#   enforce-all - additionally kill the extension host and the server main
-#                 process, and the treeHelper role. The first two are
-#                 user-visible when they restart; treeHelper is here for a
-#                 different reason - it is the role for a process in the server
-#                 tree that no rule can name, so its budget is a reasoned guess
-#                 rather than a measurement. All three are roles a wrong budget
+#   enforce     - additionally kill drifted *helpers* whose budget has something
+#                 measured behind it: the extension-provided language servers,
+#                 the file watcher, and helpers spawned by an agent session (MCP
+#                 servers, budgeted against a measured 1.66 GB offender). This is
+#                 the template default. Two conditions, not one: the role has to
+#                 restart without the operator noticing AND its budget has to be
+#                 anchored on a measurement. See BUDGET_BASIS.
+#   enforce-all - additionally kill the roles that fail either condition. The
+#                 extension host and serverMain fail the first - they are
+#                 user-visible when they restart. tsserver, extensionHelper and
+#                 treeHelper fail the second: their budgets are reasoned guesses
+#                 with no measurement of the role behind them, and tsserver's
+#                 768 MiB is a quarter of the 3072 MiB heap VS Code's own
+#                 launcher gives it. Every one of them is a role a wrong budget
 #                 would put in a kill loop, so they are armed separately and on
-#                 purpose.
+#                 purpose, and until then a breach arrives as
+#                 `event=would-kill armed=no` rather than as a dead process.
 #
 # Test seams, exercised by script-memory-watchdog-test.sh:
 #   WATCHDOG_CGROUP_DIR  WATCHDOG_PROC_DIR  WATCHDOG_STATE_DIR
@@ -171,9 +175,13 @@ declare -gA BUDGET_ROLE=(
   #                              budget the watchdog actually applies rather
   #                              than an intent it never had.
   [serverMain]=536870912      #  512 MiB, against 160 MB resting
-  [tsserver]=805306368        #  768 MiB - legitimately large on a big project
+  [tsserver]=805306368        #  768 MiB. Read the basis note below before
+  #                              trusting this number: VS Code launches tsserver
+  #                              with --max-old-space-size=3072 by default, so
+  #                              768 MiB is a quarter of the heap its own
+  #                              launcher sanctions, not a generous allowance.
   [languageServer]=268435456  #  256 MiB - yaml/json/terraform LS rest near 100
-  [fileWatcher]=268435456     #  256 MiB, against 34 MB resting
+  [fileWatcher]=268435456     #  256 MiB, against 107 MiB resting
   [extensionHelper]=536870912 #  512 MiB - terraform-ls, gopls and the like
   [treeHelper]=536870912      #  512 MiB - see the treeHelper note in role_of.
   #                              Measured on the live tree, the three processes
@@ -190,11 +198,87 @@ declare -gA BUDGET_ROLE=(
   #                              helper that holds 1.66 GB is not doing its job
   #                              better than one that holds 300 MB.
 )
+
+# The deterministic order the budgets are reported in at startup. It exists
+# because associative-array iteration order is a hash order, and one line per
+# role in the container log is easier to read and diff when it does not shuffle
+# between boots. It used to be a literal list inline at the call site, which is a
+# place for a new role to go missing from the report while being fully enforced;
+# it is here, next to the table, and the test suite asserts it names every
+# declared role and nothing else.
+BUDGET_ORDER=" extensionHost serverMain tsserver languageServer fileWatcher extensionHelper treeHelper claudeHelper "
+
+# What each budget above is anchored on. This is the field that was missing, and
+# its absence is what let a hand-picked round number and a number derived from a
+# measurement sit in the same column looking identical.
+#
+# The observation that prompted it: every role with no RESTING_ROLE entry carries
+# a round hand-picked constant, because the formula is asymmetric. `resting x
+# RESTING_FACTOR` is a *floor*, so no budget can ship below what its role was
+# measured holding - the failure this design shipped twice - but nothing bounds a
+# budget from above. A constant chosen without a measurement can therefore only
+# err in the generous direction, silently, and reads exactly like one that was
+# derived.
+#
+# The fix is not to invent ceilings. A ceiling fitted to this workspace's sample
+# - one operator, one Terraform/YAML repository, one 38-hour window in which the
+# only member `extensionHelper` has ever had is a 24 MB terraform-ls - would put
+# a healthy gopls or Pyright server under a limit derived from a language server
+# that was never running. That is the resting-floor defect arriving through the
+# front door, and a derived ceiling is a worse instrument than a conservative
+# guess when the sample is this narrow. So the numbers stay conservative and the
+# *provenance* becomes explicit, machine-checkable and published:
+#
+#   measured  - anchored on a resting measurement of this role, recorded in
+#               RESTING_ROLE. The budget is at or above resting x factor.
+#   adversary - no resting measurement of the role, but the number is set
+#               against a measured offender rather than a round instinct.
+#   guess     - neither. A reasoned number with nothing behind it.
+#
+# And one rule falls out of it, which is the whole behavioural change: a `guess`
+# budget is not armed by the default mode. See role_is_armed.
+declare -gA BUDGET_BASIS=(
+  [extensionHost]=measured  # 713 MiB resting, and the budget IS resting x 1.5
+  [serverMain]=measured     # 160 MiB resting; 512 MiB declared above it
+  [languageServer]=measured #  54 MiB resting; 256 MiB declared above it
+  [fileWatcher]=measured    # 107 MiB resting; 256 MiB declared above it
+  [claudeHelper]=adversary  # no resting measurement, but 512 MiB is set against
+  #                           the 1.66 GB python MCP server that was the largest
+  #                           single offender in this whole investigation. That
+  #                           is a real adversary, not a round number, and it is
+  #                           why this role stays armed under enforce while the
+  #                           other unanchored roles do not.
+  [tsserver]=guess          # 768 MiB against a launcher-declared 3072 MiB heap.
+  #                           Observed live: both tsserver instances in this pod
+  #                           run --max-old-space-size=3072, which is VS Code's
+  #                           shipped typescript.tsserver.maxTsServerMemory
+  #                           default and is not set anywhere in this workspace's
+  #                           settings. So the editor sanctions four times what
+  #                           this budget permits, and on a large TypeScript
+  #                           project a perfectly healthy tsserver would dwell
+  #                           over budget and be killed - losing IntelliSense for
+  #                           a multi-minute re-index, three times, before the
+  #                           circuit breaker disarmed the role. Nothing in this
+  #                           workspace's data can contradict that: the two
+  #                           tsservers here sat between 112 and 208 MiB for 29
+  #                           hours on a repository with no TypeScript in it.
+  [extensionHelper]=guess   # 512 MiB. Its only observed member, ever, is a 24 MB
+  #                           terraform-ls. The comment on the budget says
+  #                           "gopls and the like"; no gopls, Pyright,
+  #                           rust-analyzer or JDT server has ever been measured
+  #                           in this role, and all of them legitimately hold
+  #                           hundreds of MB.
+  [treeHelper]=guess        # 512 MiB, by construction: this is the role for an
+  #                           in-tree process no rule can name, so it can never
+  #                           have a resting measurement. #881 already gave it
+  #                           the treatment this table now generalises.
+)
+
 declare -gA RESTING_ROLE=(
-  [extensionHost]=747634688 # 713 MB resting (471 MB fresh)
-  [serverMain]=167772160    # 160 MB resting (90 MB on a second measurement)
-  [fileWatcher]=92274688    #  88 MB resting (34 MB fresh)
-  [languageServer]=56623104 #  54 MB resting
+  [extensionHost]=747634688  # 713 MiB resting (471 MiB fresh)
+  [serverMain]=167772160     # 160 MiB resting (90 MiB on a second measurement)
+  [fileWatcher]=112197632    # 107 MiB resting (88 MiB previously, 34 MiB fresh)
+  [languageServer]=56623104  #  54 MiB resting
 )
 # A budget is never allowed below the role's measured resting size times this,
 # whatever the pod arithmetic says. This is the guard against the class of error
@@ -206,10 +290,37 @@ declare -gA RESTING_ROLE=(
 # The trigger instead is the `role_peak_mb` field of the hourly census and the
 # `peak_pss` line of the summary file: when a role's peak sits persistently above
 # its figure here while never dwelling over budget, the figure is stale and a
-# human re-measures it. Checked while writing this: the live extension host read
-# 685 MB PSS at 27.6 hours of uptime, i.e. below the 713 MB recorded below, so
-# the reference is not stale today and the growth is not monotonic - V8 does hand
-# memory back.
+# human re-measures it.
+#
+# Acting on that trigger needs one more question than it used to ask, because
+# the first time it fired it fired for two roles at once and they meant opposite
+# things. The question is whether the role's *floor* is flat or rising, which the
+# sweep log answers directly (hourly minima per role over the same window):
+#
+#   fileWatcher    - flat at 107 MiB for 28 straight hours, above the 88 MiB
+#                    recorded here. That is a stale measurement: 107 MiB is
+#                    simply what this role rests at, and the reference above has
+#                    been corrected to it. It moves no budget - 107 x 1.5 is
+#                    still far below the declared 256 MiB - which is the point.
+#                    A reference that is only ever consulted as a floor can be
+#                    corrected upward without widening anything.
+#   extensionHost  - peaked at 738.5 MiB against the 713 MiB recorded here, and
+#                    its hourly minimum climbed from 528 MiB to 686 MiB across
+#                    the same window. That is not a stale measurement, it is the
+#                    drift this watchdog exists to police, and the reference has
+#                    deliberately NOT been moved. Raising it would widen the
+#                    budget of the only role in the pod that is actually
+#                    drifting, in response to the drift - the move the circuit
+#                    breaker refuses, made by a human instead of by the loop.
+#                    Left alone, the role crosses its 1069 MiB budget after
+#                    roughly three more days of continuous uptime and says so as
+#                    `event=would-kill armed=no`, which is the mechanism working.
+#
+# So: a flat floor above the reference is a measurement to correct; a rising
+# floor above the reference is a finding to report. Do not conflate them.
+# The earlier note here read "the live extension host is 685 MB at 27.6 hours,
+# below the 713 MB recorded, so the reference is not stale" - true when written,
+# and superseded at 38 hours by the figures above.
 RESTING_FACTOR_NUM="${WATCHDOG_RESTING_NUM:-3}"
 RESTING_FACTOR_DEN="${WATCHDOG_RESTING_DEN:-2}"
 # No single helper may be budgeted more than this share of the pod. The workspace
@@ -217,22 +328,35 @@ RESTING_FACTOR_DEN="${WATCHDOG_RESTING_DEN:-2}"
 # pod lets one helper own a quarter of the smaller one.
 POD_SHARE_DEN="${WATCHDOG_POD_SHARE_DEN:-8}"
 
-# Which roles each mode may signal. The first split is by blast radius, not by
-# size: nothing in the helper set is visible to the operator when it restarts,
-# and both members of the editor set are.
+# Which roles each mode may signal. There are two independent axes and a role
+# has to clear both before the default mode will signal it.
+#
+# Axis one is blast radius: nothing in the helper set is visible to the operator
+# when it restarts, and both members of the editor set are.
 HELPER_ROLES=" tsserver languageServer fileWatcher extensionHelper claudeHelper "
 EDITOR_ROLES=" extensionHost serverMain "
-# The third set is on a different axis entirely, and the axis is *calibration*
-# rather than blast radius: a treeHelper is a process this watchdog is sure it
-# should be watching and has no measured resting size for. Its budget is a
-# reasoned guess, and a guessed budget applied to a process whose legitimate
-# resting size is larger than the guess is a kill loop - which is the specific
-# failure this design has already shipped twice. So the unknown set is measured,
-# budgeted, dwell-tracked and reported in every mode, and signalled only under
-# enforce-all, where the operator has already said he accepts restarts he can
-# see. Until then a coverage gap arrives as `event=would-kill armed=no` in the
-# container log instead of as silence.
-UNKNOWN_ROLES=" treeHelper "
+# Axis two is *calibration*, and it is the one #881 discovered while adding a
+# single role to it. A role in this set is one this watchdog is sure it should
+# be watching and whose budget has nothing measured behind it. A guessed budget
+# applied to a process whose legitimate resting size is larger than the guess is
+# a kill loop - the specific failure this design has already shipped twice. So
+# the unknown set is measured, budgeted, dwell-tracked and reported in every
+# mode, and signalled only under enforce-all, where the operator has already
+# said he accepts restarts he can see. Until then a coverage gap arrives as
+# `event=would-kill armed=no` in the container log instead of as silence.
+#
+# It is derived from BUDGET_BASIS rather than hand-listed, which is the change:
+# #881 wrote this reasoning down for treeHelper and then wrote treeHelper into a
+# literal, so the next role added without a measurement would have had to be
+# remembered. Now a role with a `guess` basis lands here by construction, and
+# the only way to arm one under the default mode is to give it a measurement.
+# That is what makes the absence of evidence produce something safe rather than
+# a silent round number.
+UNKNOWN_ROLES=" "
+for _role in "${!BUDGET_BASIS[@]}"; do
+  [[ ${BUDGET_BASIS[$_role]} == guess ]] && UNKNOWN_ROLES+="${_role} "
+done
+unset -v _role
 
 # Filled by derive_budgets().
 declare -gA BUDGET=() FLOORED=()
@@ -360,11 +484,22 @@ derive_budgets() {
 }
 
 # True when the mode may signal this role at all.
+#
+# enforce requires both axes: low blast radius AND a budget with something
+# measured behind it. A role can be a helper whose restart nobody notices and
+# still be a role whose number is a guess - tsserver and extensionHelper are
+# both - and arming those by default is how a mechanism whose only harm is
+# killing a healthy process ends up killing one. They keep their budget, their
+# dwell clock and their `would-kill armed=no` line, which is the evidence needed
+# to arm them later; what they lose is the ability to act on a guess unasked.
+#
+# enforce-all is unchanged in intent: the operator has said he accepts restarts
+# he can see, which includes acting on the guesses.
 role_is_armed() {
   local role=$1
   [[ -n ${DISARMED[$role]:-} ]] && return 1
   case "$MODE" in
-  enforce) [[ $HELPER_ROLES == *" $role "* ]] ;;
+  enforce) [[ $HELPER_ROLES == *" $role "* && $UNKNOWN_ROLES != *" $role "* ]] ;;
   enforce-all)
     [[ $HELPER_ROLES == *" $role "* || $EDITOR_ROLES == *" $role "* ||
       $UNKNOWN_ROLES == *" $role "* ]]
@@ -948,9 +1083,11 @@ role_of() {
       # It is easier and it rots; worse, it fails *silently*, which is the one
       # property this mechanism cannot afford. Inverting fails the other way -
       # loudly, in a role whose budget is admittedly a guess - so the guess is
-      # made safe by arming rather than by hoping: treeHelper is in
-      # UNKNOWN_ROLES, so enforce (the template default) reports it and never
-      # signals it. See the note there.
+      # made safe by arming rather than by hoping: treeHelper's budget carries a
+      # `guess` basis, which is what puts it in UNKNOWN_ROLES, so enforce (the
+      # template default) reports it and never signals it. The set is derived
+      # from BUDGET_BASIS rather than hand-listed, so this holds for any future
+      # role added without a measurement too. See the note there.
       ROLE=treeHelper
     else
       ROLE=other
@@ -1661,8 +1798,13 @@ cycle_once() {
   if ((${#BUDGET[@]} == 0)); then
     derive_budgets "$M_MAX"
     local role
-    for role in extensionHost serverMain tsserver languageServer fileWatcher extensionHelper treeHelper claudeHelper; do
-      record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) pod_share_mb=$((M_MAX / POD_SHARE_DEN / MIB)) resting_mb=$((${RESTING_ROLE[$role]:-0} / MIB)) floored=${FLOORED[$role]:-0} armed=$(role_is_armed "$role" && printf yes || printf no)"
+    # basis= is the field that makes this line answerable. Without it a reader
+    # cannot tell a budget derived from a measurement of the role from a round
+    # number picked in the absence of one, and both were printed here for
+    # months looking identical. `basis=guess armed=no` is the shape a coverage
+    # gap is supposed to have in the log.
+    for role in $BUDGET_ORDER; do
+      record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) pod_share_mb=$((M_MAX / POD_SHARE_DEN / MIB)) resting_mb=$((${RESTING_ROLE[$role]:-0} / MIB)) basis=${BUDGET_BASIS[$role]:-unknown} floored=${FLOORED[$role]:-0} armed=$(role_is_armed "$role" && printf yes || printf no)"
     done
     record_action "event=budgets_derived memory_max_mb=$((M_MAX / MIB)) dwell_s=${DWELL_SECONDS} min_age_s=${MIN_AGE} loop_window_s=${LOOP_WINDOW} loop_kills=${LOOP_KILLS} armed=@$(
       for role in "${!BUDGET[@]}"; do role_is_armed "$role" && printf '%s ' "$role"; done
