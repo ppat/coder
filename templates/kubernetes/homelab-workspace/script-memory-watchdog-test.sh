@@ -210,6 +210,14 @@ write_uptime() {
 # workspace with a VS Code server attached, and extended with the second
 # population this watchdog now polices: the helpers an agent session spawns.
 #
+# The PSS figures are the maxima the watchdog's own sweep log recorded for each
+# role over ~38 hours on that workspace, not sizes invented to make a test pass.
+# One of them matters more than the rest: the extension host is written at the
+# 738 MB it actually reached, which is *above* its 480 MiB share of the envelope,
+# because that is the real situation this design has to survive. In the fixture
+# as in the pod it is therefore classified oversize and never signalled - which
+# is also what keeps every kill assertion below about exactly one process.
+#
 # The `comm` values are load-bearing. Every node process in a real server tree
 # reports MainThread, because V8 renames its main thread with prctl(PR_SET_NAME).
 # An earlier version of this fixture wrote `node`, and that one wrong string hid
@@ -278,16 +286,16 @@ build_tree() {
   add_proc "$dir" 34 32 sh 3000000 sh "${sdir}/bin/code-server" \
     --connection-token=remotessh --start-server --enable-remote-auto-shutdown
 
-  add_proc "$dir" 40 34 "$nc" 300000000 "${sdir}/node" "$srv" \
+  add_proc "$dir" 40 34 "$nc" 233000000 "${sdir}/node" "$srv" \
     --connection-token=remotessh --start-server --enable-remote-auto-shutdown
-  add_proc "$dir" 41 40 "$nc" 500000000 "${sdir}/node" \
+  add_proc "$dir" 41 40 "$nc" 738000000 "${sdir}/node" \
     --dns-result-order=ipv4first "${sdir}/out/bootstrap-fork" \
     --type=extensionHost --transformURIs --useHostProxy=false
-  add_proc "$dir" 44 41 "$nc" 400000000 "${sdir}/node" \
+  add_proc "$dir" 44 41 "$nc" 208000000 "${sdir}/node" \
     "${ext}/ms-vscode.typescript/lib/tsserver.js" --useInferredProjectPerProjectRoot
-  add_proc "$dir" 45 41 "$nc" 120000000 "${sdir}/node" \
+  add_proc "$dir" 45 41 "$nc" 31000000 "${sdir}/node" \
     "${ext}/redhat.vscode-yaml-1.24.0/dist/languageserver.js" --node-ipc --clientProcessId=41
-  add_proc "$dir" 46 41 terraform-ls 300000000 \
+  add_proc "$dir" 46 41 terraform-ls 24000000 \
     "${ext}/hashicorp.terraform-2.40.0-linux-x64/bin/terraform-ls" serve
   # Two processes the extension host spawned that run the *operator's* node, not
   # VS Code's. There is no /usr/bin/node and nothing named node on PATH in this
@@ -330,7 +338,7 @@ build_tree() {
   add_proc "$dir" 49 40 "$nc" 200000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" --type=sharedProcess
 
-  add_proc "$dir" 42 40 "$nc" 40000000 "${sdir}/node" \
+  add_proc "$dir" 42 40 "$nc" 107000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" --type=fileWatcher
   add_proc "$dir" 43 40 "$nc" 100000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" "$ptyhost_arg" --logsPath "${vsc}/data/logs/20260816T162519"
@@ -419,11 +427,11 @@ load_watchdog() {
   fi
   mkdir -p "${WORK}/state"
   SIGNALS=""
-  # Budgets are derived from memory.max on the first cycle rather than being
-  # constants, so a harness that skipped this would be testing a watchdog with no
-  # budgets at all - which is not a state the real thing is ever in, and which
-  # silently passes any assertion about not killing anything.
-  read_cgroup_memory && derive_budgets "$M_MAX"
+  # Budgets are installed on the first cycle rather than at source time, so a
+  # harness that skipped this would be testing a watchdog with no budgets at all
+  # - which is not a state the real thing is ever in, and which silently passes
+  # any assertion about not killing anything.
+  read_cgroup_memory && derive_budgets
   read_cgroup_pressure
 }
 
@@ -498,16 +506,16 @@ test_measurement() {
   set_pss "$pdir" 41 123456789
   read_usage 41
   assert_eq 123456512 "${P_PSS[41]}" "PSS is read from smaps_rollup"
-  assert_eq 499998720 "${P_RSS[41]}" "and RSS separately from statm"
+  assert_eq 737996800 "${P_RSS[41]}" "and RSS separately from statm"
   assert_eq 0 "$PSS_UNAVAILABLE" "with PSS available, nothing is flagged"
 
   # And the fallback, which must be visible rather than silent: RSS is the larger
   # number, so substituting it quietly would make every budget look tighter.
   rm -f "${pdir}/41/smaps_rollup"
   read_usage 41
-  assert_eq 499998720 "${P_PSS[41]}" "without smaps_rollup, RSS stands in"
+  assert_eq 737996800 "${P_PSS[41]}" "without smaps_rollup, RSS stands in"
   assert_eq 1 "$PSS_UNAVAILABLE" "and the substitution is recorded, not hidden"
-  set_pss "$pdir" 41 500000000
+  set_pss "$pdir" 41 738000000
 }
 
 # --------------------------------------------------------------------------- #
@@ -958,19 +966,21 @@ test_tree_helpers() {
   assert_eq "typescript/typingsInstaller" "$(identity_of 57 treeHelper)" \
     "and node_modules is skipped for the name that means something"
 
-  # Never armed by the mode the template actually runs. The budget is a guess and
-  # the design's own history is a guessed limit that landed below what a healthy
-  # process already held, so a coverage gap surfaces as a log line first.
+  # This role used to be armed only under enforce-all, because its budget was a
+  # guess and this design has twice shipped a limit below what a healthy process
+  # already held. It now holds a named share of the envelope like every other
+  # role and is armed like every other role; what protects a tree helper whose
+  # legitimate size is larger than its share is the oversize rule, not an arming
+  # exception. See section 3b.
   # shellcheck disable=SC2034  # MODE is a global of the sourced watchdog
   MODE=observe
   assert_armed treeHelper no "observe arms nothing, tree helpers included"
   # shellcheck disable=SC2034
   MODE=enforce
-  assert_armed treeHelper no "enforce reports tree helpers and does not signal them"
-  assert_armed extensionHelper yes "while a role with a measured resting size is armed"
-  # shellcheck disable=SC2034
-  MODE=enforce-all
-  assert_armed treeHelper yes "enforce-all arms them, which is where the operator opts in"
+  assert_armed treeHelper yes "enforce arms tree helpers like everything else"
+  assert_armed extensionHelper yes "and native extension helpers"
+  assert_armed extensionHost yes "and the extension host"
+  assert_armed serverMain yes "and the process holding the remote connection"
   # shellcheck disable=SC2034
   MODE=observe
 
@@ -1023,187 +1033,360 @@ test_tree_helpers() {
   unset 'P_PPID[9003]' 'P_ARGV0[9003]' 'P_CMD[9003]'
 }
 
-# What the two modes actually do to a drifted tree helper, end to end, because
-# "not armed" is a claim about behaviour and not about a string.
+# What enforce actually does to a drifted tree helper, end to end, because
+# "armed" is a claim about behaviour and not about a string. This is the class of
+# process the whole inverted default exists for: a helper no pattern names,
+# holding 280 MB on the live tree, which used to be invisible and then for a
+# while was visible but unenforceable.
 test_tree_helper_arming_is_end_to_end() {
-  printf 'a drifted tree helper: reported under enforce, killed under enforce-all\n'
+  printf 'a drifted tree helper is killed under enforce\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
   local pdir="${WORK}/proc2g"
   build_tree "$pdir"
 
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
-  set_pss "$pdir" 56 700000000
+  # 287 MB is what this process was measured at, and it is inside the 320 MiB
+  # share - so the fixture starts it fitting, and then drifts it out.
   sweep_at 1000
-  sweep_at $((1000 + DWELL_SECONDS))
-  # Targeted rather than "SIGNALS is empty": the fixture's MCP server is over
-  # budget in an armed role in this same sweep, and an assertion that the whole
-  # run signalled nothing would be asserting that enforce mode is broken.
-  assert_absent "$SIGNALS" ":56" "enforce signals nothing, however far a tree helper has drifted"
-  assert_contains "$(cat "${WORK}/state/actions.log")" \
-    "event=would-kill armed=no pid=56 role=treeHelper" \
-    "but says exactly what it would have done, with the identity to act on"
+  set_pss "$pdir" 56 700000000
+  sweep_at 1060
+  sweep_at $((1060 + DWELL_SECONDS))
+  assert_contains "$SIGNALS" "TERM:56" "a tree helper that drifted out of its share is shed"
+  assert_absent "$SIGNALS" ":49" "and the unrecognised core fork is still never touched"
+  assert_absent "$SIGNALS" ":41" \
+    "nor the extension host, which never fitted and is therefore reported instead"
+
   # And the per-process record carries it as a budgeted role rather than as one
-  # of the `unmanaged` rows it used to be lost among. 524288 kB is the 512 MiB
-  # budget in the sweep log's units.
+  # of the `unmanaged` rows it used to be lost among. 327680 kB is the 320 MiB
+  # share in the sweep log's units.
   local latest
   latest="$(cat "${WORK}/state/sweep.latest")"
   assert_contains "$latest" "treeHelper" "the sweep log records the role"
-  assert_contains "$latest" "524288" "with the budget it is being held to"
+  assert_contains "$latest" "327680" "with the share it is being held to"
 
+  # Observe mode still only reports, for this role as for every other.
+  SIGNALS=""
   rm -rf "${WORK}/state"
-  load_watchdog "${WORK}/cg" "$pdir" enforce-all
-  set_pss "$pdir" 56 700000000
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  set_pss "$pdir" 56 287000000
   sweep_at 2000
-  sweep_at $((2000 + DWELL_SECONDS))
-  assert_contains "$SIGNALS" "TERM:56" "enforce-all is where a tree helper is actually shed"
-  assert_absent "$SIGNALS" ":49" "and the unrecognised core fork is still never touched"
-  assert_absent "$SIGNALS" ":41" "nor the extension host, by a helper's budget or any other"
+  set_pss "$pdir" 56 700000000
+  sweep_at 2060
+  sweep_at $((2060 + DWELL_SECONDS))
+  assert_absent "$SIGNALS" ":56" "observe mode signals no tree helper"
+  assert_contains "$(cat "${WORK}/state/actions.log")" \
+    "event=would-kill armed=no pid=56 role=treeHelper" \
+    "but says exactly what it would have done, with the identity to act on"
+  set_pss "$pdir" 56 287000000
 }
 
 # --------------------------------------------------------------------------- #
-# 3. the budgets
+# 3. the envelope and its shares
 #
-# The failure this section exists to prevent has happened twice in this design,
-# both times the same way: a limit derived from the pod that sat below what the
-# process already held at rest. In observe mode that is a log line; in enforce
-# mode it is a process that dies on its next allocation, restarts, and dies
-# again. So the properties asserted here are about the *relationship* between a
-# budget and the measured resting size of the role, not about the arithmetic.
+# The construction under test is one sentence: the VS Code tree gets a fixed
+# 2048 MiB envelope, each role holds a named share of it that does not vary with
+# pod size, and everything with a budget is armed under enforce.
+#
+# So the assertions here are *properties*, not one pod's arithmetic. The three
+# terms this replaced - a per-role constant, a memory.max/8 share and a
+# resting x 1.5 floor - could each be checked on the 8 GiB pod and pass while the
+# total was unbounded, which is how a design with no bound on the sum passed a
+# budget suite twice.
 # --------------------------------------------------------------------------- #
+
+POD_SIZES="2147483648 4294967296 8589934592 17179869184 68719476736"
 
 budgets_at() {
   BUDGET=()
-  derive_budgets "$1"
+  derive_budgets
 }
 
-test_budgets() {
-  printf 'budgets\n'
+test_envelope() {
+  printf 'the envelope\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
   load_watchdog "${WORK}/cg" "${WORK}/proc2"
 
-  # 8 GiB: the pod the roles were measured on. The operator's 512 MiB instinct
-  # applies unchanged to the helpers. The extension host does not get it, and
-  # does not even get the pod share: measured at rest on a reconnected, idle
-  # 8 GiB workspace it holds 713 MB, so the resting floor lifts it above the
-  # 1024 MiB share. That is the correction this table exists to survive - the
-  # first version of these numbers was calibrated against a *fresh* tree, where
-  # the same process is 471 MB.
-  budgets_at 8589934592
-  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
-    "8 GiB: the extension host is lifted above the pod share by its resting size"
-  assert_eq 1 "${FLOORED[extensionHost]}" "and that lift is recorded, not silent"
-  assert_eq 536870912 "${BUDGET[serverMain]}" "8 GiB: serverMain gets 512 MiB"
-  assert_eq 268435456 "${BUDGET[fileWatcher]}" "8 GiB: the file watcher gets 256 MiB"
-  assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 88 MB resting is well under it"
-  assert_eq 536870912 "${BUDGET[claudeHelper]}" "8 GiB: an MCP server gets 512 MiB"
+  # The apportionment, named. These are the numbers a reviewer is arguing with,
+  # so they are asserted individually rather than only as a sum: a change to one
+  # of them should have to be made here as well as in the script.
+  budgets_at
+  assert_eq 536870912 "${BUDGET[serverMain]}" "serverMain holds 512 MiB"
+  assert_eq 503316480 "${BUDGET[extensionHost]}" "the extension host holds 480 MiB"
+  assert_eq 335544320 "${BUDGET[tsserver]}" "tsserver holds 320 MiB"
+  assert_eq 335544320 "${BUDGET[treeHelper]}" "a tree helper holds 320 MiB"
+  assert_eq 167772160 "${BUDGET[fileWatcher]}" "the file watcher holds 160 MiB"
+  assert_eq 134217728 "${BUDGET[languageServer]}" "a language server holds 128 MiB"
+  assert_eq 134217728 "${BUDGET[extensionHelper]}" "an extension helper holds 128 MiB"
+  assert_eq 536870912 "${BUDGET[claudeHelper]}" "an MCP server holds 512 MiB, outside the envelope"
 
-  # FLOORED is documented as a diagnostic - "this pod is too small to bound this
-  # role at the share it was meant to have" - and that reading only holds while
-  # every declared budget already clears its own resting floor, because then the
-  # pod share is the only thing that can push one below it. It did not hold:
-  # extensionHost's declared 1024 MiB sat below its own 1069 MiB floor, so the
-  # flag was true at 4, 8, 16 and 64 GiB alike and reported a property of the
-  # constants while claiming to report a property of the pod.
-  #
-  # This asserts the invariant rather than the flag, because the invariant is
-  # what makes the flag mean anything. A future budget lowered below its role's
-  # resting floor - the exact edit this design has made wrongly twice - fails
-  # here rather than quietly turning a diagnostic into a constant.
-  local r floor
-  for r in "${!BUDGET_ROLE[@]}"; do
-    floor=$(((${RESTING_ROLE[$r]:-0} * RESTING_FACTOR_NUM) / RESTING_FACTOR_DEN))
+  # Property 1: the shares add up to the envelope, at every pod size. This is the
+  # assertion the old construction could not have had - min(x, memory.max/8) and
+  # a resting floor have no sum to check. Mutation: change any single share, or
+  # reintroduce a term that scales one with the pod, and this goes red at some
+  # pod size.
+  local m total role
+  for m in $POD_SIZES; do
+    write_cgroup "${WORK}/cg" "$m" 0.00
+    read_cgroup_memory
+    budgets_at
+    total=$(envelope_in_force)
+    assert_eq "$ENVELOPE" "$total" "memory.max=${m}: the shares in force add up to the envelope"
+  done
+
+  # Property 2: and they are the *same* shares at every pod size. Summing to the
+  # envelope is not enough on its own - two roles could trade with each other as
+  # the pod changed and still sum correctly.
+  local -A at8=()
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  read_cgroup_memory
+  budgets_at
+  for role in "${!BUDGET[@]}"; do at8[$role]=${BUDGET[$role]}; done
+  for m in $POD_SIZES; do
+    write_cgroup "${WORK}/cg" "$m" 0.00
+    read_cgroup_memory
+    budgets_at
+    for role in "${!BUDGET[@]}"; do
+      # shellcheck disable=SC2004
+      # The $ is NOT unnecessary: these are associative arrays, so inside (( ))
+      # the subscript is a string. Dropping it looks up the literal key "role"
+      # and silently reads 0, which would make this pass for every role.
+      if ((BUDGET[$role] == at8[$role])); then
+        ok "memory.max=${m}: the ${role} share is the same number it is on any other pod"
+      else
+        bad "memory.max=${m}: the ${role} share moved with the pod (${BUDGET[$role]} vs ${at8[$role]})"
+      fi
+    done
+  done
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  read_cgroup_memory
+  budgets_at
+
+  # Property 3: what the removed memory.max/8 divisor was protecting against - a
+  # budget reasoned about for the large pod letting one role own a quarter of the
+  # small one - still holds, now by construction rather than by arithmetic. The
+  # smallest pod this template offers is 4 GiB.
+  local smallest=4294967296
+  for role in "${!BUDGET[@]}"; do
     # shellcheck disable=SC2004
-    # The $ is NOT unnecessary: BUDGET_ROLE is associative, so inside (( )) the
-    # subscript is a string, and dropping it looks up the literal key "r" and
+    # The $ is NOT unnecessary: BUDGET is associative, so inside (( )) the
+    # subscript is a string, and dropping it looks up the literal key "role" and
     # silently reads 0 - which would make this assertion pass for every role.
-    if ((BUDGET_ROLE[$r] >= floor)); then
-      ok "the declared ${r} budget already clears its own resting floor"
+    if ((BUDGET[$role] <= smallest / 8)); then
+      ok "the ${role} share is within an eighth of the smallest supported pod"
     else
-      bad "the declared ${r} budget (${BUDGET_ROLE[$r]}) is below its resting floor (${floor}): FLOORED stops being a pod-size diagnostic"
+      bad "the ${role} share (${BUDGET[$role]}) exceeds an eighth of a 4 GiB pod - the divisor's protection is gone"
     fi
   done
 
-  # And so the flag now varies with the pod, which is the whole claim.
-  budgets_at 17179869184
-  assert_eq "" "${FLOORED[extensionHost]:-}" \
-    "16 GiB: the extension host is not floored - the pod can afford its share"
-  # ...while moving no budget at all. This change repaired a diagnostic; if it
-  # had also changed what gets killed, that would be a separate decision.
-  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
-    "16 GiB: and its budget is the same number it has always been in force"
-
-  # 4 GiB: the pod share is 512 MiB, far below what the extension host holds at
-  # rest. The floor overrides it rather than issuing a standing kill order.
-  budgets_at 4294967296
-  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
-    "4 GiB: the resting floor overrides the pod share for the extension host"
-  assert_eq 268435456 "${BUDGET[fileWatcher]}" "4 GiB: the file watcher is unaffected"
-
-  # The property that matters more than any of the numbers: no budget may sit
-  # below the size the role was measured at while idle, at any pod size, ever.
-  local m r
-  for m in 2147483648 4294967296 8589934592; do
-    budgets_at $m
-    for r in "${!RESTING_ROLE[@]}"; do
-      # shellcheck disable=SC2004
-      # The $ is NOT unnecessary here: these are associative arrays, whose
-      # subscripts are strings inside (( )), so dropping it looks up the literal
-      # key "r" and silently reads 0. That defect shipped once already.
-      if ((BUDGET[$r] > RESTING_ROLE[$r])); then
-        ok "memory.max=${m}: ${r} is budgeted above its resting size"
-      else
-        bad "memory.max=${m}: ${r} budget ${BUDGET[$r]} is at or below resting ${RESTING_ROLE[$r]}"
-      fi
-    done
+  # Property 4: the connection-holding process has the largest single share. It
+  # is the operator's rule and it is allocated by consequence rather than by
+  # size, so nothing in the numbers themselves would catch a later edit that
+  # broke it.
+  local biggest="" role
+  for role in ${ENVELOPE_ROLES}; do
+    # shellcheck disable=SC2004
+    if [[ -z $biggest ]] || ((BUDGET[$role] > BUDGET[$biggest])); then biggest=$role; fi
+  done
+  assert_eq serverMain "$biggest" "the process holding the remote connection has the largest share"
+  for role in ${ENVELOPE_ROLES}; do
+    [[ $role == serverMain ]] && continue
+    # shellcheck disable=SC2004
+    if ((BUDGET[$role] < BUDGET[serverMain])); then
+      ok "and ${role} is strictly smaller, so the largest share is unambiguous"
+    else
+      bad "${role} ties or beats serverMain - there is no single largest share"
+    fi
   done
 
-  local max role budget resting
-  for max in 2147483648 4294967296 8589934592 17179869184; do
-    budgets_at "$max"
-    for role in "${!BUDGET[@]}"; do
-      budget=${BUDGET[$role]}
-      resting=${RESTING_ROLE[$role]:-0}
-      if ((resting == 0)) || ((budget > resting)); then
-        ok "memory.max=${max}: the ${role} budget is above its measured resting size"
-      else
-        bad "memory.max=${max}: the ${role} budget (${budget}) is at or below resting (${resting}) - a kill loop"
-      fi
-      if ((budget < max)); then
-        ok "memory.max=${max}: the ${role} budget is inside the pod"
-      else
-        bad "memory.max=${max}: the ${role} budget (${budget}) is the whole pod - inert"
-      fi
-    done
+  # Property 5: BUDGET_ORDER names every declared role and nothing else. It is
+  # what the budget report iterates, and a literal list at a reporting call site
+  # is exactly where a fully-enforced share goes unreported.
+  local listed=" ${BUDGET_ORDER// / } "
+  for role in "${!BUDGET_ROLE[@]}"; do
+    assert_contains "$listed" " ${role} " "BUDGET_ORDER names ${role}"
   done
+  for role in ${BUDGET_ORDER}; do
+    if [[ -n ${BUDGET_ROLE[$role]:-} ]]; then
+      ok "BUDGET_ORDER's ${role} is a declared role"
+    else
+      bad "BUDGET_ORDER names ${role}, which has no budget"
+    fi
+  done
+  assert_eq "${#BUDGET_ROLE[@]}" "$(printf '%s\n' ${BUDGET_ORDER} | wc -l)" \
+    "and names each of them exactly once"
+
+  # Property 6: every role inside the envelope is armed under enforce, and none
+  # is armed under observe. A share that cannot be signalled is a share that is
+  # not enforced, which would make the envelope a description of the tree rather
+  # than a bound on it.
+  #
+  # Mutation: restore the old `enforce) [[ $HELPER_ROLES == *" $role "* ]]`
+  # clause and the extensionHost, serverMain and treeHelper assertions go red.
+  # shellcheck disable=SC2034
+  MODE=observe
+  for role in "${!BUDGET_ROLE[@]}"; do
+    assert_armed "$role" no "observe arms nothing, ${role} included"
+  done
+  # shellcheck disable=SC2034
+  MODE=enforce
+  for role in "${!BUDGET_ROLE[@]}"; do
+    assert_armed "$role" yes "enforce arms ${role}"
+  done
+  # A role with no declared budget is armed by nothing, in any mode: arming keys
+  # on having a share, so a future role added without one cannot be signalled on
+  # a budget of zero.
+  assert_armed somethingNew no "a role with no share is armed by nothing"
+  # shellcheck disable=SC2034
+  MODE=observe
 
   # An explicit budget must win, or a number cannot be tried on a live workspace
   # without editing the script under test.
   BUDGET=()
-  WATCHDOG_BUDGET_extensionHost=268435456 derive_budgets 8589934592
-  assert_eq 268435456 "${BUDGET[extensionHost]}" "an explicit budget overrides the derivation"
-  assert_eq 536870912 "${BUDGET[serverMain]}" "while the rest is still derived"
-  budgets_at 8589934592
+  WATCHDOG_BUDGET_extensionHost=268435456 derive_budgets
+  assert_eq 268435456 "${BUDGET[extensionHost]}" "an explicit budget overrides the declared share"
+  assert_eq 536870912 "${BUDGET[serverMain]}" "while the rest is unchanged"
+  # And an override that breaks the total says so, rather than leaving a sum
+  # nobody can reconstruct from the log.
+  local overridden
+  overridden=$(envelope_in_force)
+  if ((overridden != ENVELOPE)); then
+    ok "an override that changes the total is visible as a total"
+  else
+    bad "an override moved a share without moving the sum - envelope_in_force is not summing the shares in force"
+  fi
+  budgets_at
 
-  # Arming is by role and by mode, because the blast radius differs: nothing in
-  # the helper set is visible to the operator when it restarts, and both members
-  # of the editor set are.
-  # MODE is a global of the sourced watchdog, set here to ask each mode what it
-  # would arm.
-  # shellcheck disable=SC2034
-  MODE=observe
-  assert_armed claudeHelper no "observe mode arms nothing"
-  # shellcheck disable=SC2034
-  MODE=enforce
-  assert_armed claudeHelper yes "enforce arms MCP servers"
-  assert_armed fileWatcher yes "enforce arms the file watcher"
-  assert_armed extensionHost no "enforce leaves the extension host alone"
-  # shellcheck disable=SC2034
-  MODE=enforce-all
-  assert_armed extensionHost yes "enforce-all arms the extension host"
-  assert_armed serverMain yes "enforce-all arms serverMain"
-  # shellcheck disable=SC2034
-  MODE=observe
+  # The budget report is what a reviewer reads the apportionment out of, so it
+  # has to carry the envelope and not only the per-role number.
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "${WORK}/proc2" enforce
+  read_uptime
+  # cycle_once only reports the budgets on the cycle that installs them, and
+  # load_watchdog has already installed them.
+  BUDGET=()
+  cycle_once 1000 >/dev/null 2>&1
+  local actions
+  actions="$(cat "${WORK}/state/actions.log" 2>/dev/null)"
+  assert_contains "$actions" "event=budget role=serverMain budget_mb=512" \
+    "the report names each share in MiB"
+  assert_contains "$actions" "envelope=yes" "and says which roles are inside the envelope"
+  assert_contains "$actions" "event=budget role=claudeHelper budget_mb=512 envelope=no" \
+    "and that the MCP server budget is not one of them"
+  assert_contains "$actions" "shares_sum_mb=2048 " "and publishes the total the shares add up to"
+  assert_absent "$actions" "event=warning reason=envelope-mismatch" \
+    "with no mismatch to report when the shares are the declared ones"
+}
+
+# --------------------------------------------------------------------------- #
+# 3b. drift is killed; what never fitted is reported
+#
+# This is the mechanism that replaced the resting x 1.5 floor, and it has to be
+# tested as the pair it is: the same role, the same budget, the same final size,
+# and opposite outcomes decided only by whether the process was ever seen inside
+# its share.
+#
+# What the floor protected against was a share that lands below what a healthy
+# process already holds, which under enforcement is a kill loop with a
+# supervisor's restart in the middle of it. A floor cannot survive an envelope -
+# enough floors push the sum past the total - so the protection moved to the
+# process: nothing that has never fitted is signalled.
+# --------------------------------------------------------------------------- #
+
+test_oversize_is_reported_not_killed() {
+  printf 'a process that never fitted is reported, not killed\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc3b"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+
+  # The extension host as the live pod actually has it: 738 MB against a 480 MiB
+  # share, over from the first sweep and for its whole observed life.
+  local t=1000
+  sweep_at $t
+  t=$((t + DWELL_SECONDS + 60))
+  sweep_at $t
+  assert_absent "$SIGNALS" ":41" "an extension host that has never fitted is not killed"
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=oversize pid=41 role=extensionHost" \
+    "it is reported instead, with the identity to act on"
+  assert_contains "$(cat "${WORK}/state/sweep.latest")" "oversize" \
+    "and the sweep row says which of the two cases this is"
+  # It keeps saying so. A mechanism that reports a structural problem once and
+  # then goes quiet is indistinguishable from one that fixed it.
+  : >"${WORK}/state/actions.log"
+  t=$((t + DWELL_SECONDS + 60))
+  sweep_at $t
+  assert_contains "$(cat "${WORK}/state/actions.log")" "event=oversize pid=41" \
+    "and goes on saying so once per dwell period, indefinitely"
+
+  # The pair. Same process, same role, same 738 MB, same budget - but this one is
+  # seen inside its share first, so it drifted rather than never fitted.
+  #
+  # Mutation: delete the `[[ -z ${FIT_SEEN[$key]:-} ]]` branch in sweep_once and
+  # the first half of this test goes red (41 is killed); delete the FIT_SEEN
+  # assignment and the second half goes red (41 is never killed).
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  set_pss "$pdir" 41 400000000 # inside the 480 MiB share
+  t=5000
+  sweep_at $t
+  assert_eq 1 "${FIT_SEEN[41:100]:-0}" "a process seen inside its share is recorded as having fitted"
+  set_pss "$pdir" 41 738000000
+  t=$((t + 60))
+  sweep_at $t
+  t=$((t + DWELL_SECONDS))
+  sweep_at $t
+  assert_contains "$SIGNALS" "TERM:41" "and when it later drifts out of it, it is killed"
+  set_pss "$pdir" 41 738000000
+
+  # The fit evidence is only taken from a process old enough to have finished
+  # starting up. Without that, the classification would depend on whether a sweep
+  # happened to catch the process in the seconds after exec, when everything is
+  # small - a race, decided by sweep timing rather than by the process.
+  #
+  # Mutation: drop `age >= MIN_AGE` from the FIT_SEEN assignment and this goes
+  # red, because the young small observation would arm the kill.
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  set_age "$pdir" 41 30
+  set_pss "$pdir" 41 100000000
+  t=8000
+  sweep_at $t
+  assert_eq 0 "${FIT_SEEN[41:$((( UPTIME_S - 30 ) * 100))]:-0}" \
+    "a small reading from a process that has just started proves nothing"
+  set_age "$pdir" 41 50000
+  set_pss "$pdir" 41 738000000
+  t=$((t + DWELL_SECONDS + 600))
+  sweep_at $t
+  t=$((t + DWELL_SECONDS + 600))
+  sweep_at $t
+  assert_absent "$SIGNALS" ":41" "so it is still oversize once it is old and large"
+  set_pss "$pdir" 41 738000000
+
+  # And the whole rule is inert in observe mode, like everything else - but it
+  # reports the *right* one of the two cases, which is the evidence anyone needs
+  # before arming this on a live workspace.
+  SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  t=20000
+  set_pss "$pdir" 61 200000000
+  sweep_at $t
+  set_pss "$pdir" 61 1660000000
+  t=$((t + 60))
+  sweep_at $t
+  t=$((t + DWELL_SECONDS + 60))
+  sweep_at $t
+  assert_eq "" "$SIGNALS" "observe mode signals nothing either way"
+  local obs
+  obs="$(cat "${WORK}/state/actions.log")"
+  assert_contains "$obs" "event=oversize pid=41" \
+    "and calls the extension host oversize rather than would-kill"
+  assert_contains "$obs" "event=would-kill armed=no pid=61" \
+    "while a helper that did fit and then drifted is still reported as a kill it would have made"
 }
 
 # --------------------------------------------------------------------------- #
@@ -1223,9 +1406,15 @@ test_dwell() {
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  # The python MCP server at the size it was actually observed at: 1.66 GB
-  # against a 512 MiB budget.
-  local t=1000
+  # The python MCP server, first at a size a healthy one was actually measured
+  # at and then at the 1.66 GB the offending one reached. It has to be seen
+  # fitting before it can be said to have drifted - a process that was never
+  # inside its share is the other case entirely, and section 3b owns it.
+  local t=900
+  set_pss "$pdir" 61 200000000
+  sweep_at $t
+  set_pss "$pdir" 61 1660000000
+  t=1000
   sweep_at $t
   assert_eq "" "$SIGNALS" "the first sweep over budget signals nothing"
   assert_eq "$t" "${OVER_SINCE[61:100]}" "but it starts the dwell clock"
@@ -1254,11 +1443,11 @@ test_dwell() {
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
   t=2000
-  set_pss "$pdir" 44 900000000 # tsserver indexing, over its 768 MiB budget
+  set_pss "$pdir" 44 900000000 # tsserver indexing, well over its 320 MiB share
   sweep_at $t
   t=$((t + 300))
   sweep_at $t
-  set_pss "$pdir" 44 400000000 # indexing finished, memory handed back
+  set_pss "$pdir" 44 208000000 # indexing finished, memory handed back
   t=$((t + 60))
   sweep_at $t
   assert_eq "" "${OVER_SINCE[44:100]:-}" "coming back under budget clears the dwell clock"
@@ -1283,60 +1472,79 @@ test_dwell() {
 }
 
 # --------------------------------------------------------------------------- #
-# 4b. the kill loop, and the circuit breaker that stops it
+# 4b. the kill rate is reported, and disarms nothing
 #
-# This is the failure mode that makes drift policing actively harmful, and it
-# arrives looking exactly like the watchdog working: kill the extension host, VS
-# Code restarts it, it reloads every extension, it exceeds again, kill. What
-# distinguishes a drifting role from a wrongly-budgeted one is only how often the
-# same role has to be killed, so that is what the breaker measures.
+# There used to be a circuit breaker here: LOOP_KILLS kills of one role inside
+# LOOP_WINDOW disarmed that role permanently. It was protecting against the kill
+# loop - kill the extension host, VS Code restarts it, it reloads every
+# extension, it exceeds again, kill - which is the failure that arrives looking
+# exactly like the watchdog working.
+#
+# Under a deliberate envelope that inference no longer holds: repeated kills can
+# mean the process does not fit in the share it was given, which is a decision
+# rather than a defect, and a mechanism that switches itself off after three of
+# them is inert by mid-morning. The loop itself is prevented by the oversize rule
+# instead (section 3b), which is why removing the breaker does not put it back.
+#
+# So this section asserts the *negative*: however many times a role is killed,
+# enforcement continues, and the rate is reported.
 # --------------------------------------------------------------------------- #
 
-test_kill_loop_breaker() {
-  printf 'the kill loop breaker\n'
+test_kill_rate_is_reported_and_nothing_disarms() {
+  printf 'the kill rate is reported and disarms nothing\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
   local pdir="${WORK}/proc4b"
   build_tree "$pdir"
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  local t=1000 i
-  for ((i = 1; i <= LOOP_KILLS; i++)); do
-    # A fresh incarnation of the same role, as a supervisor restart would give.
+  # Each incarnation is seen inside its share first and then drifts out of it, so
+  # every one of them is a genuine drift kill rather than an oversize report.
+  # That is what makes this a test of the rate rather than of the oversize rule.
+  local t=1000 i n=$((LOOP_KILLS + 2))
+  for ((i = 1; i <= n; i++)); do
     printf '%s (python3) S 60 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 %s\n' \
       61 $((i * 1000)) >"${pdir}/61/stat"
-    set_pss "$pdir" 61 1660000000
+    set_pss "$pdir" 61 200000000 # inside the 512 MiB share
+    sweep_at $t
+    set_pss "$pdir" 61 1660000000 # the 1.66 GB it was actually measured at
+    t=$((t + 60))
     sweep_at $t
     t=$((t + DWELL_SECONDS))
     sweep_at $t
     t=$((t + 60))
   done
-  assert_eq "$LOOP_KILLS" "${KILLS[claudeHelper]:-0}" "the role was killed once per incarnation"
-  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
-    ok "and after ${LOOP_KILLS} kills inside the window the role is disarmed"
-  else
-    bad "the role kept being killed - there is no circuit breaker"
-  fi
-  assert_contains "$(cat "${WORK}/state/actions.log")" "event=disarmed role=claudeHelper" \
-    "the breaker says so in the log rather than going quiet"
+  assert_eq "$n" "${KILLS[claudeHelper]:-0}" \
+    "the role is killed once per incarnation, past the old breaker threshold and beyond"
 
-  # And it stays disarmed: the next incarnation is watched, reported, and left
-  # alone.
+  local actions
+  actions="$(cat "${WORK}/state/actions.log")"
+  assert_contains "$actions" "event=kill-rate role=claudeHelper" \
+    "the rate is reported once it crosses the threshold"
+  assert_contains "$actions" "enforcing=yes" "and the report says enforcement continues"
+  assert_absent "$actions" "event=disarmed" "nothing is disarmed"
+  assert_absent "$(cat "${WORK}/state/sweep.latest")" "disarmed" \
+    "and no process is recorded as deliberately spared for that reason"
+
+  # The falsification for the whole section: the last kill must be a real signal,
+  # not a leftover from before the threshold. Mutation: restore
+  # `DISARMED[$role]=1` in record_kill and this goes red.
   SIGNALS=""
   printf '%s (python3) S 60 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 99000\n' 61 \
     >"${pdir}/61/stat"
+  set_pss "$pdir" 61 200000000
+  sweep_at $t
   set_pss "$pdir" 61 1660000000
+  t=$((t + 60))
   sweep_at $t
-  t=$((t + DWELL_SECONDS + 60))
+  t=$((t + DWELL_SECONDS))
   sweep_at $t
-  assert_eq "" "$SIGNALS" "a disarmed role is not killed again"
-  assert_contains "$(cat "${WORK}/state/sweep.latest")" "disarmed" \
-    "and the sweep records that it is over budget and deliberately spared"
+  assert_contains "$SIGNALS" "TERM:61" \
+    "a role well past the old breaker threshold is still enforced"
 
-  # Falsification: with a window short enough that the kills fall outside it, the
-  # same three kills must NOT disarm anything - otherwise the assertion above is
-  # about the count and not about the rate, and any long-lived workspace would
-  # eventually disarm itself.
+  # The report is a rate and not a count: kills spread beyond the window must not
+  # produce it, or any long-lived workspace would eventually report one for
+  # nothing.
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
   # shellcheck disable=SC2034  # a global of the sourced watchdog
@@ -1346,51 +1554,52 @@ test_kill_loop_breaker() {
     record_kill claudeHelper $t
     t=$((t + 600))
   done
-  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
-    bad "kills spread over hours still disarm the role - the breaker counts, it does not measure a rate"
-  else
-    ok "kills spread beyond the window do not disarm the role"
-  fi
+  assert_absent "$(cat "${WORK}/state/actions.log" 2>/dev/null)" "event=kill-rate role=claudeHelper" \
+    "kills spread beyond the window are not reported as a rate"
 
-  # The global breaker: a budget wrong in a way that spreads across roles.
+  # And the same idea across roles.
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
   t=20000
   for ((i = 1; i <= GLOBAL_LOOP_KILLS; i++)); do
     record_kill "role${i}" $t
   done
-  if [[ -n ${DISARMED[claudeHelper]:-} ]]; then
-    ok "enough kills across unrelated roles disarms everything"
-  else
-    bad "no global circuit breaker"
-  fi
+  assert_contains "$(cat "${WORK}/state/actions.log" 2>/dev/null)" "event=kill-rate role=all" \
+    "enough kills across unrelated roles is reported too"
 }
 
 # --------------------------------------------------------------------------- #
-# 4c. what the breaker does to a kill that is already in flight
+# 4c. a kill already in flight is finished
 #
-# A drill on a disposable workspace found this by accident: the breaker tripped
-# between a process's SIGTERM and its SIGKILL, and the disarm branch
-# short-circuited ahead of the escalation, so the process was still alive and
-# still over budget when the drill ended - signalled, abandoned, and recorded as
-# neither killed nor spared. Nothing in the code or the docs said which of those
-# was intended, so it was not a defect anyone could have reviewed.
+# A drill on a disposable workspace found this by accident under the old
+# breaker: it tripped between a process's SIGTERM and its SIGKILL, the disarm
+# branch short-circuited ahead of the escalation, and the process was left alive,
+# still over budget, signalled, abandoned, and recorded as neither killed nor
+# spared. Nothing in the code or the docs said which of those was intended, so it
+# was not a defect anyone could have reviewed.
 #
-# It is decided here: disarming means "stop deciding to kill this role", not
-# "abandon a kill already decided". Finishing one escalation cannot start the
-# loop the breaker exists to stop. Both halves are asserted, because either one
-# alone is satisfiable by a watchdog that got the decision backwards.
+# The breaker is gone but the ladder still has a branch that can short-circuit an
+# escalation - the oversize rule - and the lesson is the same one: "do not decide
+# to kill this" is not "abandon a kill already decided". Leaving a process
+# half-signalled is the worst of both outcomes. So the escalation branch is
+# tested first, and this asserts it, by taking the fit evidence away between the
+# SIGTERM and the SIGKILL.
+#
+# Mutation: move the `[[ -z ${FIT_SEEN[$key]:-} ]]` branch above the
+# `[[ -n ${KILLED_AT[$key]:-} ]]` branch and this goes red.
 # --------------------------------------------------------------------------- #
 
-test_disarm_completes_an_escalation_in_flight() {
-  printf 'a disarmed role finishes the kill it started and starts no new one\n'
+test_an_escalation_in_flight_is_finished() {
+  printf 'a kill already in flight is finished, not abandoned\n'
   write_cgroup "${WORK}/cg" 8589934592 0.00
   local pdir="${WORK}/proc4c"
   build_tree "$pdir"
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce
 
-  # 61 drifts and is asked politely.
+  # 61 fits, drifts, and is asked politely.
+  set_pss "$pdir" 61 200000000
+  sweep_at 900
   set_pss "$pdir" 61 1660000000
   sweep_at 1000
   sweep_at $((1000 + DWELL_SECONDS))
@@ -1398,29 +1607,30 @@ test_disarm_completes_an_escalation_in_flight() {
   assert_absent "$SIGNALS" "KILL:61" "and not yet a SIGKILL"
   local kills_before=${KILLS[claudeHelper]:-0}
 
-  # The breaker now trips - on this role, from other incarnations - while that
-  # SIGTERM is outstanding.
-  # shellcheck disable=SC2034  # a global of the sourced watchdog
-  DISARMED[claudeHelper]=1
+  # The fit evidence disappears while that SIGTERM is outstanding - which is what
+  # a pid:starttime key change, or a pruning bug, would look like from inside the
+  # ladder.
+  unset 'FIT_SEEN[61:100]'
   SIGNALS=""
   sweep_at $((1000 + DWELL_SECONDS + KILL_GRACE))
   assert_contains "$SIGNALS" "KILL:61" \
     "the escalation completes rather than leaving the process half-signalled"
-  assert_contains "$(cat "${WORK}/state/actions.log")" "after_disarm=yes" \
-    "and the log distinguishes it from an ordinary escalation"
   assert_eq "$kills_before" "${KILLS[claudeHelper]:-0}" \
-    "it is the same kill, so the breaker does not count it twice"
+    "it is the same kill, so the rate does not count it twice"
 
-  # The other half: the disarmed role starts nothing new. 62 is a different
-  # process of the same role that has never been signalled.
+  # The other half: a process that never fitted starts nothing, however far it
+  # has drifted. 62 is a different process of the same role.
   SIGNALS=""
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
   set_pss "$pdir" 62 900000000
   sweep_at 5000
   sweep_at $((5000 + DWELL_SECONDS))
   assert_absent "$SIGNALS" ":62" \
-    "a disarmed role begins no new kill, however far another of its processes has drifted"
-  assert_contains "$(cat "${WORK}/state/sweep.latest")" "disarmed" \
+    "a process that never fitted begins no kill at all"
+  assert_contains "$(cat "${WORK}/state/sweep.latest")" "oversize" \
     "and says it is deliberately sparing it"
+  set_pss "$pdir" 62 200000000
 }
 
 # --------------------------------------------------------------------------- #
@@ -1435,7 +1645,11 @@ test_observe_mode() {
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" observe
 
-  local t=1000
+  local t=900
+  set_pss "$pdir" 61 200000000
+  sweep_at $t
+  set_pss "$pdir" 61 1660000000
+  t=1000
   sweep_at $t
   t=$((t + DWELL_SECONDS))
   sweep_at $t
@@ -1449,29 +1663,31 @@ test_observe_mode() {
   assert_contains "$(cat "${WORK}/state/sweep.latest")" "would-kill" \
     "the sweep row says would-kill rather than killed"
 
-  # Enforce mode arms helpers but not the editor, so the extension host is
-  # reported and spared in exactly the same way.
-  SIGNALS=""
-  rm -rf "${WORK}/state"
-  load_watchdog "${WORK}/cg" "$pdir" enforce
-  set_pss "$pdir" 41 2000000000
-  t=5000
-  sweep_at $t
-  t=$((t + DWELL_SECONDS))
-  sweep_at $t
-  assert_absent "$SIGNALS" "TERM:41" "enforce mode does not kill the extension host"
-  assert_contains "$(cat "${WORK}/state/actions.log")" "pid=41" \
-    "but it does report it as over budget"
-
+  # enforce-all is the retired third mode. It must not fall through to observe:
+  # a workspace still carrying the stored value asked for more enforcement, not
+  # for none, so it is honoured as enforce. This is asserted by behaviour rather
+  # than by reading MODE, because the fallback that matters is the one in main().
   SIGNALS=""
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" enforce-all
+  MODE=enforce-all
+  normalise_mode
+  assert_eq enforce "$MODE" "the retired enforce-all mode is honoured as enforce"
+  MODE=somethingElse
+  normalise_mode
+  assert_eq observe "$MODE" "and an unrecognised mode still falls back to the inert one"
+  # shellcheck disable=SC2034
+  MODE=enforce
+  set_pss "$pdir" 61 200000000
   t=8000
+  sweep_at $t
+  set_pss "$pdir" 61 1660000000
+  t=$((t + 60))
   sweep_at $t
   t=$((t + DWELL_SECONDS))
   sweep_at $t
-  assert_contains "$SIGNALS" "TERM:41" "enforce-all does kill it"
-  set_pss "$pdir" 41 500000000
+  assert_contains "$SIGNALS" "TERM:61" "and it enforces"
+  set_pss "$pdir" 61 1660000000
 }
 
 # --------------------------------------------------------------------------- #
@@ -1531,7 +1747,9 @@ test_sweep_log() {
   local summary
   summary="$(cat "${WORK}/state/summary")"
   assert_contains "$summary" "claudeHelper=512M" "the summary prints real budgets"
-  assert_contains "$summary" "extensionHost=1069M" "including the ones the resting floor lifted"
+  assert_contains "$summary" "extensionHost=480M" "including its share of the envelope"
+  assert_contains "$summary" "envelope=2048M" "and the envelope those shares add up to"
+  assert_contains "$summary" "tree_pss=" "beside what the tree is actually holding against it"
   assert_contains "$summary" "policed=" "and the size of the policed set"
 
   # The visibility check: a watchdog that manages nothing looks exactly like a
@@ -1605,10 +1823,16 @@ test_stdout_emission() {
   # asserting on half the output.
   # shellcheck disable=SC2034  # globals of the sourced watchdog
   SWEEP_EVERY=1
-  # Emptied so the first cycle derives its budgets exactly as the daemon does at
+  # Emptied so the first cycle installs its budgets exactly as the daemon does at
   # startup, and emits them.
   BUDGET=()
   local t=1000
+  # Seen inside its share first, so what follows is a drift kill rather than the
+  # oversize report a process that never fitted would get.
+  set_pss "$pdir" 61 200000000
+  cycle_once $t
+  set_pss "$pdir" 61 1660000000
+  t=$((t + 60))
   cycle_once $t
   # shellcheck disable=SC2034  # a global of the sourced watchdog
   CYCLE=1
@@ -1619,7 +1843,9 @@ test_stdout_emission() {
   out="$(cat "$STDOUT_FILE")"
   assert_contains "$out" "event=kill sig=TERM" "a kill is emitted to stdout"
   assert_contains "$out" "event=budget role=" "so are the budgets in force"
-  assert_contains "$out" "floored=1" "including which of them the resting floor lifted"
+  assert_contains "$out" "envelope_pct=" "including each share as a fraction of the envelope"
+  assert_contains "$out" "event=oversize pid=41 role=extensionHost" \
+    "and the structurally-over-budget extension host, which is the case a post-mortem cannot otherwise tell from a drift"
   assert_contains "$out" "event=census" "and a census line"
   assert_contains "$out" "id=homelab_mcp.server" "with the identity breadcrumb, not just a pid"
   assert_contains "$out" "top_role=" "and the census carries the standing population's largest member"
@@ -1653,6 +1879,10 @@ test_stdout_emission() {
   rm -rf "${WORK}/state"
   load_watchdog "${WORK}/cg" "$pdir" observe
   t=5000
+  set_pss "$pdir" 61 200000000
+  sweep_at $t
+  set_pss "$pdir" 61 1660000000
+  t=$((t + 60))
   sweep_at $t
   t=$((t + DWELL_SECONDS))
   sweep_at $t
@@ -1788,10 +2018,11 @@ main() {
   test_guards_are_precise
   test_tree_helpers
   test_tree_helper_arming_is_end_to_end
-  test_budgets
+  test_envelope
+  test_oversize_is_reported_not_killed
   test_dwell
-  test_kill_loop_breaker
-  test_disarm_completes_an_escalation_in_flight
+  test_kill_rate_is_reported_and_nothing_disarms
+  test_an_escalation_in_flight_is_finished
   test_observe_mode
   test_sweep_log
   test_stdout_emission
