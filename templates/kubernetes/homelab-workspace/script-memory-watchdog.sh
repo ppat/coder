@@ -1191,6 +1191,15 @@ publish_top() {
   return 0
 }
 
+# du_bytes_per_s is (M_U - PREV_U) / dt, dt being one SAMPLE_INTERVAL (10s by
+# default) - an instantaneous rate, not a drift rate, and naively averaging the
+# column conflates the two. On the live pod that naive mean reads ~19.8 kB/s
+# (~68 MB/hour); the same quantity taken from the hourly census's u_mb over a
+# 26.1h window reads ~18.4 MB/hour, a 3.7x difference. The naive mean is
+# dominated by a handful of 10s allocation/GC spikes (+102 MB/s to -58 MB/s)
+# that wash out over an hour but dominate a per-row average. Read this column
+# as "what changed in the last sample", not as "the drift rate" - for the
+# latter, difference u_mb across two event=census rows far apart in time.
 CSV_HEADER="ts,mem_max,mem_current,u,h,anon,shmem,unevictable,slab_unreclaimable,slab_reclaimable,kernel_stack,pagetables,sec_pagetables,percpu,sock,file,psi_full_avg10_centi,refault_file_per_s,pgscan_direct_per_s,pressure,du_bytes_per_s"
 
 append_calibration() {
