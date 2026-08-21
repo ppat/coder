@@ -224,11 +224,15 @@ write_uptime() {
 #   |               +- 40  server-main.js            <- the root
 #   |                   +- 41  extensionHost
 #   |                   |   +- 44  tsserver.js
+#   |                   |   |   +- 57  typingsInstaller.js  <- treeHelper
 #   |                   |   +- 45  yaml languageserver.js
 #   |                   |   +- 46  terraform-ls      (native, not node)
 #   |                   |   +- 47  claude-code cli.js  (mise's node, not VS Code's)
 #   |                   |   +- 48  an extension task   (mise's node, not VS Code's)
+#   |                   |   +- 55  markdown serverWorkerMain  <- treeHelper
+#   |                   |   +- 56  even-better-toml server.js <- treeHelper
 #   |                   +- 42  fileWatcher
+#   |                   +- 49  an unrecognised core fork  <- NOT policed
 #   |                   +- 43  ptyHost               <- positional protection
 #   |                       +- 50  bash
 #   |                           +- 51  tmux: server
@@ -295,6 +299,37 @@ build_tree() {
     "${ext}/anthropic.claude-code-2.1.232/resources/claude-code/cli.js" --ide
   add_proc "$dir" 48 41 "$nc" 600000000 "$mnode" \
     "${ext}/hverlin.mise-vscode-1.6.0/dist/taskRunner.js" --cwd /home/coder/code
+  # The three processes role_of used to return `other` for, transcribed from
+  # `ps -eo pid,ppid,sid,comm,args` on the live workspace along with their
+  # measured PSS. All three run VS Code's own node, all three hang off the
+  # extension host or off another helper rather than off the server root, and
+  # none of the role patterns reaches any of them:
+  #
+  #   - a user-installed extension's language server, whose script is called
+  #     `server.js` like roughly every other extension's. 280 MB PSS measured,
+  #     i.e. already above the 256 MiB languageServer budget it would have been
+  #     given had a pattern matched it. Written here at the 287 MB figure the
+  #     investigation recorded.
+  #   - a built-in extension's server, under the *server's* extensions
+  #     directory rather than the user one, and named by neither convention.
+  #   - tsserver's typings installer, a grandchild: helpers spawn helpers.
+  add_proc "$dir" 55 41 "$nc" 56000000 "${sdir}/node" \
+    "${sdir}/extensions/markdown-language-features/dist/serverWorkerMain" \
+    --node-ipc --clientProcessId=41
+  add_proc "$dir" 56 41 "$nc" 287000000 "${sdir}/node" \
+    "${ext}/tamasfe.even-better-toml-0.21.2/dist/server.js" --node-ipc --clientProcessId=41
+  add_proc "$dir" 57 44 "$nc" 63000000 "${sdir}/node" \
+    "${sdir}/extensions/node_modules/typescript/lib/typingsInstaller.js" \
+    --globalTypingsCacheLocation /home/coder/.cache/typescript/6.0 --enableTelemetry
+  # A core fork whose --type= flag this script does not recognise - the shape a
+  # VS Code upgrade produces if it renames or adds one. It is a *direct child of
+  # the server root*, which is what every core fork is and what no extension
+  # helper is, and that is the whole reason the treeHelper fallback declines it:
+  # a renamed extensionHost must become unmanaged and loud, never managed on a
+  # guessed 512 MiB budget.
+  add_proc "$dir" 49 40 "$nc" 200000000 "${sdir}/node" \
+    "${sdir}/out/bootstrap-fork" --type=sharedProcess
+
   add_proc "$dir" 42 40 "$nc" 40000000 "${sdir}/node" \
     "${sdir}/out/bootstrap-fork" --type=fileWatcher
   add_proc "$dir" 43 40 "$nc" 100000000 "${sdir}/node" \
@@ -493,7 +528,7 @@ test_selection() {
   assert_eq MainThread "${P_COMM[40]}" "the fixture encodes the real comm value"
   assert_eq 40 "$SERVER_PID" "server root found with comm=MainThread, not comm=node"
   assert_eq "40" "${SERVER_ROOTS[*]}" "and the decoys are not roots"
-  assert_eq 14 "${#SERVER_TREE[@]}" "server tree spans every descendant, ptyHost included"
+  assert_eq 18 "${#SERVER_TREE[@]}" "server tree spans every descendant, ptyHost included"
 
   local d
   for d in 3 4; do
@@ -693,9 +728,16 @@ test_operator_runtime_is_never_a_helper() {
   # Code's binary". The agent session survives on its name, which is identity and
   # absolute; the extension task loses its only positional protection and is left
   # standing on one thing alone - that role_of keys on argv[0].
-  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
-  is_vscode_binary() { return 0; }
+  #
+  # The mutation clears the two pids out of NOT_EDITOR rather than overriding
+  # is_vscode_binary, and the difference is the point. role_of now consults that
+  # same predicate for its treeHelper fallback, so stubbing it `return 0`
+  # falsifies the position rule and the role rule at once and proves neither -
+  # the suite caught exactly that when the fallback was added. A mutation has to
+  # remove one rule, or it is not evidence about which rule was carrying the
+  # weight.
   compute_protected
+  unset 'NOT_EDITOR[47]' 'NOT_EDITOR[48]'
   compute_policed
   assert_protected 47 yes "without the position rule the agent session still has its name"
   assert_policed 47 no "and is still not policed"
@@ -727,7 +769,7 @@ test_comm_is_not_a_criterion() {
     load_watchdog "${WORK}/cg" "$pdir"
     scan_fixture
     assert_eq 40 "$SERVER_PID" "comm=${comm}: the server root is still pid 40"
-    assert_eq 14 "${#SERVER_TREE[@]}" "comm=${comm}: the tree is still complete"
+    assert_eq 18 "${#SERVER_TREE[@]}" "comm=${comm}: the tree is still complete"
     assert_policed 53 no "comm=${comm}: the hog in a terminal is still not policed"
   done
 }
@@ -746,7 +788,7 @@ test_two_servers() {
   scan_fixture
 
   assert_eq "40 70" "${SERVER_ROOTS[*]}" "both server roots are discovered"
-  assert_eq 18 "${#SERVER_TREE[@]}" "the managed tree is the union of both subtrees"
+  assert_eq 22 "${#SERVER_TREE[@]}" "the managed tree is the union of both subtrees"
   assert_policed 73 fileWatcher "the second server's file watcher is policed"
   assert_policed 72 no "and the shell under its ptyHost is not"
   if [[ -n ${NOT_EDITOR[71]:-} ]]; then
@@ -842,6 +884,184 @@ test_guards_are_precise() {
 }
 
 # --------------------------------------------------------------------------- #
+# 2f. the tree helpers nothing used to name
+#
+# role_of returned `other` for three real processes on the live workspace, and
+# compute_policed skips `other`, so they had no budget, no dwell clock, no
+# signal and - the part that made it a design defect rather than a gap - no
+# warning. The largest was a language server holding 280 MB PSS, already above
+# the 256 MiB budget it would have been given had any pattern matched it.
+#
+# The fix inverts the default inside the tree: unknown means governed, not
+# invisible. The risk that buys is a guessed budget applied to a process whose
+# legitimate resting size is bigger than the guess, which is the failure this
+# design has already shipped twice, so the guess is disarmed by default and the
+# one shape that would be catastrophic - a core fork whose --type= flag stopped
+# being recognised - is excluded structurally rather than hopefully.
+# --------------------------------------------------------------------------- #
+
+# role_of exactly as it was before the treeHelper fallback existed. Used as the
+# mutation that must flip the coverage assertions red: with this in place the
+# three processes below go back to being unpoliced and unreported, which is the
+# bug, stated as a test.
+mutate_role_of_to_other_fallback() {
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  role_of() {
+    local cmd=" ${P_CMD[$1]:-} "
+    local argv0=${P_ARGV0[$1]:-}
+    case "$cmd" in
+    *" --type=ptyHost "* | *"--type=ptyHost"*) ROLE=ptyHost ;;
+    *" --type=extensionHost "*) ROLE=extensionHost ;;
+    *" --type=fileWatcher "*) ROLE=fileWatcher ;;
+    *"tsserver.js "* | *"/typescript/lib/tsserver"*) ROLE=tsserver ;;
+    *yaml-language-server* | *jsonServerMain* | *-language-server* | *languageserver*) ROLE=languageServer ;;
+    *"out/server-main.js "*) ROLE=serverMain ;;
+    *)
+      if [[ $argv0 == *"/.vscode-server/extensions/"* ]]; then
+        ROLE=extensionHelper
+      else
+        ROLE=other
+      fi
+      ;;
+    esac
+    return 0
+  }
+}
+
+test_tree_helpers() {
+  printf 'in-tree helpers that no pattern names\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc2f"
+  build_tree "$pdir"
+  load_watchdog "${WORK}/cg" "$pdir"
+  scan_fixture
+
+  # None of the role patterns reaches these, and the point is that none of them
+  # ever could: the launch shape is each extension's own choice.
+  role_of 55
+  assert_eq treeHelper "$ROLE" "a built-in extension's server is a tree helper"
+  role_of 56
+  assert_eq treeHelper "$ROLE" "so is a user extension's server.js"
+  role_of 57
+  assert_eq treeHelper "$ROLE" "so is a helper's own helper, two levels down"
+
+  assert_policed 55 treeHelper "and it is policed rather than skipped"
+  assert_policed 56 treeHelper "including the one already over a language server's budget"
+  assert_policed 57 treeHelper "including the grandchild"
+
+  # The breadcrumb. Three unrelated extensions all ship a `server.js`, so the
+  # script name alone re-hides exactly what this role exists to reveal.
+  assert_eq "tamasfe.even-better-toml-0.21.2/server" "$(identity_of 56 treeHelper)" \
+    "a tree helper is named for its extension, not just its script"
+  assert_eq "markdown-language-features/serverWorkerMain" "$(identity_of 55 treeHelper)" \
+    "including a built-in extension under the server's own extensions directory"
+  assert_eq "typescript/typingsInstaller" "$(identity_of 57 treeHelper)" \
+    "and node_modules is skipped for the name that means something"
+
+  # Never armed by the mode the template actually runs. The budget is a guess and
+  # the design's own history is a guessed limit that landed below what a healthy
+  # process already held, so a coverage gap surfaces as a log line first.
+  # shellcheck disable=SC2034  # MODE is a global of the sourced watchdog
+  MODE=observe
+  assert_armed treeHelper no "observe arms nothing, tree helpers included"
+  # shellcheck disable=SC2034
+  MODE=enforce
+  assert_armed treeHelper no "enforce reports tree helpers and does not signal them"
+  assert_armed extensionHelper yes "while a role with a measured resting size is armed"
+  # shellcheck disable=SC2034
+  MODE=enforce-all
+  assert_armed treeHelper yes "enforce-all arms them, which is where the operator opts in"
+  # shellcheck disable=SC2034
+  MODE=observe
+
+  # A core fork whose --type= flag stopped being recognised. This is the shape
+  # that makes inverting the default dangerous rather than merely uncertain: the
+  # extension host holds 685 MB at rest, and handing it a 512 MiB helper budget
+  # is a standing kill order on the largest, most user-visible process here.
+  role_of 49
+  assert_eq other "$ROLE" "an unrecognised core fork is NOT given a guessed helper budget"
+  assert_policed 49 no "it is left unmanaged, where the sweep log still records it"
+
+  # Falsification 1 - the guard that declines it is the only thing declining it.
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  is_server_fork() { return 1; }
+  compute_policed
+  assert_policed 49 treeHelper \
+    "without the direct-child-of-the-root rule that core fork would be budgeted as a helper"
+  # Re-source rather than hand-restore: a mutation left in place would silently
+  # weaken every assertion after it, which is how this suite has been green
+  # while testing nothing before.
+  load_watchdog "${WORK}/cg" "$pdir"
+  scan_fixture
+  assert_policed 49 no "and with the real rule back it is unmanaged again"
+
+  # Falsification 2 - the whole coverage claim, against the classifier that was
+  # here before. If this does not flip, nothing above is evidence of anything.
+  mutate_role_of_to_other_fallback
+  compute_policed
+  assert_policed 56 no "with the previous classifier the 280 MB language server is invisible"
+  assert_policed 55 no "and so is the built-in server"
+  assert_policed 57 no "and so is the typings installer"
+
+  # Falsification 3 - argv[0], not tree position, is what separates a tree helper
+  # from the operator's own runtime. Two synthetic processes identical in every
+  # way except the binary they execute.
+  load_watchdog "${WORK}/cg" "$pdir"
+  scan_fixture
+  local sdir="/home/coder/.vscode-server/cli/servers/Stable-abc123/server"
+  local mnode="/home/coder/.local/share/mise/installs/node/22.14.0/bin/node"
+  local args="/home/coder/.vscode-server/extensions/some.ext-1.0.0/dist/server.js --node-ipc"
+  # shellcheck disable=SC2034  # globals of the sourced watchdog
+  P_PPID[9002]=41 P_ARGV0[9002]="$mnode" P_CMD[9002]="${mnode} ${args}"
+  # shellcheck disable=SC2034
+  P_PPID[9003]=41 P_ARGV0[9003]="${sdir}/node" P_CMD[9003]="${sdir}/node ${args}"
+  role_of 9002
+  assert_eq other "$ROLE" "the operator's node in the tree is not a tree helper"
+  role_of 9003
+  assert_eq treeHelper "$ROLE" "VS Code's own node, same arguments, is"
+  unset 'P_PPID[9002]' 'P_ARGV0[9002]' 'P_CMD[9002]'
+  unset 'P_PPID[9003]' 'P_ARGV0[9003]' 'P_CMD[9003]'
+}
+
+# What the two modes actually do to a drifted tree helper, end to end, because
+# "not armed" is a claim about behaviour and not about a string.
+test_tree_helper_arming_is_end_to_end() {
+  printf 'a drifted tree helper: reported under enforce, killed under enforce-all\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc2g"
+  build_tree "$pdir"
+
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+  set_pss "$pdir" 56 700000000
+  sweep_at 1000
+  sweep_at $((1000 + DWELL_SECONDS))
+  # Targeted rather than "SIGNALS is empty": the fixture's MCP server is over
+  # budget in an armed role in this same sweep, and an assertion that the whole
+  # run signalled nothing would be asserting that enforce mode is broken.
+  assert_absent "$SIGNALS" ":56" "enforce signals nothing, however far a tree helper has drifted"
+  assert_contains "$(cat "${WORK}/state/actions.log")" \
+    "event=would-kill armed=no pid=56 role=treeHelper" \
+    "but says exactly what it would have done, with the identity to act on"
+  # And the per-process record carries it as a budgeted role rather than as one
+  # of the `unmanaged` rows it used to be lost among. 524288 kB is the 512 MiB
+  # budget in the sweep log's units.
+  local latest
+  latest="$(cat "${WORK}/state/sweep.latest")"
+  assert_contains "$latest" "treeHelper" "the sweep log records the role"
+  assert_contains "$latest" "524288" "with the budget it is being held to"
+
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce-all
+  set_pss "$pdir" 56 700000000
+  sweep_at 2000
+  sweep_at $((2000 + DWELL_SECONDS))
+  assert_contains "$SIGNALS" "TERM:56" "enforce-all is where a tree helper is actually shed"
+  assert_absent "$SIGNALS" ":49" "and the unrecognised core fork is still never touched"
+  assert_absent "$SIGNALS" ":41" "nor the extension host, by a helper's budget or any other"
+}
+
+# --------------------------------------------------------------------------- #
 # 3. the budgets
 #
 # The failure this section exists to prevent has happened twice in this design,
@@ -877,6 +1097,41 @@ test_budgets() {
   assert_eq 268435456 "${BUDGET[fileWatcher]}" "8 GiB: the file watcher gets 256 MiB"
   assert_eq "" "${FLOORED[fileWatcher]:-}" "and is not floored - 88 MB resting is well under it"
   assert_eq 536870912 "${BUDGET[claudeHelper]}" "8 GiB: an MCP server gets 512 MiB"
+
+  # FLOORED is documented as a diagnostic - "this pod is too small to bound this
+  # role at the share it was meant to have" - and that reading only holds while
+  # every declared budget already clears its own resting floor, because then the
+  # pod share is the only thing that can push one below it. It did not hold:
+  # extensionHost's declared 1024 MiB sat below its own 1069 MiB floor, so the
+  # flag was true at 4, 8, 16 and 64 GiB alike and reported a property of the
+  # constants while claiming to report a property of the pod.
+  #
+  # This asserts the invariant rather than the flag, because the invariant is
+  # what makes the flag mean anything. A future budget lowered below its role's
+  # resting floor - the exact edit this design has made wrongly twice - fails
+  # here rather than quietly turning a diagnostic into a constant.
+  local r floor
+  for r in "${!BUDGET_ROLE[@]}"; do
+    floor=$(((${RESTING_ROLE[$r]:-0} * RESTING_FACTOR_NUM) / RESTING_FACTOR_DEN))
+    # shellcheck disable=SC2004
+    # The $ is NOT unnecessary: BUDGET_ROLE is associative, so inside (( )) the
+    # subscript is a string, and dropping it looks up the literal key "r" and
+    # silently reads 0 - which would make this assertion pass for every role.
+    if ((BUDGET_ROLE[$r] >= floor)); then
+      ok "the declared ${r} budget already clears its own resting floor"
+    else
+      bad "the declared ${r} budget (${BUDGET_ROLE[$r]}) is below its resting floor (${floor}): FLOORED stops being a pod-size diagnostic"
+    fi
+  done
+
+  # And so the flag now varies with the pod, which is the whole claim.
+  budgets_at 17179869184
+  assert_eq "" "${FLOORED[extensionHost]:-}" \
+    "16 GiB: the extension host is not floored - the pod can afford its share"
+  # ...while moving no budget at all. This change repaired a diagnostic; if it
+  # had also changed what gets killed, that would be a separate decision.
+  assert_eq 1121452032 "${BUDGET[extensionHost]}" \
+    "16 GiB: and its budget is the same number it has always been in force"
 
   # 4 GiB: the pod share is 512 MiB, far below what the extension host holds at
   # rest. The floor overrides it rather than issuing a standing kill order.
@@ -1112,6 +1367,63 @@ test_kill_loop_breaker() {
 }
 
 # --------------------------------------------------------------------------- #
+# 4c. what the breaker does to a kill that is already in flight
+#
+# A drill on a disposable workspace found this by accident: the breaker tripped
+# between a process's SIGTERM and its SIGKILL, and the disarm branch
+# short-circuited ahead of the escalation, so the process was still alive and
+# still over budget when the drill ended - signalled, abandoned, and recorded as
+# neither killed nor spared. Nothing in the code or the docs said which of those
+# was intended, so it was not a defect anyone could have reviewed.
+#
+# It is decided here: disarming means "stop deciding to kill this role", not
+# "abandon a kill already decided". Finishing one escalation cannot start the
+# loop the breaker exists to stop. Both halves are asserted, because either one
+# alone is satisfiable by a watchdog that got the decision backwards.
+# --------------------------------------------------------------------------- #
+
+test_disarm_completes_an_escalation_in_flight() {
+  printf 'a disarmed role finishes the kill it started and starts no new one\n'
+  write_cgroup "${WORK}/cg" 8589934592 0.00
+  local pdir="${WORK}/proc4c"
+  build_tree "$pdir"
+  rm -rf "${WORK}/state"
+  load_watchdog "${WORK}/cg" "$pdir" enforce
+
+  # 61 drifts and is asked politely.
+  set_pss "$pdir" 61 1660000000
+  sweep_at 1000
+  sweep_at $((1000 + DWELL_SECONDS))
+  assert_contains "$SIGNALS" "TERM:61" "the drifted helper gets a SIGTERM"
+  assert_absent "$SIGNALS" "KILL:61" "and not yet a SIGKILL"
+  local kills_before=${KILLS[claudeHelper]:-0}
+
+  # The breaker now trips - on this role, from other incarnations - while that
+  # SIGTERM is outstanding.
+  # shellcheck disable=SC2034  # a global of the sourced watchdog
+  DISARMED[claudeHelper]=1
+  SIGNALS=""
+  sweep_at $((1000 + DWELL_SECONDS + KILL_GRACE))
+  assert_contains "$SIGNALS" "KILL:61" \
+    "the escalation completes rather than leaving the process half-signalled"
+  assert_contains "$(cat "${WORK}/state/actions.log")" "after_disarm=yes" \
+    "and the log distinguishes it from an ordinary escalation"
+  assert_eq "$kills_before" "${KILLS[claudeHelper]:-0}" \
+    "it is the same kill, so the breaker does not count it twice"
+
+  # The other half: the disarmed role starts nothing new. 62 is a different
+  # process of the same role that has never been signalled.
+  SIGNALS=""
+  set_pss "$pdir" 62 900000000
+  sweep_at 5000
+  sweep_at $((5000 + DWELL_SECONDS))
+  assert_absent "$SIGNALS" ":62" \
+    "a disarmed role begins no new kill, however far another of its processes has drifted"
+  assert_contains "$(cat "${WORK}/state/sweep.latest")" "disarmed" \
+    "and says it is deliberately sparing it"
+}
+
+# --------------------------------------------------------------------------- #
 # 5. observe mode really is inert, and says what it would have done
 # --------------------------------------------------------------------------- #
 
@@ -1230,11 +1542,45 @@ test_sweep_log() {
   write_uptime "$empty"
   add_proc "$empty" 1 0 coder 14208 ./coder agent
   load_watchdog "${WORK}/cg" "$empty" observe
-  SWEEPS=$VISIBILITY_WARMUP
-  sweep_at 1000
-  check_visibility
+  local i
+  for ((i = 0; i <= VISIBILITY_WARMUP; i++)); do
+    sweep_at $((1000 + i))
+    check_visibility
+  done
   assert_contains "$(cat "${WORK}/state/actions.log")" "event=warning reason=nothing-policed" \
     "an empty policed set is reported rather than passing for health"
+
+  # And it is a warning per *episode of blindness*, not per process lifetime.
+  # The latch used to be set at the warmup sweep whether or not it warned, and
+  # the condition it tested was a lifetime high-water mark, so a watchdog that
+  # policed something once in its first half hour could never warn again however
+  # blind it went later. A pod lives for days and the interesting blind spot is
+  # the one that arrives on day two, when an upgrade changes a launch shape.
+  #
+  # Falsification: each half of this is asserted against the fixture that must
+  # flip it. A watchdog that warns while it is policing something is crying wolf;
+  # one that cannot warn twice is the bug being fixed.
+  rm -rf "${WORK}/state"
+  local pdir="${WORK}/proc6c"
+  build_tree "$pdir"
+  load_watchdog "${WORK}/cg" "$pdir" observe
+  for ((i = 0; i <= VISIBILITY_WARMUP; i++)); do
+    sweep_at $((2000 + i))
+    check_visibility
+  done
+  assert_absent "$(cat "${WORK}/state/actions.log")" "reason=nothing-policed" \
+    "a watchdog that is policing something does not warn about blindness"
+
+  # Now selection goes blind, with the same process table it was managing a
+  # moment ago - which is what a launch-shape change looks like from in here.
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via the sourced watchdog
+  compute_policed() { POLICED=(); }
+  for ((i = 0; i <= VISIBILITY_WARMUP; i++)); do
+    sweep_at $((3000 + i))
+    check_visibility
+  done
+  assert_contains "$(cat "${WORK}/state/actions.log")" "reason=nothing-policed" \
+    "a blind spot that appears later in the pod's life is still reported"
 }
 
 # --------------------------------------------------------------------------- #
@@ -1440,9 +1786,12 @@ main() {
   test_comm_is_not_a_criterion
   test_two_servers
   test_guards_are_precise
+  test_tree_helpers
+  test_tree_helper_arming_is_end_to_end
   test_budgets
   test_dwell
   test_kill_loop_breaker
+  test_disarm_completes_an_escalation_in_flight
   test_observe_mode
   test_sweep_log
   test_stdout_emission

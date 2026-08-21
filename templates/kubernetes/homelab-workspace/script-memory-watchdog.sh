@@ -49,9 +49,13 @@
 #                 because every one of them restarts without the operator
 #                 noticing.
 #   enforce-all - additionally kill the extension host and the server main
-#                 process. These are user-visible when they restart, and they
-#                 are the two roles a wrong budget would put in a kill loop, so
-#                 they are armed separately and on purpose.
+#                 process, and the treeHelper role. The first two are
+#                 user-visible when they restart; treeHelper is here for a
+#                 different reason - it is the role for a process in the server
+#                 tree that no rule can name, so its budget is a reasoned guess
+#                 rather than a measurement. All three are roles a wrong budget
+#                 would put in a kill loop, so they are armed separately and on
+#                 purpose.
 #
 # Test seams, exercised by script-memory-watchdog-test.sh:
 #   WATCHDOG_CGROUP_DIR  WATCHDOG_PROC_DIR  WATCHDOG_STATE_DIR
@@ -154,13 +158,33 @@ GLOBAL_LOOP_KILLS="${WATCHDOG_GLOBAL_LOOP_KILLS:-8}"
 #
 # It is not a budget; it is the floor below which a budget is a kill order
 # rather than a limit.
+# A declared budget is never allowed to sit below the role's own resting floor.
+# That is not a style rule, it is what makes the FLOORED report mean anything:
+# see the note above derive_budgets. extensionHost's declared 1024 MiB used to
+# violate it, so that role reported floored=1 at every pod size including a
+# hypothetical 64 GiB one, and the flag documented as "this pod is too small"
+# was in fact a constant. The number below is the one that was already in force.
 declare -gA BUDGET_ROLE=(
-  [extensionHost]=1073741824  # 1024 MiB, against 471 MB resting
+  [extensionHost]=1121452032  # 1069 MiB = 713 MB resting x 1.5. Not the round
+  #                              1024 MiB it reads like: the resting floor took
+  #                              it here unconditionally, so this records the
+  #                              budget the watchdog actually applies rather
+  #                              than an intent it never had.
   [serverMain]=536870912      #  512 MiB, against 160 MB resting
   [tsserver]=805306368        #  768 MiB - legitimately large on a big project
   [languageServer]=268435456  #  256 MiB - yaml/json/terraform LS rest near 100
   [fileWatcher]=268435456     #  256 MiB, against 34 MB resting
   [extensionHelper]=536870912 #  512 MiB - terraform-ls, gopls and the like
+  [treeHelper]=536870912      #  512 MiB - see the treeHelper note in role_of.
+  #                              Measured on the live tree, the three processes
+  #                              this role exists for hold 280 MB (an
+  #                              even-better-toml server), 61 MB (tsserver's
+  #                              typingsInstaller) and 54 MB (the built-in
+  #                              markdown server). 512 MiB clears the largest of
+  #                              them with room, and there is deliberately no
+  #                              RESTING_ROLE entry: no member of this role has
+  #                              been measured at rest, which is exactly why it
+  #                              is armed only where an operator asked for it.
   [claudeHelper]=536870912    #  512 MiB - MCP servers. The operator's number,
   #                              applied exactly where his instinct is right: a
   #                              helper that holds 1.66 GB is not doing its job
@@ -175,6 +199,17 @@ declare -gA RESTING_ROLE=(
 # A budget is never allowed below the role's measured resting size times this,
 # whatever the pod arithmetic says. This is the guard against the class of error
 # that has already bitten this design twice.
+# These are hand measurements with a review trigger and no automatic upkeep, and
+# that is deliberate. Deriving them from observation would mean the watchdog
+# raising the limit it is enforcing whenever the thing it is enforcing against
+# grew - the same move the circuit breaker refuses to make, one level removed.
+# The trigger instead is the `role_peak_mb` field of the hourly census and the
+# `peak_pss` line of the summary file: when a role's peak sits persistently above
+# its figure here while never dwelling over budget, the figure is stale and a
+# human re-measures it. Checked while writing this: the live extension host read
+# 685 MB PSS at 27.6 hours of uptime, i.e. below the 713 MB recorded below, so
+# the reference is not stale today and the growth is not monotonic - V8 does hand
+# memory back.
 RESTING_FACTOR_NUM="${WATCHDOG_RESTING_NUM:-3}"
 RESTING_FACTOR_DEN="${WATCHDOG_RESTING_DEN:-2}"
 # No single helper may be budgeted more than this share of the pod. The workspace
@@ -182,11 +217,22 @@ RESTING_FACTOR_DEN="${WATCHDOG_RESTING_DEN:-2}"
 # pod lets one helper own a quarter of the smaller one.
 POD_SHARE_DEN="${WATCHDOG_POD_SHARE_DEN:-8}"
 
-# Which roles each mode may signal. The split is by blast radius, not by size:
-# nothing in the helper set is visible to the operator when it restarts, and both
-# members of the editor set are.
+# Which roles each mode may signal. The first split is by blast radius, not by
+# size: nothing in the helper set is visible to the operator when it restarts,
+# and both members of the editor set are.
 HELPER_ROLES=" tsserver languageServer fileWatcher extensionHelper claudeHelper "
 EDITOR_ROLES=" extensionHost serverMain "
+# The third set is on a different axis entirely, and the axis is *calibration*
+# rather than blast radius: a treeHelper is a process this watchdog is sure it
+# should be watching and has no measured resting size for. Its budget is a
+# reasoned guess, and a guessed budget applied to a process whose legitimate
+# resting size is larger than the guess is a kill loop - which is the specific
+# failure this design has already shipped twice. So the unknown set is measured,
+# budgeted, dwell-tracked and reported in every mode, and signalled only under
+# enforce-all, where the operator has already said he accepts restarts he can
+# see. Until then a coverage gap arrives as `event=would-kill armed=no` in the
+# container log instead of as silence.
+UNKNOWN_ROLES=" treeHelper "
 
 # Filled by derive_budgets().
 declare -gA BUDGET=() FLOORED=()
@@ -235,6 +281,11 @@ declare -gA CHILDREN=() SERVER_TREE=() PROTECTED=() NOT_EDITOR=() PROTECT_REASON
 declare -gA POLICED=() CLAUDE_ROOTS=()
 declare -ga PIDS=() SERVER_ROOTS=()
 declare -gA OVER_SINCE=() KILLED_AT=() KILL_TIMES=() DISARMED=() KILLS=()
+# Per-role aggregates, recomputed each sweep (SUM) and kept for the life of the
+# watchdog (PEAK). Neither drives any decision - see the note on aggregation in
+# sweep_once - and PEAK is the review trigger for RESTING_ROLE, which is a hand
+# measurement with no other way to tell that it has gone stale.
+declare -gA ROLE_SUM_PSS=() ROLE_PEAK_PSS=()
 SERVER_PID=""
 ROLE=other
 GUARD=""
@@ -249,12 +300,12 @@ UPTIME=0
 H_MAX_SEEN=0
 H_MIN_SEEN=0
 M_MAX=0
-POLICED_MAX_SEEN=0
 KILLS_TOTAL=0
 KILL_TIMES_ALL=""
 LAST_KILL_AT=0
 PSS_UNAVAILABLE=0
 VISIBILITY_WARNED=0
+BLIND_SINCE=-1
 STDOUT_OK=1
 LAST_CENSUS_AT=0
 STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
@@ -290,6 +341,15 @@ derive_budgets() {
     # to have, and the role keeps its budget because the alternative is a kill
     # loop. On the 8 GiB workspace the extension host reaches this, which is why
     # it is reported rather than silently applied.
+    #
+    # That reading only holds while every *declared* budget is already at or
+    # above its own resting floor, because then the only thing that can push
+    # `want` below the floor is the pod share. It did not hold before: the
+    # extension host's declared 1024 MiB was below its own 1069 MiB floor, so
+    # floored=1 was true at 4, 8, 16 and 64 GiB alike and said nothing about the
+    # pod at all. The declared number is now the one in force, and
+    # script-memory-watchdog-test.sh asserts the invariant directly rather than
+    # asserting the flag's value on one pod size.
     if ((want < floor)); then
       want=$floor
       FLOORED[$role]=1
@@ -305,7 +365,10 @@ role_is_armed() {
   [[ -n ${DISARMED[$role]:-} ]] && return 1
   case "$MODE" in
   enforce) [[ $HELPER_ROLES == *" $role "* ]] ;;
-  enforce-all) [[ $HELPER_ROLES == *" $role "* || $EDITOR_ROLES == *" $role "* ]] ;;
+  enforce-all)
+    [[ $HELPER_ROLES == *" $role "* || $EDITOR_ROLES == *" $role "* ||
+      $UNKNOWN_ROLES == *" $role "* ]]
+    ;;
   *) return 1 ;;
   esac
 }
@@ -375,7 +438,7 @@ read_cgroup_memory() {
   M_MAX=$raw
 
   M_CURRENT=0
-  read -r M_CURRENT <"${CGROUP_DIR}/memory.current" 2>/dev/null
+  read -r M_CURRENT 2>/dev/null <"${CGROUP_DIR}/memory.current"
 
   M_H=$((M_MAX - M_U))
 
@@ -395,13 +458,13 @@ read_cgroup_pressure() {
     [[ $field == *.* ]] || field="${field}.00"
     [[ ${field%%.*} =~ ^[0-9]+$ && ${field##*.} =~ ^[0-9]+$ ]] || continue
     M_PSI_CENTI=$((10#${field%%.*} * 100 + 10#${field##*.}))
-  done <"${CGROUP_DIR}/memory.pressure" 2>/dev/null
+  done 2>/dev/null <"${CGROUP_DIR}/memory.pressure"
   return 0
 }
 
 read_uptime() {
   local raw=""
-  read -r raw _ <"${PROC_DIR}/uptime" 2>/dev/null
+  read -r raw _ 2>/dev/null <"${PROC_DIR}/uptime"
   UPTIME=${raw%%.*}
   [[ $UPTIME =~ ^[0-9]+$ ]] || UPTIME=0
   return 0
@@ -432,7 +495,7 @@ read_process_table() {
 
   for entry in "${PROC_DIR}"/[0-9]*; do
     pid=${entry##*/}
-    read -r line <"$entry/stat" 2>/dev/null || continue
+    read -r line 2>/dev/null <"$entry/stat" || continue
 
     # /proc/<pid>/stat is "pid (comm) state ppid ...", and comm may contain
     # spaces and parentheses, so split on the *last* ") " rather than tokenise.
@@ -451,7 +514,7 @@ read_process_table() {
     [[ $sid =~ ^[0-9]+$ ]] || sid=0
 
     argv=()
-    mapfile -d '' -t argv <"$entry/cmdline" 2>/dev/null
+    mapfile -d '' -t argv 2>/dev/null <"$entry/cmdline"
     PIDS+=("$pid")
     P_COMM[$pid]=$comm
     P_CMD[$pid]="${argv[*]}"
@@ -483,7 +546,7 @@ read_process_table() {
 read_usage() {
   local pid res key val got
   for pid in "$@"; do
-    read -r _ res _ <"${PROC_DIR}/${pid}/statm" 2>/dev/null || continue
+    read -r _ res _ 2>/dev/null <"${PROC_DIR}/${pid}/statm" || continue
     P_RSS[$pid]=$((res * PAGE_SIZE))
     got=""
     if [[ -r "${PROC_DIR}/${pid}/smaps_rollup" ]]; then
@@ -492,7 +555,7 @@ read_usage() {
           got=$val
           break
         fi
-      done <"${PROC_DIR}/${pid}/smaps_rollup"
+      done 2>/dev/null <"${PROC_DIR}/${pid}/smaps_rollup"
     fi
     if [[ $got =~ ^[0-9]+$ ]]; then
       P_PSS[$pid]=$((got * 1024))
@@ -544,7 +607,7 @@ find_server_roots() {
   for pid in "${PIDS[@]}"; do
     [[ ${P_CMD[$pid]} == *"/.vscode-server/"*"out/server-main.js"* ]] || continue
     argv=()
-    mapfile -d '' -t argv <"${PROC_DIR}/${pid}/cmdline" 2>/dev/null
+    mapfile -d '' -t argv 2>/dev/null <"${PROC_DIR}/${pid}/cmdline"
     ((${#argv[@]} > 1)) || continue
     exe=${argv[0]##*/}
     [[ ${argv[0]} == *"/.vscode-server/"* || $exe == node || $exe == node[0-9]* ]] || continue
@@ -624,6 +687,29 @@ subtree_of() {
 # helper. Path, and only path.
 is_vscode_binary() {
   [[ ${P_ARGV0[$1]:-} == *"/.vscode-server/"* ]]
+}
+
+# True when the process was forked directly by a remote-server entrypoint, i.e.
+# it is one of VS Code's own core forks rather than something an extension
+# started. Measured on the live tree: server-main.js's direct children are
+# exactly fileWatcher, extensionHost and ptyHost, while every language server,
+# typings installer and extension binary hangs off the extension host or off
+# another helper.
+#
+# It exists for one purpose, and it is a Munger-style "what would make this
+# actively harmful" guard rather than a classification aid. The treeHelper
+# fallback below governs anything in the tree it cannot name; if VS Code ever
+# renames `--type=extensionHost`, that fallback would hand the largest and most
+# user-visible process in the pod a 512 MiB helper budget and, under
+# enforce-all, a standing kill order. A core fork that stops being recognised
+# must become *unmanaged and loud*, never *managed on a guessed budget*.
+is_server_fork() {
+  local ppid=${P_PPID[$1]:-0} r
+  ((${#SERVER_ROOTS[@]})) || return 1
+  for r in "${SERVER_ROOTS[@]}"; do
+    [[ $ppid == "$r" ]] && return 0
+  done
+  return 1
 }
 
 # True for the root process of an agent session. Structural: the program being
@@ -840,6 +926,32 @@ role_of() {
     # extensions/ but runs VS Code's own node - keeps its role above.
     if [[ $argv0 == *"/.vscode-server/extensions/"* ]]; then
       ROLE=extensionHelper
+    elif is_vscode_binary "$1" && ! is_server_fork "$1"; then
+      # The default is inverted here, and this is the substantive change in this
+      # version: inside the server tree, running VS Code's own runtime, not one
+      # of the core forks, and not recognised - "I do not know what this is" is
+      # not the same statement as "this is not my business", and conflating them
+      # is what made three real helpers invisible.
+      #
+      # Measured on the live tree, `other` was returned for a
+      # tamasfe.even-better-toml server.js holding 280 MB PSS - already above the
+      # 256 MiB languageServer budget it would have been given had a pattern
+      # matched it - plus tsserver's typingsInstaller.js at 61 MB and the
+      # built-in markdown-language-features server at 54 MB. None of the
+      # patterns above reach them, and none of them ever could reliably: the set
+      # of launch shapes is the union of every extension's own choices, so a
+      # pattern list is a permanent race against a vendor-controlled vocabulary,
+      # and each new extension is silently ungoverned until somebody notices by
+      # hand. That is the failure this watchdog exists to end.
+      #
+      # The alternative to inverting is to keep adding a regex per extension.
+      # It is easier and it rots; worse, it fails *silently*, which is the one
+      # property this mechanism cannot afford. Inverting fails the other way -
+      # loudly, in a role whose budget is admittedly a guess - so the guess is
+      # made safe by arming rather than by hoping: treeHelper is in
+      # UNKNOWN_ROLES, so enforce (the template default) reports it and never
+      # signals it. See the note there.
+      ROLE=treeHelper
     else
       ROLE=other
     fi
@@ -943,19 +1055,39 @@ compute_policed() {
 # somewhere: VS Code puts --connection-token= on its own argv, and an MCP server
 # can be launched with an API key in an argument.
 identity_of() {
-  local pid=$1 role=$2 tok seg fallback
+  local pid=$1 role=$2 tok seg fallback rest ext
   # For a helper, the interpreter is never the interesting part of the name: a
   # dozen unrelated MCP servers are all `node` or `python3`, and what
   # distinguishes them is the first argument that is not the interpreter and not
   # a flag. For everything else argv[0] is the name, because that is the thing
   # the role was decided from.
-  if [[ $role == "claudeHelper" || $role == "extensionHelper" ]]; then
+  if [[ $role == "claudeHelper" || $role == "extensionHelper" || $role == "treeHelper" ]]; then
     for tok in ${P_CMD[$pid]:-}; do
       seg=${tok##*/}
       [[ -z $seg ]] && continue
       case "$seg" in
       -* | node | node[0-9]* | python | python[0-9] | python[0-9].[0-9]* | uv | uvx | npx | bun | deno) continue ;;
       esac
+      # A tree helper is named for the extension it came from as well as for its
+      # script, because the script name alone re-hides precisely what this role
+      # exists to reveal: on the live tree the toml server is `dist/server.js`,
+      # and so is roughly every other extension's language server. `server` as a
+      # breadcrumb answers nothing in a post-mortem.
+      if [[ $role == "treeHelper" && $tok == *"/extensions/"* ]]; then
+        rest=${tok##*"/extensions/"}
+        ext=${rest%%/*}
+        # Built-in extensions ship their servers under extensions/node_modules/,
+        # where the name worth having is one segment further in (typescript,
+        # not node_modules).
+        if [[ $ext == "node_modules" ]]; then
+          rest=${rest#node_modules/}
+          ext=${rest%%/*}
+        fi
+        if [[ -n $ext && $ext != "$seg" ]]; then
+          printf '%s/%s' "$ext" "${seg%.js}"
+          return 0
+        fi
+      fi
       printf '%s' "${seg%.js}"
       return 0
     done
@@ -1066,7 +1198,7 @@ append_calibration() {
   if [[ -s $csv ]]; then
     # A file written by an earlier version has different columns, and appending
     # to it would produce one CSV that is silently two schemas. Rotate it.
-    read -r first <"$csv" 2>/dev/null
+    read -r first 2>/dev/null <"$csv"
     if [[ $first != "$CSV_HEADER" ]]; then
       mv -f "$csv" "${csv}.1" 2>/dev/null
     fi
@@ -1095,7 +1227,7 @@ SWEEP_HEADER=$'#ts\tsweep\tpid\tstart\trole\tstate\tpss_kb\trss_kb\tage_s\tbudge
 append_sweep() {
   local dst="${STATE_DIR}/sweep.log" first=""
   if [[ -s $dst ]]; then
-    read -r first <"$dst" 2>/dev/null
+    read -r first 2>/dev/null <"$dst"
     [[ $first != "$SWEEP_HEADER" ]] && mv -f "$dst" "${dst}.1" 2>/dev/null
   fi
   [[ -s $dst ]] || printf '%s\n' "$SWEEP_HEADER" >"$dst"
@@ -1189,6 +1321,30 @@ prune_state() {
   return 0
 }
 
+# On aggregation, and why a budget is compared per process rather than per role.
+#
+# Every budget below is checked against one pid's PSS, and nothing sums a role.
+# A workspace running N same-role processes can therefore sit at N x
+# (just-under-budget) indefinitely and trip nothing, which is a real hole and is
+# recorded here rather than fixed, because fixing it costs more than it is worth
+# on the evidence available:
+#
+#  - The evidence says the case is not occurring. The only role that runs more
+#    than one process on this workspace is tsserver - two of them, measured at
+#    112 and 141 MB PSS against a 768 MiB budget each. The sum is a third of one
+#    budget.
+#  - A per-role total changes what a kill *means*. If three siblings each hold a
+#    third of the total, none of them is the offender, and killing the largest is
+#    an arbitrary choice dressed as a decision.
+#  - It does not compose with the dwell clock, which is keyed per pid:starttime
+#    precisely so that load can be told from drift. A role-level clock cannot
+#    distinguish "one process drifting" from "processes being created", and the
+#    second is a supervisor's business, not this loop's.
+#
+# What is done instead is the cheap half: ROLE_SUM_PSS is computed every sweep
+# and reported in the census, so the evasion is visible as data the moment it
+# starts happening, and a future decision to act on it would begin from a
+# measurement rather than from this argument.
 sweep_once() {
   local now=$1
   local pid role budget pss key over_since over_s state guard id cmd age
@@ -1202,6 +1358,8 @@ sweep_once() {
   compute_policed
   read_usage "${PIDS[@]}"
   prune_state
+
+  ROLE_SUM_PSS=()
 
   TOP_ROLE=""
   TOP_ID=""
@@ -1217,6 +1375,10 @@ sweep_once() {
     key="${pid}:${P_START[$pid]:-0}"
     ((policed_n += 1))
     total_pss=$((total_pss + pss))
+    # Per-role totals and peaks. Deliberately reported and not acted on: see
+    # the aggregation note above sweep_once.
+    ROLE_SUM_PSS[$role]=$((${ROLE_SUM_PSS[$role]:-0} + pss))
+    ((pss > ${ROLE_PEAK_PSS[$role]:-0})) && ROLE_PEAK_PSS[$role]=$pss
 
     id="$(identity_of "$pid" "$role")"
     if ((budget > 0)) && ((pss * 100 / budget > TOP_PCT)); then
@@ -1237,7 +1399,34 @@ sweep_once() {
       state=over
       if ((over_s >= DWELL_SECONDS)) && ((age >= MIN_AGE)); then
         state=over-dwell
-        if [[ -n ${DISARMED[$role]:-} ]]; then
+        if [[ -n ${KILLED_AT[$key]:-} ]]; then
+          # Already asked politely. Escalate once the grace has elapsed.
+          #
+          # This is tested *before* the disarm check, and that ordering is the
+          # decision rather than an accident of layout. A drill caught the other
+          # ordering: the breaker tripped between a process's SIGTERM and its
+          # SIGKILL, the disarm branch short-circuited, and the process was still
+          # alive and still over budget at the end of the run - signalled,
+          # abandoned, and recorded as neither killed nor spared.
+          #
+          # Disarming means "stop deciding to kill this role", not "abandon a
+          # kill already decided". Completing an escalation cannot start the
+          # loop the breaker exists to stop, because it finishes one action
+          # rather than beginning another - record_kill is deliberately not
+          # called again here, since this is the same kill it already counted.
+          # Leaving a process half-signalled is the worst of both outcomes: a
+          # helper that caught SIGTERM and began shutting down is not something
+          # to walk away from, and one that ignored it goes on holding the
+          # memory with the watchdog having decided not to look again.
+          if ((now - KILLED_AT[$key] >= KILL_GRACE)); then
+            if signal_pid KILL "$pid" "$role" "drift ${role}"; then
+              state=killed-9
+              record_action "event=kill sig=KILL pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} after_disarm=$([[ -n ${DISARMED[$role]:-} ]] && printf yes || printf no) detail=@still over budget ${KILL_GRACE}s after SIGTERM@"
+            fi
+          else
+            state=terminating
+          fi
+        elif [[ -n ${DISARMED[$role]:-} ]]; then
           state=disarmed
         elif ! role_is_armed "$role"; then
           # Observe mode, or a role this mode does not arm. Report the kill that
@@ -1247,16 +1436,6 @@ sweep_once() {
           state=would-kill
           record_action "event=would-kill armed=no pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} age_s=${age}"
           OVER_SINCE[$key]=$now
-        elif [[ -n ${KILLED_AT[$key]:-} ]]; then
-          # Already asked politely. Escalate once the grace has elapsed.
-          if ((now - KILLED_AT[$key] >= KILL_GRACE)); then
-            if signal_pid KILL "$pid" "$role" "drift ${role}"; then
-              state=killed-9
-              record_action "event=kill sig=KILL pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} detail=@still over budget ${KILL_GRACE}s after SIGTERM@"
-            fi
-          else
-            state=terminating
-          fi
         else
           if signal_pid TERM "$pid" "$role" "drift ${role}"; then
             KILLED_AT[$key]=$now
@@ -1290,8 +1469,6 @@ sweep_once() {
     rows+=("${now}"$'\t'"${SWEEPS}"$'\t'"${pid}"$'\t'"${P_START[$pid]:-0}"$'\t'"unmanaged"$'\t'"seen"$'\t'"$((pss / 1024))"$'\t'"$((${P_RSS[$pid]:-0} / 1024))"$'\t'"${P_AGE[$pid]:-0}"$'\t'"0"$'\t'"0"$'\t'"${guard}"$'\t'"${P_COMM[$pid]:-unknown}"$'\t'"${cmd:0:160}")
   done
 
-  ((policed_n > POLICED_MAX_SEEN)) && POLICED_MAX_SEEN=$policed_n
-
   rows+=("${now}"$'\t'"${SWEEPS}"$'\t'"0"$'\t'"0"$'\t'"TOTAL"$'\t'"${PRESSURE}"$'\t'"$((total_pss / 1024))"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"-"$'\t'"policed=${policed_n},over=${over_n},killed=${killed_n},procs=${#PIDS[@]},tree=${#SERVER_TREE[@]},sessions=${#CLAUDE_ROOTS[@]}"$'\t'"h=${M_H},u=${M_U},psi=${M_PSI_CENTI},mode=${MODE}")
   append_sweep "${rows[@]}"
   printf '%s\n' "$SWEEP_HEADER" "${rows[@]}" >"${STATE_DIR}/sweep.latest.tmp" &&
@@ -1309,15 +1486,29 @@ sweep_once() {
 # with a workspace where VS Code is closed and no session is running - but it is
 # worth one line in the log, because the alternative reading is that selection is
 # broken, and that reading has been correct before.
+#
+# The latch is per *episode*, not per process lifetime. It used to be neither: a
+# one-shot flag was set at the warmup sweep whether or not it warned, and the
+# condition it tested was a lifetime high-water mark, so a watchdog that policed
+# something once in its first half hour could never warn again however blind it
+# went afterwards. A pod lives for days; the interesting blind spot is the one
+# that appears on day two, when an upgrade changes a launch shape and selection
+# quietly stops matching. So the clock restarts whenever the blindness does, and
+# re-arms as soon as anything is policed again - one line per episode, not one
+# line per pod.
 VISIBILITY_WARMUP="${WATCHDOG_VISIBILITY_WARMUP:-30}" # sweeps
 
 check_visibility() {
-  ((VISIBILITY_WARNED)) && return 0
-  ((SWEEPS >= VISIBILITY_WARMUP)) || return 0
-  VISIBILITY_WARNED=1
-  if ((POLICED_MAX_SEEN == 0)); then
-    record_action "event=warning reason=nothing-policed sweeps=${SWEEPS} detail=@either nothing this watchdog manages has run, or selection is finding nothing; sweep.latest shows what was there@"
+  if ((${POLICED_N:-0} > 0)); then
+    BLIND_SINCE=-1
+    VISIBILITY_WARNED=0
+    return 0
   fi
+  ((BLIND_SINCE >= 0)) || BLIND_SINCE=$SWEEPS
+  ((VISIBILITY_WARNED)) && return 0
+  ((SWEEPS - BLIND_SINCE >= VISIBILITY_WARMUP)) || return 0
+  VISIBILITY_WARNED=1
+  record_action "event=warning reason=nothing-policed sweeps=${SWEEPS} blind_since_sweep=${BLIND_SINCE} detail=@either nothing this watchdog manages has run, or selection is finding nothing; sweep.latest shows what was there@"
   return 0
 }
 
@@ -1327,15 +1518,27 @@ check_visibility() {
 # the pod is gone; and it is the trend series for the standing population - the
 # thing this watchdog exists to bound - at 24 lines a day rather than 40,000.
 emit_census() {
-  local now=$1 role disarmed=""
+  local now=$1 role disarmed="" sums="" peaks=""
   for role in "${!DISARMED[@]}"; do disarmed+="${role} "; done
+  # The per-role total is what makes the un-fixed aggregation hole observable
+  # (see the note above sweep_once), and the per-role peak is the review trigger
+  # for RESTING_ROLE. Neither is acted on: a watchdog that re-derived its own
+  # floor from what it observed would raise the limit it is enforcing every time
+  # the thing it is enforcing against grew, which is the one move this design
+  # forbids outright.
+  for role in "${!ROLE_SUM_PSS[@]}"; do
+    sums+="${role}=$((${ROLE_SUM_PSS[$role]} / MIB)) "
+  done
+  for role in "${!ROLE_PEAK_PSS[@]}"; do
+    peaks+="${role}=$((${ROLE_PEAK_PSS[$role]} / MIB)) "
+  done
   LAST_CENSUS_AT=$now
   record_action "event=census sweeps=${SWEEPS} uptime_s=$((now - STARTED_AT))" \
     "policed=${POLICED_N:-0} over_budget=${OVER_N:-0} sessions=${#CLAUDE_ROOTS[@]}" \
     "tree=${#SERVER_TREE[@]} kills_total=${KILLS_TOTAL} disarmed=@${disarmed% }@" \
     "h_mb=$((M_H / MIB)) u_mb=$((M_U / MIB)) pressure=${PRESSURE} psi_full10=${M_PSI_CENTI}" \
     "top_role=${TOP_ROLE:-none} top_id=${TOP_ID:-none} top_pss_mb=$((${TOP_PSS:-0} / MIB))" \
-    "top_budget_pct=${TOP_PCT:-0}"
+    "top_budget_pct=${TOP_PCT:-0} role_pss_mb=@${sums% }@ role_peak_mb=@${peaks% }@"
   return 0
 }
 
@@ -1363,6 +1566,13 @@ publish_summary() {
     # Per day rather than per hour: the operator's question is "not every
     # fifteen minutes", and an hourly rate over a short uptime reads as a huge
     # number for one event.
+    line=""
+    for role in "${!ROLE_PEAK_PSS[@]}"; do line+="${role}=$((${ROLE_PEAK_PSS[$role]} / MIB))M "; done
+    # The largest each role has been since this watchdog started. It is the only
+    # standing evidence that RESTING_ROLE - a hand measurement taken once - has
+    # drifted away from what the workload actually does, and it is reported for a
+    # human to act on rather than fed back into the budgets.
+    printf 'peak_pss %s\n' "${line:-none}"
     printf 'kill_rate_per_day=%d.%02d\n' \
       "$((KILLS_TOTAL * 86400 / up))" "$((KILLS_TOTAL * 86400 * 100 / up % 100))"
     printf 'dwell_s=%d min_age_s=%d loop_window_s=%d loop_kills=%d pss=%s\n' \
@@ -1395,10 +1605,10 @@ acquire_singleton() {
   local -a argv=()
 
   if [[ -s $pidfile ]]; then
-    read -r other <"$pidfile" 2>/dev/null
+    read -r other 2>/dev/null <"$pidfile"
     if [[ $other =~ ^[0-9]+$ ]] && ((other != $$)) &&
       [[ -r ${PROC_DIR}/${other}/cmdline ]]; then
-      mapfile -d '' -t argv <"${PROC_DIR}/${other}/cmdline" 2>/dev/null
+      mapfile -d '' -t argv 2>/dev/null <"${PROC_DIR}/${other}/cmdline"
       for a in "${argv[@]}"; do
         [[ $a == "$self" ]] && return 1
       done
@@ -1409,7 +1619,7 @@ acquire_singleton() {
   # Two watchdogs started at the same instant would both get this far. Settle it
   # by reading back who actually owns the file rather than by trusting the write.
   /usr/bin/sleep 1
-  read -r other <"$pidfile" 2>/dev/null
+  read -r other 2>/dev/null <"$pidfile"
   [[ $other == "$$" ]]
 }
 
@@ -1419,7 +1629,7 @@ release_singleton() {
   # fails is reported by the shell before `2>/dev/null` on the same command has
   # taken effect, so the test is done here rather than swallowed there.
   [[ -r $pidfile ]] || return 0
-  read -r owner <"$pidfile" 2>/dev/null
+  read -r owner 2>/dev/null <"$pidfile"
   # Never remove a pidfile another instance owns - that would hand the lock to a
   # third one while the second is still running.
   [[ $owner == "$$" ]] && rm -f "$pidfile"
@@ -1442,7 +1652,7 @@ cycle_once() {
   if ((${#BUDGET[@]} == 0)); then
     derive_budgets "$M_MAX"
     local role
-    for role in extensionHost serverMain tsserver languageServer fileWatcher extensionHelper claudeHelper; do
+    for role in extensionHost serverMain tsserver languageServer fileWatcher extensionHelper treeHelper claudeHelper; do
       record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) pod_share_mb=$((M_MAX / POD_SHARE_DEN / MIB)) resting_mb=$((${RESTING_ROLE[$role]:-0} / MIB)) floored=${FLOORED[$role]:-0} armed=$(role_is_armed "$role" && printf yes || printf no)"
     done
     record_action "event=budgets_derived memory_max_mb=$((M_MAX / MIB)) dwell_s=${DWELL_SECONDS} min_age_s=${MIN_AGE} loop_window_s=${LOOP_WINDOW} loop_kills=${LOOP_KILLS} armed=@$(
@@ -1495,7 +1705,7 @@ count_lines() {
     printf '0'
     return 0
   }
-  n=$(/usr/bin/wc -l <"$1" 2>/dev/null)
+  n=$(/usr/bin/wc -l 2>/dev/null <"$1")
   printf '%s' "${n:-0}"
 }
 
