@@ -3,6 +3,12 @@
 # Memory watchdog for the workspace pod: it bounds the *standing population* of
 # restartable helper processes.
 #
+# In one sentence: the VS Code tree is given a fixed 2048 MiB envelope, each role
+# holds a named share of it that does not vary with pod size, and a process is
+# killed when its PSS has been above its role's share for ten continuous minutes
+# *and* it has been observed inside that share at some point since it started.
+# The long form is in the "the envelope" section below.
+#
 # What it is for, and what it deliberately is not for.
 #
 # It is not an OOM preventer. The earlier version of this script was, and the
@@ -41,21 +47,17 @@
 #
 # Modes (the memory_watchdog_mode template parameter; the script itself falls
 # back to observe when the value is anything else):
-#   observe     - measure, publish, and log the kill it *would* have made.
-#                 Signals nothing.
-#   enforce     - additionally kill drifted *helpers*: language servers, the
-#                 file watcher, native extension helpers, and helpers spawned by
-#                 an agent session (MCP servers). This is the template default,
-#                 because every one of them restarts without the operator
-#                 noticing.
-#   enforce-all - additionally kill the extension host and the server main
-#                 process, and the treeHelper role. The first two are
-#                 user-visible when they restart; treeHelper is here for a
-#                 different reason - it is the role for a process in the server
-#                 tree that no rule can name, so its budget is a reasoned guess
-#                 rather than a measurement. All three are roles a wrong budget
-#                 would put in a kill loop, so they are armed separately and on
-#                 purpose.
+#   observe - measure, publish, and log the action it *would* have taken.
+#             Signals nothing.
+#   enforce - additionally kill drifted processes, in *every* role. This is the
+#             template default.
+#
+# There used to be a third mode, enforce-all, which armed the editor roles that
+# enforce left alone. Under a fixed envelope there is nothing left for it to add:
+# a role outside the enforced set is a role whose share of the envelope is not
+# actually enforced, which makes the envelope a description rather than a bound.
+# The value is still accepted, as a synonym for enforce, so that a workspace
+# carrying it does not silently fall back to observing.
 #
 # Test seams, exercised by script-memory-watchdog-test.sh:
 #   WATCHDOG_CGROUP_DIR  WATCHDOG_PROC_DIR  WATCHDOG_STATE_DIR
@@ -107,135 +109,169 @@ MIN_AGE="${WATCHDOG_MIN_AGE:-300}"
 # process that is shutting down politely is never hurried.
 KILL_GRACE="${WATCHDOG_KILL_GRACE:-30}"
 
-# The circuit breaker. This is the counterweight to being aggressive, and it
-# exists because the failure mode of drift policing is not a wrong kill - it is a
-# kill *loop*: kill the extension host, VS Code restarts it, it reloads every
-# extension, it exceeds again, kill. That loop arrives looking exactly like the
-# watchdog working, and it is the thing that gets a watchdog switched off.
+# The kill-rate report. This was a circuit breaker: a role killed LOOP_KILLS
+# times inside LOOP_WINDOW disarmed itself permanently. It no longer disarms
+# anything, and the reason is the envelope below.
 #
-# So a role that has to be killed LOOP_KILLS times inside LOOP_WINDOW is not a
-# drifting role, it is a role whose budget is wrong for this workload. The
-# watchdog disarms itself for that role, says so, and leaves the number to a
-# human. It never widens its own budget: a mechanism that quietly raises the
-# limit it is enforcing is a mechanism that stops enforcing anything.
+# The breaker assumed that repeated kills meant a *wrong budget*, which was true
+# while budgets were per-role numbers reasoned about one at a time. Under a total
+# envelope it is no longer a safe inference: repeated kills can equally mean the
+# process does not fit in the share the operator decided to give it, and that is
+# a decision rather than a defect. A mechanism that switches itself off after
+# three of those is inert by mid-morning - and it arrives looking exactly like
+# the watchdog working, which is precisely the failure the breaker was built to
+# prevent, now caused by the breaker.
+#
+# The kill *loop* it protected against is prevented structurally instead, by the
+# oversize rule in sweep_once: a process that has never been observed inside its
+# budget is never signalled, so the loop "kill it -> the replacement is over
+# budget too -> kill it" cannot form. That rule is per process and evidence-based
+# rather than per role and count-based, it re-arms by itself the moment a
+# replacement does fit, and it can never widen a budget.
+#
+# So these two numbers now only decide when a kill *rate* is worth a line in the
+# container log. Nothing is disarmed and nothing changes behaviour: the line is a
+# sizing signal for a human, and the watchdog goes on enforcing.
 LOOP_WINDOW="${WATCHDOG_LOOP_WINDOW:-3600}"
 LOOP_KILLS="${WATCHDOG_LOOP_KILLS:-3}"
-# And the same idea across all roles at once, in case a budget is wrong in a way
-# that spreads: too many kills in one window disarms everything.
+# The same idea across all roles at once.
 GLOBAL_LOOP_KILLS="${WATCHDOG_GLOBAL_LOOP_KILLS:-8}"
 
-# Budgets, in bytes of PSS, by role.
+# --------------------------------------------------------------------------- #
+# the envelope
+# --------------------------------------------------------------------------- #
 #
-# Why PSS and not VmData. RLIMIT_DATA accounts VmData, which is why the previous
-# design measured it; that mechanism is gone, and for deciding "is this process
-# holding too much memory" VmData is the wrong quantity by roughly an order of
-# magnitude on a V8 process (measured: file watcher 66 MB resident against 622 MB
-# of data). PSS is what the pod actually pays: it counts shared pages once,
-# divided among the processes sharing them, which matters here because a dozen
-# node processes share one binary's file-backed pages. RSS would charge each of
-# them the full share and make every helper look bigger than it is.
+# One sentence: the VS Code tree is given a fixed 2048 MiB envelope, each role
+# holds a named share of it that does not vary with pod size, and a process is
+# killed when its PSS has been above its role's share for ten continuous minutes
+# *and* it has been observed inside that share at some point since it started.
 #
-# Why not one uniform number. The operator's instinct - "none of these should
-# ever exceed 512 MB, maybe 256" - is right about the helpers and wrong about the
-# extension host, and the difference is measured, not argued: on a *fresh* tree
-# the extension host is already 471 MB PSS, serverMain 160 MB, ptyHost 36 MB and
-# the file watcher 34 MB. A uniform 512 MB budget puts the extension host 40 MB
-# from its resting size before it has done any work, and 256 MB is below its
-# floor outright - which is the same defect as the ceiling this file used to
-# derive that sat below what an idle file watcher already held. So each role gets
-# the operator's number where it is right, and a number anchored on its own
-# measured resting size where it is not.
+# Everything below is that sentence written out. What it replaced was three
+# interacting terms - a hand-picked per-role number, a memory.max/8 pod share,
+# and a resting x 1.5 floor - each patching the previous one's failure, with no
+# term anywhere that bounded the total.
 #
-# The reference column is that measurement, and it is the *resting* one rather
-# than the fresh one, which is the correction that produced these numbers. A
-# freshly started extension host is 471 MB PSS; the same extension host on a
-# reconnected, idle 8 GiB workspace is 713 MB, and the tree around it 1093 MB
-# rather than the 727 MB this design was first calibrated against. "Calibrated
-# against fresh, deployed against resting" is the same error that produced a
-# file-watcher ceiling below what an idle file watcher already held, so the
-# references below are the largest resting figure measured for each role, and
-# a role with no measurement gets none rather than a guess.
+# Why the floor is gone, and it is *gone* rather than relaxed. It existed so a
+# budget could never land below what a process already held at rest, which is a
+# real scar: this design twice shipped a limit below a running process's size,
+# most memorably an RLIMIT_DATA ceiling below what an idle file watcher held. But
+# a floor and an envelope are incompatible instruments. Under a total, a process
+# whose resting size does not fit means the process must be made smaller; a floor
+# says the budget must grow to meet it, and enough of those push the sum past the
+# envelope, which is the envelope defeated by arithmetic. What the floor was
+# protecting against is now protected against by the oversize rule (see
+# sweep_once): a process too big for its share is *reported and left alone*
+# rather than killed on a loop. That is a better guard than the floor was,
+# because it is measured on the process actually running rather than read from a
+# hand-maintained constant that goes stale, and because it cannot inflate a
+# budget.
 #
-# It is not a budget; it is the floor below which a budget is a kill order
-# rather than a limit.
-# A declared budget is never allowed to sit below the role's own resting floor.
-# That is not a style rule, it is what makes the FLOORED report mean anything:
-# see the note above derive_budgets. extensionHost's declared 1024 MiB used to
-# violate it, so that role reported floored=1 at every pod size including a
-# hypothetical 64 GiB one, and the flag documented as "this pod is too small"
-# was in fact a constant. The number below is the one that was already in force.
-declare -gA BUDGET_ROLE=(
-  [extensionHost]=1121452032  # 1069 MiB = 713 MB resting x 1.5. Not the round
-  #                              1024 MiB it reads like: the resting floor took
-  #                              it here unconditionally, so this records the
-  #                              budget the watchdog actually applies rather
-  #                              than an intent it never had.
-  [serverMain]=536870912      #  512 MiB, against 160 MB resting
-  [tsserver]=805306368        #  768 MiB - legitimately large on a big project
-  [languageServer]=268435456  #  256 MiB - yaml/json/terraform LS rest near 100
-  [fileWatcher]=268435456     #  256 MiB, against 34 MB resting
-  [extensionHelper]=536870912 #  512 MiB - terraform-ls, gopls and the like
-  [treeHelper]=536870912      #  512 MiB - see the treeHelper note in role_of.
-  #                              Measured on the live tree, the three processes
-  #                              this role exists for hold 280 MB (an
-  #                              even-better-toml server), 61 MB (tsserver's
-  #                              typingsInstaller) and 54 MB (the built-in
-  #                              markdown server). 512 MiB clears the largest of
-  #                              them with room, and there is deliberately no
-  #                              RESTING_ROLE entry: no member of this role has
-  #                              been measured at rest, which is exactly why it
-  #                              is armed only where an operator asked for it.
-  [claudeHelper]=536870912    #  512 MiB - MCP servers. The operator's number,
-  #                              applied exactly where his instinct is right: a
-  #                              helper that holds 1.66 GB is not doing its job
-  #                              better than one that holds 300 MB.
-)
-declare -gA RESTING_ROLE=(
-  [extensionHost]=747634688 # 713 MB resting (471 MB fresh)
-  [serverMain]=167772160    # 160 MB resting (90 MB on a second measurement)
-  [fileWatcher]=92274688    #  88 MB resting (34 MB fresh)
-  [languageServer]=56623104 #  54 MB resting
-)
-# A budget is never allowed below the role's measured resting size times this,
-# whatever the pod arithmetic says. This is the guard against the class of error
-# that has already bitten this design twice.
-# These are hand measurements with a review trigger and no automatic upkeep, and
-# that is deliberate. Deriving them from observation would mean the watchdog
-# raising the limit it is enforcing whenever the thing it is enforcing against
-# grew - the same move the circuit breaker refuses to make, one level removed.
-# The trigger instead is the `role_peak_mb` field of the hourly census and the
-# `peak_pss` line of the summary file: when a role's peak sits persistently above
-# its figure here while never dwelling over budget, the figure is stale and a
-# human re-measures it. Checked while writing this: the live extension host read
-# 685 MB PSS at 27.6 hours of uptime, i.e. below the 713 MB recorded below, so
-# the reference is not stale today and the growth is not monotonic - V8 does hand
-# memory back.
-RESTING_FACTOR_NUM="${WATCHDOG_RESTING_NUM:-3}"
-RESTING_FACTOR_DEN="${WATCHDOG_RESTING_DEN:-2}"
-# No single helper may be budgeted more than this share of the pod. The workspace
-# is offered at 4 and 8 GiB; without it, a budget reasoned about for the larger
-# pod lets one helper own a quarter of the smaller one.
-POD_SHARE_DEN="${WATCHDOG_POD_SHARE_DEN:-8}"
+# Why memory.max/8 is gone. It scaled each role with the pod, on the reasoning
+# that a budget reasoned about for an 8 GiB pod would let one helper own a
+# quarter of a 4 GiB one. It was never a bound on the total, and it is meaningless
+# against a fixed envelope: 2048 MiB is 2048 MiB on every pod size. Its protection
+# survives by construction rather than by arithmetic - the largest single share
+# below is 512 MiB, which is exactly memory.max/8 at the smallest pod this
+# template offers, and script-memory-watchdog-test.sh asserts that property at
+# every pod size rather than trusting this sentence.
+#
+# Why PSS and not VmData or RSS. RLIMIT_DATA accounts VmData, which is why the
+# long-removed ceiling measured it; for "is this process holding too much memory"
+# it is wrong by roughly an order of magnitude on a V8 process (measured: file
+# watcher 66 MB resident against 622 MB of data). PSS is what the pod actually
+# pays - shared pages counted once and divided among the sharers - which matters
+# when a dozen node processes share one binary's file-backed pages. RSS would
+# charge each of them the full share.
+ENVELOPE="${WATCHDOG_ENVELOPE:-2147483648}" # 2048 MiB
 
-# Which roles each mode may signal. The first split is by blast radius, not by
-# size: nothing in the helper set is visible to the operator when it restarts,
-# and both members of the editor set are.
-HELPER_ROLES=" tsserver languageServer fileWatcher extensionHelper claudeHelper "
-EDITOR_ROLES=" extensionHost serverMain "
-# The third set is on a different axis entirely, and the axis is *calibration*
-# rather than blast radius: a treeHelper is a process this watchdog is sure it
-# should be watching and has no measured resting size for. Its budget is a
-# reasoned guess, and a guessed budget applied to a process whose legitimate
-# resting size is larger than the guess is a kill loop - which is the specific
-# failure this design has already shipped twice. So the unknown set is measured,
-# budgeted, dwell-tracked and reported in every mode, and signalled only under
-# enforce-all, where the operator has already said he accepts restarts he can
-# see. Until then a coverage gap arrives as `event=would-kill armed=no` in the
-# container log instead of as silence.
-UNKNOWN_ROLES=" treeHelper "
+# The roles inside the envelope. claudeHelper is deliberately not one of them: it
+# is not VS Code, it is not spawned by the editor, and it was sized against a
+# measured adversary rather than against a share of anything.
+ENVELOPE_ROLES=" serverMain extensionHost tsserver treeHelper fileWatcher languageServer extensionHelper "
+
+# The apportionment. Every figure below is a decision about how to divide a fixed
+# 2048 MiB, not an estimate of how large a role "should" be, and the two are not
+# the same kind of number: raising one of these lowers another.
+#
+# The measurements each share is argued against were taken over ~38 hours on the
+# live 8 GiB workspace - one operator, one Terraform/YAML/shell repository, and
+# only *eight distinct processes* behind the whole table. A role sampled 1700
+# times is one process observed 1700 times, not 1700 observations, so none of
+# these is a distribution and none should be read as one. What makes conservative
+# rounding unnecessary here is the oversize rule: under it, a share that turns
+# out to be too small for a legitimate process produces a repeating log line and
+# no kill, so being wrong costs evidence rather than a restart loop.
+declare -gA BUDGET_ROLE=(
+  # The largest single share, and it is allocated by *consequence* rather than by
+  # size: serverMain holds the remote connection, so a wrong kill costs the
+  # operator a disconnect rather than a reload, and it should be the share least
+  # likely to be reached by accident. Observed maximum over the window: 233 MB.
+  # That the biggest share goes to the role with the smallest appetite is a real
+  # cost, roughly 280 MiB, and it is paid on purpose.
+  [serverMain]=536870912 # 512 MiB
+  # The residual, and deliberately the second-largest, because this is the only
+  # role that measurably drifts: its hourly *minimum* climbed 528 -> 686 MiB over
+  # 29 hours and it peaked at 738 MiB.
+  #
+  # It does not fit today, and that is stated rather than papered over: the live
+  # extension host arrived at 610 MB PSS at 11 seconds old and settled at 577 MB
+  # before doing any work, so with today's extension set it is over this share
+  # from birth, is classified oversize, and is reported rather than killed. No
+  # apportionment of 2048 MiB can both keep serverMain the largest share and put
+  # this one above 610 MB - that is arithmetic, not a preference - so the
+  # envelope presupposes a tree that has been trimmed. The trimming happens in
+  # the operator's dotfiles (capped launcher heaps, extensions moved to the
+  # client side) and this template cannot depend on it having been applied. If it
+  # has not, this role degrades to reporting and the other six go on being
+  # enforced; the repeating event=oversize line is exactly the evidence that the
+  # trim has not landed.
+  [extensionHost]=503316480 # 480 MiB
+  # 1.5x the 208 MB maximum observed, on a repository containing no TypeScript at
+  # all - so that figure is a floor of evidence rather than a ceiling. The number
+  # worth quoting is the other one: tsserver is launched with
+  # --max-old-space-size=3072, VS Code's shipped default, observed live on both
+  # instances in this pod. Any share of a 2048 MiB envelope is a fraction of the
+  # heap its own launcher sanctions, which is why the concurrent dotfiles change
+  # caps that ceiling too. Without the cap this share means "report a healthy
+  # tsserver on a large project", not "bound it".
+  [tsserver]=335544320 # 320 MiB
+  # Above the 284 MB maximum observed for the largest member of the role - a
+  # tamasfe.even-better-toml server - with 13% of headroom. The role's other two
+  # measured members hold 61 MB (tsserver's typingsInstaller) and 54 MB (the
+  # built-in markdown server). 256 MiB was considered and rejected: it is below a
+  # member measured on this very workspace, so it would have shipped a role that
+  # was oversize on day one.
+  [treeHelper]=335544320 # 320 MiB
+  # 1.5x the 107 MB maximum observed, which was flat to the megabyte for 28
+  # straight hours. The headroom is for repositories with more files than this
+  # one, since this is the one role whose size is a direct function of what is
+  # being watched.
+  [fileWatcher]=167772160 # 160 MiB
+  # 4x the 31 MB maximum observed (yaml/json/terraform servers). The class
+  # contains much larger members on other ecosystems, and this share does not fit
+  # them; that is the envelope being honest about what 2048 MiB divides into
+  # rather than a claim that a rust-analyzer is 128 MiB.
+  [languageServer]=134217728 # 128 MiB
+  # 5x the 24 MB maximum observed (terraform-ls), with the same caveat: gopls and
+  # rust-analyzer are in this class and are much larger.
+  [extensionHelper]=134217728 # 128 MiB
+  # Outside the envelope. The only budget here anchored on a measured *offender*
+  # rather than on a measured healthy size: the python MCP server holding 1.66 GB
+  # that this whole mechanism was built for. The largest healthy MCP server
+  # measured on this workspace is 142 MB, so this is ~3.6x the honest case and
+  # ~3.2x smaller than the adversary. It sits outside the envelope because an MCP
+  # server is not VS Code and tightening it would buy the editor nothing.
+  [claudeHelper]=536870912 # 512 MiB
+)
+
+# The order every budget is reported in. A literal role list at the reporting
+# call site is a place for a fully-enforced budget to go unreported, so the order
+# is declared once here and the test suite asserts it names every declared role
+# and nothing else.
+BUDGET_ORDER="serverMain extensionHost tsserver treeHelper fileWatcher languageServer extensionHelper claudeHelper"
 
 # Filled by derive_budgets().
-declare -gA BUDGET=() FLOORED=()
+declare -gA BUDGET=()
 
 # Only processes at or above this are written to the sweep log, plus every
 # process the watchdog is policing regardless of size. The floor keeps a sweep
@@ -280,12 +316,20 @@ declare -gA P_COMM=() P_CMD=() P_ARGV0=() P_PPID=() P_RSS=() P_PSS=() P_START=()
 declare -gA CHILDREN=() SERVER_TREE=() PROTECTED=() NOT_EDITOR=() PROTECT_REASON=() WATCHDOG_KIN=()
 declare -gA POLICED=() CLAUDE_ROOTS=()
 declare -ga PIDS=() SERVER_ROOTS=()
-declare -gA OVER_SINCE=() KILLED_AT=() KILL_TIMES=() DISARMED=() KILLS=()
+declare -gA OVER_SINCE=() KILLED_AT=() KILL_TIMES=() KILLS=()
+# FIT_SEEN[pid:starttime] is set the first time a process is observed at or
+# below its budget while old enough to have finished starting up. It is the
+# whole of the oversize rule: no entry means this process has never fitted, and
+# nothing that has never fitted is signalled. Keyed on pid:starttime like every
+# other piece of carried state, so a recycled pid cannot inherit the evidence.
+declare -gA FIT_SEEN=()
 # Per-role aggregates, recomputed each sweep (SUM) and kept for the life of the
 # watchdog (PEAK). Neither drives any decision - see the note on aggregation in
-# sweep_once - and PEAK is the review trigger for RESTING_ROLE, which is a hand
-# measurement with no other way to tell that it has gone stale.
+# sweep_once - and PEAK is how a share that no longer matches the workload
+# becomes visible to a human without the loop reacting to it.
 declare -gA ROLE_SUM_PSS=() ROLE_PEAK_PSS=()
+TREE_PSS=0
+OVERSIZE_N=0
 SERVER_PID=""
 ROLE=other
 GUARD=""
@@ -311,64 +355,71 @@ LAST_CENSUS_AT=0
 STARTED_AT=${WATCHDOG_NOW:-$EPOCHSECONDS}
 
 # --------------------------------------------------------------------------- #
-# derivation - one pure function of memory.max; no state, no I/O
+# derivation - now a copy, and that is the point
 # --------------------------------------------------------------------------- #
 
-# Sets BUDGET from memory.max. An explicit WATCHDOG_BUDGET_<role> wins outright,
-# which is how a budget is pinned for an experiment without editing the script.
+# Sets BUDGET. There is nothing to derive: a share of a fixed envelope is a
+# constant, so this copies the declared table and honours an explicit
+# WATCHDOG_BUDGET_<role>, which is how a number is tried on a live workspace
+# without editing the script.
 #
-# The two clamps pull in opposite directions and the order matters. The pod share
-# is applied first because it expresses what the pod can afford; the resting
-# floor is applied second because it expresses what the process demonstrably
-# needs, and when those disagree the process wins. A budget below resting usage
-# is not a conservative budget, it is a kill loop written down.
+# It deliberately takes no arguments. It used to take memory.max, and taking it
+# again would invite a term that scales a share with the pod - which is exactly
+# what the envelope replaced.
 derive_budgets() {
-  local max=$1 role want share floor var
-  share=$((max / POD_SHARE_DEN))
+  local role var
   BUDGET=()
-  FLOORED=()
   for role in "${!BUDGET_ROLE[@]}"; do
     var="WATCHDOG_BUDGET_${role}"
     if [[ -n ${!var:-} ]]; then
       BUDGET[$role]=${!var}
       continue
     fi
-    want=${BUDGET_ROLE[$role]}
-    ((want > share)) && want=$share
-    floor=$(((${RESTING_ROLE[$role]:-0} * RESTING_FACTOR_NUM) / RESTING_FACTOR_DEN))
-    # The floor winning is not an error, but it is worth saying out loud: it
-    # means this pod is too small to bound this role at the share it was meant
-    # to have, and the role keeps its budget because the alternative is a kill
-    # loop. On the 8 GiB workspace the extension host reaches this, which is why
-    # it is reported rather than silently applied.
-    #
-    # That reading only holds while every *declared* budget is already at or
-    # above its own resting floor, because then the only thing that can push
-    # `want` below the floor is the pod share. It did not hold before: the
-    # extension host's declared 1024 MiB was below its own 1069 MiB floor, so
-    # floored=1 was true at 4, 8, 16 and 64 GiB alike and said nothing about the
-    # pod at all. The declared number is now the one in force, and
-    # script-memory-watchdog-test.sh asserts the invariant directly rather than
-    # asserting the flag's value on one pod size.
-    if ((want < floor)); then
-      want=$floor
-      FLOORED[$role]=1
-    fi
-    BUDGET[$role]=$want
+    BUDGET[$role]=${BUDGET_ROLE[$role]}
   done
   return 0
 }
 
+# The sum of the shares actually in force for the roles inside the envelope. This
+# is what makes an override visible as a change to the total rather than as a
+# change to one line, and it is what the census reports against.
+envelope_in_force() {
+  local role total=0
+  for role in ${ENVELOPE_ROLES}; do
+    total=$((total + ${BUDGET[$role]:-0}))
+  done
+  printf '%s' "$total"
+}
+
+# enforce-all is the retired third mode. It asked for a superset of enforce that
+# no longer exists, so it is honoured as enforce rather than dropped to observe:
+# a workspace that had asked for more enforcement must not silently get none.
+# Anything unrecognised still falls back to the inert mode - this is the last
+# line of defence for a value that has already been through Terraform's
+# allowlist, and it is a function rather than a case inside main() so that the
+# test suite can reach it.
+normalise_mode() {
+  case "$MODE" in
+  observe | enforce) ;;
+  enforce-all) MODE=enforce ;;
+  *) MODE=observe ;;
+  esac
+  return 0
+}
+
 # True when the mode may signal this role at all.
+#
+# There is no per-role arming any more. Every role with a budget is armed under
+# enforce, because a role inside the envelope that cannot be signalled is a share
+# that is not enforced, and an envelope with unenforced shares is a description
+# of the tree rather than a bound on it. What separates a role that should be
+# killed from one that should only be reported is not the role - it is whether
+# the individual process ever fitted, which sweep_once decides per process.
 role_is_armed() {
   local role=$1
-  [[ -n ${DISARMED[$role]:-} ]] && return 1
+  [[ -n ${BUDGET[$role]:-} ]] || return 1
   case "$MODE" in
-  enforce) [[ $HELPER_ROLES == *" $role "* ]] ;;
-  enforce-all)
-    [[ $HELPER_ROLES == *" $role "* || $EDITOR_ROLES == *" $role "* ||
-      $UNKNOWN_ROLES == *" $role "* ]]
-    ;;
+  enforce) return 0 ;;
   *) return 1 ;;
   esac
 }
@@ -947,10 +998,10 @@ role_of() {
       # The alternative to inverting is to keep adding a regex per extension.
       # It is easier and it rots; worse, it fails *silently*, which is the one
       # property this mechanism cannot afford. Inverting fails the other way -
-      # loudly, in a role whose budget is admittedly a guess - so the guess is
-      # made safe by arming rather than by hoping: treeHelper is in
-      # UNKNOWN_ROLES, so enforce (the template default) reports it and never
-      # signals it. See the note there.
+      # loudly. The risk it buys - a share applied to a process whose legitimate
+      # size is larger than the share - used to be paid for by arming this role
+      # separately; it is now paid for by the oversize rule, which spares any
+      # process that has never fitted, in every role alike.
       ROLE=treeHelper
     else
       ROLE=other
@@ -1268,8 +1319,15 @@ signal_pid() {
   return 0
 }
 
-# The circuit breaker. Called after a kill; decides whether this role has stopped
-# being a drifting role and started being a loop.
+# Called after a kill. It counts, and it reports a rate; it disarms nothing.
+#
+# What it used to do - permanently disarm a role after LOOP_KILLS kills in
+# LOOP_WINDOW - is described at LOOP_WINDOW above and was removed with the
+# envelope, not lost. The loop it guarded against is now impossible by
+# construction (see the oversize rule in sweep_once), and under a deliberate cap
+# repeated kills are a fact about the workload rather than proof of a wrong
+# number. What is left is worth saying out loud, because a role being recycled
+# every twenty minutes is a sizing decision somebody should look at.
 record_kill() {
   local role=$1 now=$2
   local t keep="" n=0 all="" na=0
@@ -1297,13 +1355,10 @@ record_kill() {
   KILL_TIMES_ALL=$all
 
   if ((n >= LOOP_KILLS)); then
-    DISARMED[$role]=1
-    record_action "event=disarmed role=${role} reason=kill-loop kills=${n} window_s=${LOOP_WINDOW} budget_mb=$((${BUDGET[$role]:-0} / MIB)) detail=@a role that has to be killed this often does not have a drift problem, it has a wrong budget; raise WATCHDOG_BUDGET_${role} or accept the size, but this watchdog will not keep restarting it@"
+    record_action "event=kill-rate role=${role} kills=${n} window_s=${LOOP_WINDOW} budget_mb=$((${BUDGET[$role]:-0} / MIB)) enforcing=yes detail=@this role is being recycled often enough to be worth a look; enforcement continues - raise WATCHDOG_BUDGET_${role}, change the envelope, or make the process smaller@"
   fi
   if ((na >= GLOBAL_LOOP_KILLS)); then
-    local r
-    for r in "${!BUDGET[@]}"; do DISARMED[$r]=1; done
-    record_action "event=disarmed role=all reason=global-kill-loop kills=${na} window_s=${LOOP_WINDOW} detail=@too many kills across roles for the budgets to be right; enforcement is off until the watchdog restarts@"
+    record_action "event=kill-rate role=all kills=${na} window_s=${LOOP_WINDOW} enforcing=yes detail=@kills across several roles in one window; the apportionment may not fit this workload@"
   fi
   return 0
 }
@@ -1326,6 +1381,9 @@ prune_state() {
   done
   for key in "${!KILLED_AT[@]}"; do
     [[ -n ${live[$key]:-} ]] || unset 'KILLED_AT[$key]'
+  done
+  for key in "${!FIT_SEEN[@]}"; do
+    [[ -n ${live[$key]:-} ]] || unset 'FIT_SEEN[$key]'
   done
   return 0
 }
@@ -1350,15 +1408,25 @@ prune_state() {
 #    distinguish "one process drifting" from "processes being created", and the
 #    second is a supervisor's business, not this loop's.
 #
-# What is done instead is the cheap half: ROLE_SUM_PSS is computed every sweep
-# and reported in the census, so the evasion is visible as data the moment it
-# starts happening, and a future decision to act on it would begin from a
-# measurement rather than from this argument.
+# The envelope makes this hole more visible rather than less, and it is worth
+# saying exactly what it does and does not claim. 2048 MiB is enforced as an
+# *apportionment*: seven shares that add up to it, each compared against one
+# process at a time. It is not enforced as a sum, so a role with three members
+# can hold three times its share without any single process being over budget.
+#
+# So the sum is measured instead. TREE_PSS is computed every sweep, published in
+# the census as tree_pss_mb/envelope_pct and in the summary, and written into the
+# TOTAL row of every sweep. An envelope whose total was never computed would be a
+# number nobody could check; one that is computed and published is a claim a
+# reviewer can falsify from the log. Acting on it - shedding by total rather than
+# by process - is deliberately not attempted: that is the graded ladder this file
+# used to contain, which was removed because a poll loop cannot see the events it
+# was reacting to.
 sweep_once() {
   local now=$1
   local pid role budget pss key over_since over_s state guard id cmd age
   local -a rows=()
-  local policed_n=0 over_n=0 killed_n=0 total_pss=0
+  local policed_n=0 over_n=0 killed_n=0 total_pss=0 oversize_n=0
 
   read_uptime
   read_process_table
@@ -1369,6 +1437,7 @@ sweep_once() {
   prune_state
 
   ROLE_SUM_PSS=()
+  TREE_PSS=0
 
   TOP_ROLE=""
   TOP_ID=""
@@ -1388,6 +1457,21 @@ sweep_once() {
     # the aggregation note above sweep_once.
     ROLE_SUM_PSS[$role]=$((${ROLE_SUM_PSS[$role]:-0} + pss))
     ((pss > ${ROLE_PEAK_PSS[$role]:-0})) && ROLE_PEAK_PSS[$role]=$pss
+    # What the envelope is a claim about. Enforcement is per process (see the
+    # aggregation note above) so this total is measured and published rather than
+    # acted on - but an envelope whose total was never computed would be a number
+    # nobody could check.
+    [[ ${ENVELOPE_ROLES} == *" ${role} "* ]] && TREE_PSS=$((TREE_PSS + pss))
+
+    # The oversize rule, stated once: a process counts as having fitted only if
+    # it was seen at or below its budget while old enough to have finished
+    # starting up. Without the age test the flag would be set by whichever sweep
+    # happened to catch a process a second after exec, when everything is small -
+    # which would make the classification a function of sweep timing rather than
+    # of the process.
+    if ((budget > 0 && age >= MIN_AGE && pss <= budget)); then
+      FIT_SEEN[$key]=1
+    fi
 
     id="$(identity_of "$pid" "$role")"
     if ((budget > 0)) && ((pss * 100 / budget > TOP_PCT)); then
@@ -1430,13 +1514,28 @@ sweep_once() {
           if ((now - KILLED_AT[$key] >= KILL_GRACE)); then
             if signal_pid KILL "$pid" "$role" "drift ${role}"; then
               state=killed-9
-              record_action "event=kill sig=KILL pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} after_disarm=$([[ -n ${DISARMED[$role]:-} ]] && printf yes || printf no) detail=@still over budget ${KILL_GRACE}s after SIGTERM@"
+              record_action "event=kill sig=KILL pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} detail=@still over budget ${KILL_GRACE}s after SIGTERM@"
             fi
           else
             state=terminating
           fi
-        elif [[ -n ${DISARMED[$role]:-} ]]; then
-          state=disarmed
+        elif [[ -z ${FIT_SEEN[$key]:-} ]]; then
+          # Structurally over budget rather than drifted into it: this process
+          # has never been observed inside its share since it started, so killing
+          # it accomplishes nothing - the replacement arrives over budget too, and
+          # that is a kill loop with a supervisor's restart in the middle of it.
+          #
+          # It is reported instead, on the same once-per-dwell cadence as
+          # would-kill, and it is reported forever: the loop cannot silence
+          # itself, cannot widen the budget, and re-arms the moment a replacement
+          # is seen fitting. The known gap is a process that is born far too big
+          # and then grows further; the watchdog will record it and never signal
+          # it. That is accepted, because a process born at ten times its share is
+          # not the drift this loop polices, and the sweep log names it either way.
+          state=oversize
+          ((oversize_n += 1))
+          record_action "event=oversize pid=${pid} role=${role} id=${id} pss_mb=$((pss / MIB)) budget_mb=$((budget / MIB)) over_s=${over_s} age_s=${age} detail=@never observed inside its share since it started; killing it would not make the replacement smaller@"
+          OVER_SINCE[$key]=$now
         elif ! role_is_armed "$role"; then
           # Observe mode, or a role this mode does not arm. Report the kill that
           # would have happened, then restart the dwell clock so the same process
@@ -1478,13 +1577,14 @@ sweep_once() {
     rows+=("${now}"$'\t'"${SWEEPS}"$'\t'"${pid}"$'\t'"${P_START[$pid]:-0}"$'\t'"unmanaged"$'\t'"seen"$'\t'"$((pss / 1024))"$'\t'"$((${P_RSS[$pid]:-0} / 1024))"$'\t'"${P_AGE[$pid]:-0}"$'\t'"0"$'\t'"0"$'\t'"${guard}"$'\t'"${P_COMM[$pid]:-unknown}"$'\t'"${cmd:0:160}")
   done
 
-  rows+=("${now}"$'\t'"${SWEEPS}"$'\t'"0"$'\t'"0"$'\t'"TOTAL"$'\t'"${PRESSURE}"$'\t'"$((total_pss / 1024))"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"-"$'\t'"policed=${policed_n},over=${over_n},killed=${killed_n},procs=${#PIDS[@]},tree=${#SERVER_TREE[@]},sessions=${#CLAUDE_ROOTS[@]}"$'\t'"h=${M_H},u=${M_U},psi=${M_PSI_CENTI},mode=${MODE}")
+  rows+=("${now}"$'\t'"${SWEEPS}"$'\t'"0"$'\t'"0"$'\t'"TOTAL"$'\t'"${PRESSURE}"$'\t'"$((total_pss / 1024))"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"0"$'\t'"-"$'\t'"policed=${policed_n},over=${over_n},oversize=${oversize_n},killed=${killed_n},procs=${#PIDS[@]},tree=${#SERVER_TREE[@]},sessions=${#CLAUDE_ROOTS[@]},tree_mb=$((TREE_PSS / MIB)),envelope_mb=$((ENVELOPE / MIB))"$'\t'"h=${M_H},u=${M_U},psi=${M_PSI_CENTI},mode=${MODE}")
   append_sweep "${rows[@]}"
   printf '%s\n' "$SWEEP_HEADER" "${rows[@]}" >"${STATE_DIR}/sweep.latest.tmp" &&
     mv -f "${STATE_DIR}/sweep.latest.tmp" "${STATE_DIR}/sweep.latest"
 
   POLICED_N=$policed_n
   OVER_N=$over_n
+  OVERSIZE_N=$oversize_n
   publish_top
   return 0
 }
@@ -1527,14 +1627,13 @@ check_visibility() {
 # the pod is gone; and it is the trend series for the standing population - the
 # thing this watchdog exists to bound - at 24 lines a day rather than 40,000.
 emit_census() {
-  local now=$1 role disarmed="" sums="" peaks=""
-  for role in "${!DISARMED[@]}"; do disarmed+="${role} "; done
+  local now=$1 role sums="" peaks=""
   # The per-role total is what makes the un-fixed aggregation hole observable
-  # (see the note above sweep_once), and the per-role peak is the review trigger
-  # for RESTING_ROLE. Neither is acted on: a watchdog that re-derived its own
-  # floor from what it observed would raise the limit it is enforcing every time
-  # the thing it is enforcing against grew, which is the one move this design
-  # forbids outright.
+  # (see the note above sweep_once), and the per-role peak is how a share that no
+  # longer matches the workload becomes visible. Neither is acted on: a watchdog
+  # that re-derived a limit from what it observed would raise the limit it is
+  # enforcing every time the thing it enforces against grew, which is the one
+  # move this design forbids outright.
   for role in "${!ROLE_SUM_PSS[@]}"; do
     sums+="${role}=$((${ROLE_SUM_PSS[$role]} / MIB)) "
   done
@@ -1544,7 +1643,8 @@ emit_census() {
   LAST_CENSUS_AT=$now
   record_action "event=census sweeps=${SWEEPS} uptime_s=$((now - STARTED_AT))" \
     "policed=${POLICED_N:-0} over_budget=${OVER_N:-0} sessions=${#CLAUDE_ROOTS[@]}" \
-    "tree=${#SERVER_TREE[@]} kills_total=${KILLS_TOTAL} disarmed=@${disarmed% }@" \
+    "tree=${#SERVER_TREE[@]} kills_total=${KILLS_TOTAL} oversize=${OVERSIZE_N:-0}" \
+    "envelope_mb=$((ENVELOPE / MIB)) tree_pss_mb=$((${TREE_PSS:-0} / MIB)) envelope_pct=$((${TREE_PSS:-0} * 100 / ENVELOPE))" \
     "h_mb=$((M_H / MIB)) u_mb=$((M_U / MIB)) pressure=${PRESSURE} psi_full10=${M_PSI_CENTI}" \
     "top_role=${TOP_ROLE:-none} top_id=${TOP_ID:-none} top_pss_mb=$((${TOP_PSS:-0} / MIB))" \
     "top_budget_pct=${TOP_PCT:-0} role_pss_mb=@${sums% }@ role_peak_mb=@${peaks% }@"
@@ -1563,11 +1663,12 @@ publish_summary() {
     printf 'policed=%d over_budget=%d sessions=%d tree=%d\n' \
       "${POLICED_N:-0}" "${OVER_N:-0}" "${#CLAUDE_ROOTS[@]}" "${#SERVER_TREE[@]}"
     for role in "${!BUDGET[@]}"; do
-      line+="${role}=$((${BUDGET[$role]} / MIB))M"
-      [[ -n ${DISARMED[$role]:-} ]] && line+="(disarmed)"
-      line+=" "
+      line+="${role}=$((${BUDGET[$role]} / MIB))M "
     done
     printf 'budgets %s\n' "$line"
+    printf 'envelope=%dM tree_pss=%dM tree_pct=%d oversize=%d\n' \
+      "$((ENVELOPE / MIB))" "$((${TREE_PSS:-0} / MIB))" \
+      "$((${TREE_PSS:-0} * 100 / ENVELOPE))" "${OVERSIZE_N:-0}"
     line=""
     for role in "${!KILLS[@]}"; do line+="${role}:${KILLS[$role]} "; done
     printf 'kills total=%d by_role=%s last=%s\n' \
@@ -1577,10 +1678,9 @@ publish_summary() {
     # number for one event.
     line=""
     for role in "${!ROLE_PEAK_PSS[@]}"; do line+="${role}=$((${ROLE_PEAK_PSS[$role]} / MIB))M "; done
-    # The largest each role has been since this watchdog started. It is the only
-    # standing evidence that RESTING_ROLE - a hand measurement taken once - has
-    # drifted away from what the workload actually does, and it is reported for a
-    # human to act on rather than fed back into the budgets.
+    # The largest each role has been since this watchdog started. It is the
+    # standing evidence that a share no longer matches the workload, and it is
+    # reported for a human to act on rather than fed back into the budgets.
     printf 'peak_pss %s\n' "${line:-none}"
     printf 'kill_rate_per_day=%d.%02d\n' \
       "$((KILLS_TOTAL * 86400 / up))" "$((KILLS_TOTAL * 86400 * 100 / up % 100))"
@@ -1659,14 +1759,20 @@ cycle_once() {
   ((rc == 0)) || return 1
 
   if ((${#BUDGET[@]} == 0)); then
-    derive_budgets "$M_MAX"
-    local role
-    for role in extensionHost serverMain tsserver languageServer fileWatcher extensionHelper treeHelper claudeHelper; do
-      record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) pod_share_mb=$((M_MAX / POD_SHARE_DEN / MIB)) resting_mb=$((${RESTING_ROLE[$role]:-0} / MIB)) floored=${FLOORED[$role]:-0} armed=$(role_is_armed "$role" && printf yes || printf no)"
+    derive_budgets
+    local role in_force
+    in_force=$(envelope_in_force)
+    for role in ${BUDGET_ORDER}; do
+      record_action "event=budget role=${role} budget_mb=$((${BUDGET[$role]} / MIB)) envelope=$([[ ${ENVELOPE_ROLES} == *" ${role} "* ]] && printf yes || printf no) envelope_pct=$((${BUDGET[$role]} * 100 / ENVELOPE)) armed=$(role_is_armed "$role" && printf yes || printf no)"
     done
-    record_action "event=budgets_derived memory_max_mb=$((M_MAX / MIB)) dwell_s=${DWELL_SECONDS} min_age_s=${MIN_AGE} loop_window_s=${LOOP_WINDOW} loop_kills=${LOOP_KILLS} armed=@$(
-      for role in "${!BUDGET[@]}"; do role_is_armed "$role" && printf '%s ' "$role"; done
+    record_action "event=budgets_derived memory_max_mb=$((M_MAX / MIB)) envelope_mb=$((ENVELOPE / MIB)) shares_sum_mb=$((in_force / MIB)) dwell_s=${DWELL_SECONDS} min_age_s=${MIN_AGE} loop_window_s=${LOOP_WINDOW} loop_kills=${LOOP_KILLS} armed=@$(
+      for role in ${BUDGET_ORDER}; do role_is_armed "$role" && printf '%s ' "$role"; done
     )@"
+    # The shares are constants that must add up to the envelope. An override, or
+    # an edit that changes one number without changing another, breaks that - and
+    # it must say so rather than leaving a total nobody can reconstruct from the
+    # log.
+    ((in_force == ENVELOPE)) || record_action "event=warning reason=envelope-mismatch shares_sum_mb=$((in_force / MIB)) envelope_mb=$((ENVELOPE / MIB)) detail=@the shares in force do not add up to the envelope; a budget override or an edit has changed the total@"
   fi
 
   read_cgroup_pressure
@@ -1724,12 +1830,7 @@ main() {
   CSV_LINES=$(count_lines "${STATE_DIR}/calibration.csv")
   SWEEP_LINES=$(count_lines "${STATE_DIR}/sweep.log")
 
-  case "$MODE" in
-  observe | enforce | enforce-all) ;;
-  *)
-    MODE=observe
-    ;;
-  esac
+  normalise_mode
 
   if ! acquire_singleton; then
     printf 'memory-watchdog: another instance is already running\n' >&2

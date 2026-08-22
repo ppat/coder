@@ -33,24 +33,19 @@ data "coder_parameter" "memory_watchdog_mode" {
 
   default      = "enforce"
   display_name = "Memory Watchdog"
-  description  = "What the memory watchdog may do about a helper process that has been over its budget for ten minutes"
+  description  = "What the memory watchdog may do about a process that has been over its share of the 2048 MiB VS Code envelope for ten minutes"
   icon         = "/icon/memory.svg"
   mutable      = true
 
   option {
     name        = "Observe only"
     value       = "observe"
-    description = "Measure, record every sweep, and log the kill it would have made. Sends no signals"
+    description = "Measure, record every sweep, and log the action it would have taken. Sends no signals"
   }
   option {
-    name        = "Enforce (helpers)"
+    name        = "Enforce"
     value       = "enforce"
-    description = "Also kill drifted helpers: language servers, the file watcher, native extension helpers, and MCP servers an agent session spawned. Each restarts invisibly"
-  }
-  option {
-    name        = "Enforce (helpers and editor)"
-    value       = "enforce-all"
-    description = "Also kill the VS Code extension host and server. These restart visibly, so they are armed separately"
+    description = "Also kill drifted processes, in every role. A process that has never fitted its share is reported rather than killed, so nothing is restarted on a loop"
   }
 }
 
@@ -62,9 +57,19 @@ locals {
   # So it goes through the same validate-then-use step as the list parameters
   # below, and anything unrecognised falls back to the inert mode rather than to
   # whatever was supplied.
-  validated_watchdog_mode = contains(
-    ["observe", "enforce", "enforce-all"], data.coder_parameter.memory_watchdog_mode.value
-  ) ? data.coder_parameter.memory_watchdog_mode.value : "observe"
+  #
+  # "enforce-all" is the retired third mode: under a fixed envelope every role is
+  # armed, so there is no superset left for it to name. A workspace still
+  # carrying the stored value is mapped to "enforce" rather than dropped to
+  # "observe", because it had asked for more enforcement and must not silently
+  # get none.
+  validated_watchdog_mode = (
+    data.coder_parameter.memory_watchdog_mode.value == "enforce-all" ? "enforce" : (
+      contains(
+        ["observe", "enforce"], data.coder_parameter.memory_watchdog_mode.value
+      ) ? data.coder_parameter.memory_watchdog_mode.value : "observe"
+    )
+  )
 
   validated_preferred_nodes = (data.coder_parameter.preferred_nodes.value != "") ? [
     for str in jsondecode(data.coder_parameter.preferred_nodes.value) :
