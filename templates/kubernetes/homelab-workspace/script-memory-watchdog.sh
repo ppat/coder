@@ -219,21 +219,46 @@ declare -gA BUDGET_ROLE=(
   # from birth, is classified oversize, and is reported rather than killed. No
   # apportionment of 2048 MiB can both keep serverMain the largest share and put
   # this one above 610 MB - that is arithmetic, not a preference - so the
-  # envelope presupposes a tree that has been trimmed. The trimming happens in
-  # the operator's dotfiles (capped launcher heaps, extensions moved to the
-  # client side) and this template cannot depend on it having been applied. If it
+  # envelope presupposes a tree that has been trimmed. The only lever that trims
+  # it is loading less - remote.extensionKind in the operator's dotfiles, moving
+  # extensions to the client side. There is no heap ceiling for this role at any
+  # value: the server registers no such setting, exposes no CLI flag, and deletes
+  # NODE_OPTIONS from the child environment before every fork, so a variable set
+  # in env.tf would reach every mise-node process in the pod and not this one.
+  # The evidence is in DESIGN.md, "Ordering the heap ceiling against the share".
+  # This template cannot depend on the trim having been applied either. If it
   # has not, this role degrades to reporting and the other six go on being
   # enforced; the repeating event=oversize line is exactly the evidence that the
   # trim has not landed.
   [extensionHost]=503316480 # 480 MiB
   # 1.5x the 208 MB maximum observed, on a repository containing no TypeScript at
-  # all - so that figure is a floor of evidence rather than a ceiling. The number
-  # worth quoting is the other one: tsserver is launched with
-  # --max-old-space-size=3072, VS Code's shipped default, observed live on both
-  # instances in this pod. Any share of a 2048 MiB envelope is a fraction of the
-  # heap its own launcher sanctions, which is why the concurrent dotfiles change
-  # caps that ceiling too. Without the cap this share means "report a healthy
-  # tsserver on a large project", not "bound it".
+  # all - not one .ts file and not one tsconfig.json anywhere under ~/code - so
+  # that figure is a floor of evidence rather than a ceiling. The number worth
+  # quoting is the other one: tsserver is launched with --max-old-space-size=3072,
+  # VS Code's shipped default, observed live on both instances in this pod.
+  #
+  # This is the one role where the operator's dotfiles hold a heap ceiling for the
+  # same process this share bounds, and the two are *deliberately* not ordered so
+  # that the ceiling binds first. A heap ceiling bounds V8's old space; PSS also
+  # carries the binary, native allocations, external buffers and V8's other
+  # spaces, and that remainder is near-constant per role rather than proportional,
+  # so the two relate by addition: peak PSS is about resting PSS plus the ceiling.
+  # For V8 to fail first the ceiling would have to be at or under share minus
+  # resting, which here is 320 - 141 = 179 MiB. It is not set there, on purpose:
+  # the setting is window-scoped, so it lives in the operator's client-side User
+  # settings and applies to every window they open including local ones, and the
+  # failure it would buy is not more recoverable than this one - a V8 fatal heap
+  # error and a SIGKILL reach the same handler in the TypeScript extension, which
+  # stops restarting the service after five crashes in five minutes. A ten-minute
+  # dwell cannot reach that rate; a binding ceiling on a large project reaches it
+  # immediately. See DESIGN.md, "Ordering the heap ceiling against the share".
+  #
+  # What that costs is stated rather than hidden: unlike the extension host this
+  # role *does* fit at rest, so the oversize rule never covers it, and on a
+  # project large enough to hold it above this share for ten minutes the share
+  # means "kill a healthy tsserver". That kill is recoverable - the extension
+  # restarts the service - and it is rate-limited by the dwell to well under the
+  # five-in-five-minutes that would make the extension give up.
   [tsserver]=335544320 # 320 MiB
   # Above the 284 MB maximum observed for the largest member of the role - a
   # tamasfe.even-better-toml server - with 13% of headroom. The role's other two
