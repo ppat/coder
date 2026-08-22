@@ -47,11 +47,24 @@ data "coder_parameter" "memory_watchdog_mode" {
     value       = "enforce"
     description = "Also kill drifted processes, in every role. A process that has never fitted its share is reported rather than killed, so nothing is restarted on a loop"
   }
+  # The retired third mode, kept only so that a workspace which stored it can
+  # still be built. Coder validates a build's parameter values against *this
+  # version's* options before Terraform is ever planned, so dropping the option
+  # does not fall back to anything - it refuses the build outright, with
+  # "parameter value must match one of options: [observe enforce]", and takes
+  # autostart and every non-interactive `coder start` with it. That is what
+  # makes the mapping in local.validated_watchdog_mode below reachable rather
+  # than dead code. Remove this option once no workspace stores the value.
+  option {
+    name        = "Enforce (deprecated alias)"
+    value       = "enforce-all"
+    description = "Retired. Identical to Enforce: under a fixed envelope every role is already armed. Select Enforce instead"
+  }
 }
 
 
 locals {
-  # Coder already constrains this to the two option values server-side, but it
+  # Coder already constrains this to the option values server-side, but it
   # reaches the agent as an environment variable and from there a shell, and it
   # is the single switch that decides whether the watchdog may signal processes.
   # So it goes through the same validate-then-use step as the list parameters
@@ -62,7 +75,10 @@ locals {
   # armed, so there is no superset left for it to name. A workspace still
   # carrying the stored value is mapped to "enforce" rather than dropped to
   # "observe", because it had asked for more enforcement and must not silently
-  # get none.
+  # get none. This mapping only ever runs because the deprecated option above
+  # keeps the value buildable - server-side option validation happens first, so
+  # without that option the build is refused and this expression is never
+  # evaluated at all.
   validated_watchdog_mode = (
     data.coder_parameter.memory_watchdog_mode.value == "enforce-all" ? "enforce" : (
       contains(
