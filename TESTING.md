@@ -34,34 +34,63 @@ Neither replaces the other, and the live one is where every defect that mattered
 
 ### What the most recent drill actually observed
 
-Run 2026-08-21 on a disposable `watchdog-drill` workspace, `enforce` mode, **against the pre-envelope construction** — per-role budgets clamped by `memory.max / 8` and a resting floor, with a circuit breaker that disarmed a role permanently. Everything below is what was observed then and is left as the record. Two things in it no longer exist: `event=disarmed` (the breaker now reports `event=kill-rate ... enforcing=yes` and disarms nothing), and the compressed `breaker window` is now only the window that report is rated over. The kills themselves would still happen — the hog was respawned inside its pinned budget each time and drifted out of it, which is the drift case, not the `oversize` one. It was run with every threshold compressed and wall-clock arithmetic left real (`WATCHDOG_NOW` was never set): dwell 600→20s, age floor 300→45s, kill grace 30→8s, breaker window 3600→180s, sweep cadence ~60→~3s, `WATCHDOG_BUDGET_claudeHelper` pinned 512→100 MiB. The code paths and the arithmetic are the production ones; production *timings* were never waited out, which is what compressing them costs. The synthetic workload was compiled C — no `python3` or `node` exists on `PATH` in a fresh workspace without dotfiles applied, itself worth knowing.
+Run 2026-08-22 on the disposable `test` workspace, 4 GiB pod, against the envelope construction (`2048 MiB`, fixed shares,
+`event=kill-rate ... enforcing=yes` in place of the old permanent disarm). Thresholds were compressed and wall-clock
+arithmetic left real (`WATCHDOG_NOW` was never set): dwell 600->15s, age floor 300->15s, kill grace 30->8s, sweep cadence
+~60->~3s, `WATCHDOG_BUDGET_claudeHelper` pinned 512->100 MiB, `WATCHDOG_SWEEP_LOG_FLOOR` 32 MiB->0 so that every process
+carried its guard rule into `sweep.log`. Every other number - the seven envelope shares, the arithmetic, the code paths -
+was the production one. Production *timings* were again never waited out, which is what compressing them costs.
 
-The daemon's own `actions.log` for the drill, re-fetched from Loki afterward and matched byte-for-byte against the pod's local copy:
+The synthetic workload was compiled C driven entirely by environment variables, so that `argv` was free to be spoofed;
+there is still no `python3` and no `node` on `PATH` in a fresh workspace without dotfiles. A stand-in server tree was
+built out of paths alone - `~/.vscode-server/cli/servers/Stable-.../server/node` as a spoofed `argv[0]`, with
+`out/server-main.js` and `--type=extensionHost` as real argv elements - which is enough, because selection keys on
+`argv[0]`'s path and on whole argv elements and on nothing else.
+
+What the daemon reported, all of it also re-fetched from Loki afterwards:
 
 ```text
-event=kill sig=TERM pid=<p1> role=claudeHelper id=hog pss_mb=150 budget_mb=100 over_s=22 age_s=68
-event=kill sig=KILL pid=<p1> role=claudeHelper id=hog pss_mb=150 budget_mb=100 over_s=31 detail="still over budget 8s after SIGTERM"
-event=kill sig=TERM pid=<p2> role=claudeHelper id=hog pss_mb=150 budget_mb=100 over_s=43 age_s=46
-event=kill sig=KILL pid=<p2> role=claudeHelper id=hog pss_mb=150 budget_mb=100 over_s=52 detail="still over budget 8s after SIGTERM"
-event=disarmed role=claudeHelper reason=kill-loop kills=3 window_s=180 budget_mb=100 detail="a role that has to be killed this often does not have a drift problem, it has a wrong budget; raise WATCHDOG_BUDGET_claudeHelper or accept the size, but this watchdog will not keep restarting it"
+event=oversize pid=<a> role=treeHelper id=acme.toml-1.2.3/server pss_mb=400 budget_mb=320 over_s=16 age_s=16 detail="never observed inside its share since it started; ..."
+event=oversize pid=<b> role=claudeHelper id=hog pss_mb=150 budget_mb=100 over_s=16 age_s=16 detail="never observed inside its share since it started; ..."
+event=kill sig=TERM pid=<c> role=treeHelper id=beta.lang-0.1/server pss_mb=430 budget_mb=320 over_s=16 age_s=38
+event=kill sig=TERM pid=<d> role=claudeHelper id=hog pss_mb=160 budget_mb=100 over_s=16 age_s=38
+event=kill sig=KILL pid=<d> role=claudeHelper id=hog pss_mb=160 budget_mb=100 over_s=25 detail="still over budget 8s after SIGTERM"
+event=kill-rate role=claudeHelper kills=3 window_s=600 budget_mb=100 enforcing=yes detail="this role is being recycled often enough ..."
+event=kill-rate role=all kills=9 window_s=600 enforcing=yes detail="kills across several roles in one window; ..."
 ```
 
-The two kills are gated by two different rules, not the same one twice: the first fired at `over_s=22` against a 20s dwell — one sweep late, proportional to the ~3s cadence, i.e. dwell-bound. The second's dwell was satisfied around `over_s≈20`, but the kill waited for `age_s` to clear its 45s floor, so `over_s` kept climbing to 43 before it fired — age-bound. A third respawn (not shown above) supplied the kill that tripped the breaker; under the current construction that same kill produces an `event=kill-rate` line and enforcement continues.
+The `oversize`/`drift` split is the point, and both halves are positive results rather than absences. `<a>` and `<b>`
+were born above their shares and stayed there: reported every dwell period for the whole run, never signalled, alive at
+the end. `<c>` and `<d>` were born inside their shares, were observed fitting past the age floor, then grew out - and
+were killed. `<d>` ignored `SIGTERM` on purpose, so the `TERM`->`KILL` escalation ran; each respawn was seen fitting
+again and re-armed, which is what shows the classification is keyed per `pid:starttime` rather than per role. The
+kill-rate line fired at three kills in a role and again at nine across roles, and enforcement carried on after both -
+a later respawn was still killed.
 
-`sweep.log` also confirms a dip resets the dwell clock rather than just capping it, in consecutive rows for the same pid:
+Equally load-bearing is what `actions.log` does **not** contain. None of these appear in it even once, and every one of
+them shows up in `sweep.log` as a row that was seen and passed over, which is what separates "spared" from "invisible":
 
-```text
-... over 153981 155052 55 102400 15 ...   <- over_s climbing toward the dwell threshold
-...  ok   20861  22020 58 102400  0 ...   <- PSS dropped under budget; over_s reset to 0
-```
+| process | PSS | why it was spared | `guard` |
+| --- | --- | --- | --- |
+| a `setsid` process in its own session, the largest in the drill | 200 MB | session-boundary walk | `-` |
+| a helper comfortably inside its share | 60 MB | under budget | `-` |
+| an unrecognised **direct child of the server root** | 200 MB | `is_server_fork`, so role `other` | `-` |
+| the two `claude` session roots | - | `argv[0]` basename | `argv0` |
+| the coder agent, and `tmux` | 28-53 MB | `comm` | `comm` |
+| pid 1 | 28 MB | `pid1` | `pid1` |
+| the watchdog itself | 1.7 MB | `self` | `self` |
 
-Equally load-bearing is what `actions.log` does **not** contain: the `setsid`-detached process standing in for a Claude Code Bash tool call — the single largest process in the drill — appears zero times, and neither does the in-budget helper. Both were alive and untouched when the drill ended.
+A second run in `observe` mode, same thresholds, produced `event=would-kill armed=no` for a freshly-born drifter and no
+signal of any kind; the process was still alive well past its dwell.
 
-Not exercised by this drill, and not claimed to be: production timings (everything above ran on compressed ones); the VS Code tree half of selection (`extensionHost`/`tsserver`/`fileWatcher`/`ptyHost`) — no VS Code server ran in this disposable pod; `observe` mode's `would-kill`; the global 8-kill-across-roles breaker; and `event=refused`, whose guard is structurally unreachable in normal operation because selection filters protected pids before `signal_pid` is ever called.
+Not exercised by this drill, and not claimed to be: production timings (everything above ran on compressed ones); a real
+VS Code server tree, as opposed to one assembled from paths; `event=refused`, whose guard is structurally unreachable in
+normal operation because selection filters protected pids before `signal_pid` is ever called; and the `payload` and
+`watchdog-*` guard rules, which nothing in a bare disposable pod triggers.
 
 ### Checking a claim like this against the record
 
-An `event=kill`/`event=oversize` line, unlike the sweep log, does leave the pod (see [DESIGN.md](DESIGN.md#design-tensions-and-decisions)), so a claim like the one above is checkable: `{namespace="coder"} |= "component=memory-watchdog" |~ "event=(kill|would-kill|oversize|refused|kill-rate)"` against Loki finds exactly the six lines quoted above, timestamped and labelled with the `watchdog-drill` pod.
+An `event=kill`/`event=oversize` line, unlike the sweep log, does leave the pod (see [DESIGN.md](DESIGN.md#design-tensions-and-decisions)), so a claim like the one above is checkable: `{namespace="coder"} |= "component=memory-watchdog" |~ "event=(kill|would-kill|oversize|refused|kill-rate)"` against Loki finds every line quoted above, timestamped and labelled with the disposable pod that produced it — 11 `event=kill`, 34 `event=oversize` and 4 `event=kill-rate` lines for the run of 2026-08-22, and not one `sweep.log` row, because those stay in the pod by design and a test asserts that they do.
 
 The same query, run over the full retained history, is also what falsifies a different claim: PR [#865](https://github.com/ppat/coder/pull/865) (merged 2026-08-18), which introduced this drill practice, described one run in its body as killing "a drifted 739 MB helper... three times" with the role disarming "on the third kill," and stated "the daemon's own lines from the test workspace are in Loki." Neither `event=kill` nor `event=disarmed` nor the string `739` appears anywhere in the retained record for any workspace at any time before this run. The only kill/disarm lines anywhere near that PR's merge time are on the operator's live workspace at 2026-08-18T01:01–01:08, and the daemon logged its own correction for them at the time: `event=note reason=fixture-leak`, naming fixture pids 41/61 at 1907/1583 MB — the same incident this repo's docs already describe as the fixture suite's stdout seam leaking into production before it was guarded. No `event=kill` or `event=disarmed` line from a workspace named `test` exists in the record at all. `event=budget role=extensionHost budget_mb=1069 pod_share_mb=512 floored=1` — the figures the PR body also cites as drill evidence — is not distinguishing evidence either: every disposable `test_mode` workspace since has printed exactly that line at startup, regardless of whether anything was ever killed, because `floored=1` was a constant at that pod size — the bug PR #881 fixes.
 
