@@ -10,6 +10,14 @@ services:
       KUBECONFIG: /home/coder/.kube/config
     volumes:
     - ${CODER_KUBECONFIG}:/home/coder/.kube/config:ro
+    # provisionerd resolves its provisioning binary by LookPath("terraform") - there is no
+    # OpenTofu-specific config surface at all (see DESIGN.md). This bind-mounts an OpenTofu
+    # binary directly over that lookup path so provisionerd applies the template with tofu
+    # while still finding a binary literally named "terraform". The image's real terraform
+    # binary at that path is root-owned (0755, root:root) and the container runs as uid 1000,
+    # so overwriting it from inside the container is not an option - the bind mount replaces
+    # the mount point at the kernel level regardless of that ownership.
+    - ${CODER_TOFU_BINARY}:/usr/local/bin/terraform:ro
     networks:
       default:
       kind:

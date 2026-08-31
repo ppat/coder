@@ -3,11 +3,11 @@ terraform {
 
   required_providers {
     coder = {
-      source  = "coder/coder"
+      source  = "registry.opentofu.org/coder/coder"
       version = "2.18.0"
     }
     kubernetes = {
-      source  = "hashicorp/kubernetes"
+      source  = "registry.opentofu.org/hashicorp/kubernetes"
       version = "3.2.1"
     }
   }

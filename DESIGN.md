@@ -14,7 +14,7 @@ flowchart LR
     Renovate --> Template
 
     Image[Container image build] --> Push[coder template push]
-    Template[Terraform template] --> Push
+    Template[OpenTofu template] --> Push
     Push --> Live[Live Coder deployment<br/>provisions workspace pods]
 ```
 
@@ -22,7 +22,7 @@ The image and template are two halves of one release, not independent artifacts:
 
 The "live Coder deployment" this pushes to is itself provisioned separately, and what an operator actually works in is assembled from more layers than these two — see [Where the workspace environment comes from](#where-the-workspace-environment-comes-from) below.
 
-Renovate feeds both halves continuously (Terraform provider versions, image package/tool versions, GitHub Actions), so the day-to-day work in this repo is mostly reviewing and merging those bumps rather than writing new template/image logic.
+Renovate feeds both halves continuously (OpenTofu provider versions, image package/tool versions, GitHub Actions), so the day-to-day work in this repo is mostly reviewing and merging those bumps rather than writing new template/image logic.
 
 ## Where the workspace environment comes from
 
@@ -60,6 +60,8 @@ The rule that ties the layers together: a package or tool belongs in the *lowest
 **Shared persistence, not per-workspace isolation.** All workspaces provisioned from this template persist their home directory (and installed tools like Homebrew) onto one shared volume, isolated from each other only logically rather than through separate storage. For a single-operator homelab, this is simpler to provision and reason about than storage-per-workspace, at the cost of weaker isolation between workspaces than a multi-tenant design would want.
 
 **No staging environment, so the release pipeline carries its own rehearsal path.** There's exactly one live template and one live cluster — no separate staging Coder deployment to try changes against first. Rather than accept "every merge to main is a live-fire test," the release pipeline itself can run in a mode that exercises a real build and a real (but disposable, clearly-named) template push without touching the production template or its persistent state. That path is what makes it safe to iterate on template/image changes at the same pace as everything else in the repo. See [TESTING.md](TESTING.md) for how to use it.
+
+**The template is authored in OpenTofu; the live deployment's provisioner is a separate repo's decision, not this one's.** Coder has no concept of a provisioning tool beyond "whatever binary is named `terraform` on `PATH`, in a supported numeric version range" — there is no vendor check, so a `tofu` binary standing in for that name applies the template identically. This repo can only control the provisioner in its own disposable test control plane (`.github/compose/compose.yaml`), which bind-mounts an OpenTofu binary over the official Coder image's own `terraform` path — both to dogfood the toolchain this repo now authors in, and because that swap is what surfaces a real Terraform/OpenTofu behavioral divergence, if this template's HCL ever grows one, before it reaches a real deployment. The live deployment's provisioner is owned by `homelab-ops-kubernetes-apps` — `homelab-ops-kubernetes-apps#3900` makes the same swap there, via a Kubernetes-native init-container-plus-`emptyDir` mechanism instead of a Docker bind mount — that cluster's containerd doesn't support single-file subPath mounts on image volumes, only whole-directory.
 
 **`/tmp` is node-local scratch space, deliberately not the shared home volume.** Every workspace's `/tmp` used to be whatever the container's writable overlay layer gave it for free - fast, but unbounded, and on the node's root filesystem. On the operator's own long-lived workspace that grew to several GiB (dominated by Claude Code's own scratch directory, `$TMPDIR/claude-<uid>/...`, which agent sessions use for downloads and experiments) and pushed the node toward the kubelet's disk-pressure eviction threshold - a risk to every other pod on that node, not just the workspace that caused it. The home PVC has ample free space, but is NFS-backed, which is a bad fit for what actually lives in `/tmp`: build caches and compiler intermediates are exactly the write-heavy, latency-sensitive workload NFS handles worst. A plain `empty_dir` would keep `/tmp` fast but doesn't fix anything, because `empty_dir` lives on the same constrained node root filesystem the container overlay already did. The fix is a Kubernetes "generic ephemeral volume" on a Longhorn storage class that is both node-local (so still fast) and backed by a separate, much larger partition on the same node than the root filesystem is - see the comment on the `tmp` volume in `deployment.tf` for the specific class and why it's the non-replicated one (scratch data costs nothing to lose) rather than the default replicated class other PVCs in this cluster use. Its size is a fixed ceiling rather than left unbounded, so a runaway consumer now fails predictably inside its own volume instead of eventually pressuring the node. Because this volume's lifecycle is tied to the Pod rather than the container, something has to wipe it on every container start, so a container restart within a live Pod doesn't just inherit whatever the previous container left behind.
 

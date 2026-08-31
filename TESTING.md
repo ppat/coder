@@ -19,8 +19,15 @@ PR workflows are scoped directly by changed paths:
 - `test-image.yaml` runs for image changes. It delegates the multi-architecture build and private-registry cache to
   the shared image-build workflow, which connects to Tailscale for that registry.
 - `test-template.yaml` runs for template changes. It creates a local Coder/Postgres compose deployment, gives Coder
-  the test-cluster kubeconfig, publishes the template with the latest released GHCR workspace image, creates a
-  workspace, pings its agent three times with a timeout, and verifies SSH by running `env`.
+  the test-cluster kubeconfig and an OpenTofu binary bind-mounted over its bundled `terraform`, publishes the
+  template with the latest released GHCR workspace image, creates a workspace, pings its agent three times with a
+  timeout, and verifies SSH by running `env`.
+
+This test control plane is where this repo proves OpenTofu is the thing that actually *applies* the template —
+the live deployment's provisioner is a separate repo's decision, out of this repo's control (see the
+`CODER_TOFU_BINARY` gotcha in [CLAUDE.md](CLAUDE.md), and `homelab-ops-kubernetes-apps#3900` for that repo's own
+swap). The template is OpenTofu-authored HCL that either binary applies identically, so this pins down what this
+repo verified rather than carrying an untested assumption that OpenTofu behaves identically end to end.
 
 The temporary Coder deployment has no `CODER_ACCESS_URL`, so Coder creates its development tunnel. This is the
 workspace agent's route back from Kind; the runner continues to call Coder on localhost and template testing needs
@@ -36,7 +43,8 @@ pinning the Dockerfile's `FROM` line gets.
 ## Running the template test locally
 
 `test-template.yaml` needs nothing CI has that a laptop doesn't — no secrets, no Tailscale, no private registry. With
-`kind`, `docker compose`, `kubectl`, and the `coder` CLI on `PATH`, from the repo root:
+`kind`, `docker compose`, `kubectl`, the `coder` CLI, and `tofu` (`mise install`, pinned in `mise.toml`) on `PATH`,
+from the repo root:
 
 ```bash
 kind create cluster --name coder-template-test
@@ -47,12 +55,16 @@ cp /tmp/kind-kubeconfig /tmp/coder-kubeconfig
 sed -Ei 's#https://127\.0\.0\.1:[0-9]+#https://coder-template-test-control-plane:6443#' /tmp/coder-kubeconfig
 chmod 644 /tmp/coder-kubeconfig
 
-CODER_KUBECONFIG=/tmp/coder-kubeconfig docker compose -f .github/compose/compose.yaml up --detach
+CODER_KUBECONFIG=/tmp/coder-kubeconfig CODER_TOFU_BINARY="$(mise which tofu)" \
+  docker compose -f .github/compose/compose.yaml up --detach
 
 # once http://localhost:7080/api/v2/buildinfo responds:
 docker compose -f .github/compose/compose.yaml exec coder \
   coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
-coder login http://localhost:7080 --username ci --password ci-password
+CODER_SESSION_TOKEN="$(curl --fail --silent --show-error -X POST http://localhost:7080/api/v2/users/login \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  --data '{"email":"ci@example.invalid","password":"ci-password"}' | jq --raw-output .session_token)"
+CODER_SESSION_TOKEN="${CODER_SESSION_TOKEN}" coder login --use-token-as-session http://localhost:7080
 
 coder template push --directory templates/kubernetes/homelab-workspace \
   --var workspace_image=ghcr.io/ppat/coder-workspace:<a-released-tag> --var test_mode=true \
@@ -62,6 +74,11 @@ coder create local-test --template homelab-workspace-test --no-wait --yes \
 coder ping --num 3 --timeout 30s local-test
 coder ssh local-test -- env
 ```
+
+`docker compose exec coder terraform version` should report an `OpenTofu vX.Y.Z` banner, not a Terraform one — see
+the `CODER_TOFU_BINARY` gotcha in [CLAUDE.md](CLAUDE.md) for why a binary literally named `terraform` is OpenTofu
+here. (`coder login`'s `--username`/`--password` flags apply only to first-user bootstrap, not to logging in as an
+already-created user — the token dance above is what `actions/coder-cli-login` does for the same reason.)
 
 Tear down with `docker compose -f .github/compose/compose.yaml down --volumes` and
 `kind delete cluster --name coder-template-test`. `compose.yaml` uses Compose's default project-directory-from-file

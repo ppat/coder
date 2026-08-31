@@ -3,7 +3,7 @@
   "packageRules": [
     {
       "addLabels": [
-        "template:terraform-provider"
+        "template:opentofu-provider"
       ],
       "commitMessageTopic": "{{packageName}}",
       "groupName": "{{datasource}}-{{packageName}}",
@@ -13,7 +13,7 @@
       "matchFileNames": [
         "templates/**"
       ],
-      "semanticCommitScope": "terraform-provider",
+      "semanticCommitScope": "opentofu-provider",
       "separateMajorMinor": true,
       "separateMinorPatch": false,
       "separateMultipleMajor": true,

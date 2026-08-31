@@ -1,13 +1,13 @@
 # coder
 
-Terraform templates and container images for [Coder](https://coder.com/) workspaces, running on a personal Kubernetes homelab cluster.
+OpenTofu templates and container images for [Coder](https://coder.com/) workspaces, running on a personal Kubernetes homelab cluster.
 
 ## Contents
 
-- **`templates/kubernetes/homelab-workspace/`** — the Coder/Kubernetes Terraform template that provisions a workspace pod.
+- **`templates/kubernetes/homelab-workspace/`** — the Coder/Kubernetes OpenTofu template that provisions a workspace pod.
 - **`images/homelab-workspace/`** — the Ubuntu-based container image that pod runs.
 
-Template and image are versioned and released together; see [DESIGN.md](DESIGN.md) for why. Dependency versions (Terraform providers, image packages, GitHub Actions) are kept current mostly by Renovate.
+Template and image are versioned and released together; see [DESIGN.md](DESIGN.md) for why. Dependency versions (OpenTofu providers, image packages, GitHub Actions) are kept current mostly by Renovate.
 
 This repo is the middle of a larger stack: the Coder control plane is deployed separately (from the `homelab-ops-kubernetes-*` repos), and an operator's day-to-day tooling comes from their [dotfiles](../dotfiles) at provision time. See [DESIGN.md](DESIGN.md#where-the-workspace-environment-comes-from) for how the image, template, and those neighbours layer into one workspace environment.
 

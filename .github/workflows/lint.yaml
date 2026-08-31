@@ -32,7 +32,7 @@ jobs:
         - .github/renovate/**
         shellscripts:
         - '**.sh'
-        terraform:
+        opentofu:
         - '**.tf'
         - '**/.terraform-version'
         - '**/.terraform.lock.hcl'
@@ -41,12 +41,12 @@ jobs:
         - '**.yaml'
       git_ref: ${{ github.head_ref || github.ref }}
 
-  terraform-dirs:
+  opentofu-dirs:
     needs: [detect-changes]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
-      terraform_dirs: ${{ steps.determine-tf-dirs.outputs.dirs }}
+      opentofu_dirs: ${{ steps.determine-tf-dirs.outputs.dirs }}
     steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,22 +54,22 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
-    - name: Determine Terraform directories to validate
+    - name: Determine OpenTofu directories to validate
       id: determine-tf-dirs
       # yamllint disable-line rule:indentation
       run: |
         if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-          # For workflow_dispatch, validate all terraform directories
+          # For workflow_dispatch, validate all opentofu directories
           TF_DIRS=$(find templates/ -maxdepth 2 -mindepth 2 -type d -not -name '.*' 2>/dev/null | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
-        elif [[ "${{ fromJSON(needs.detect-changes.outputs.results).terraform_any_changed }}" == "true" ]]; then
+        elif [[ "${{ fromJSON(needs.detect-changes.outputs.results).opentofu_any_changed }}" == "true" ]]; then
           # For pull requests, check which files changed
-          CHANGED_FILES="${{ fromJSON(needs.detect-changes.outputs.results).terraform_all_changed_files }}"
+          CHANGED_FILES="${{ fromJSON(needs.detect-changes.outputs.results).opentofu_all_changed_files }}"
           TEMPLATE_CHANGES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep '^templates/' || true)
           # Otherwise only validate affected templates
           TF_DIRS=$(echo "$TEMPLATE_CHANGES" | grep -o 'templates/[^/]*' | sort | uniq | tr -d ' ' | jq -R -s -c 'split("\n") | map(select(length > 0))')
         else
           TF_DIRS="[]"
-          echo "No Terraform changes detected"
+          echo "No OpenTofu changes detected"
         fi
         echo "dirs=$TF_DIRS" >> "$GITHUB_OUTPUT"
 
@@ -128,13 +128,13 @@ jobs:
       git_ref: ${{ github.head_ref || github.ref }}
       files: ${{ github.event_name != 'pull_request' && 'ALL' || fromJSON(needs.detect-changes.outputs.results).shellscripts_all_changed_files }}
 
-  terraform:
-    needs: [terraform-dirs]
-    if: ${{ github.event_name != 'pull_request' || needs.terraform-dirs.outputs.terraform_dirs != '[]' }}
-    uses: ppat/github-workflows/.github/workflows/lint-terraform.yaml@5a96ced8ceefd58062f6b91ee9d6f3a31cd06e1c # v6.0.0
+  opentofu:
+    needs: [opentofu-dirs]
+    if: ${{ github.event_name != 'pull_request' || needs.opentofu-dirs.outputs.opentofu_dirs != '[]' }}
+    uses: ppat/github-workflows/.github/workflows/lint-opentofu.yaml@54ce2e4ac00927d6164d032b321f0142aab01c69 # v6.1.0
     with:
       git_ref: ${{ github.head_ref || github.ref }}
-      tf_dirs: ${{ needs.terraform-dirs.outputs.terraform_dirs }}
+      tofu_dirs: ${{ needs.opentofu-dirs.outputs.opentofu_dirs }}
 
   yaml:
     needs: [detect-changes]
