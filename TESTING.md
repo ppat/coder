@@ -8,20 +8,20 @@ A change to `templates/**` or `images/**` isn't trustworthy just because it pars
 
 ## How it works
 
-The release pipeline (`.github/workflows/release.yaml`) runs in one of two modes, gated by whether it's allowed to publish for real:
+The publish pipeline (`.github/workflows/publish.yaml`) runs in one of two modes, gated by the event that starts it:
 
-- **Dry-run mode** — automatic on any PR touching `images/**`, `templates/**`, or the release config itself, and available on demand via manual dispatch.
-- **Live mode** — runs on merge to `main`.
+- **Test mode** — automatic on any PR touching `images/**`, `templates/**`, or the publish workflow, and available on demand via manual dispatch.
+- **Live mode** — runs only when release-please has published a GitHub release after its release PR is merged.
 
-Both modes run the identical sequence of stages; only what each stage is permitted to do at the end differs.
+Both modes run the identical image build and template-push sequence; only the release source and destination differ. Release coordination is separate: `.github/workflows/release.yaml` runs release-please on `main`, creating or updating its release PR. A PR test does not simulate that release step.
 
 ## What each stage confirms
 
-1. **Versioning** — commit history since the last release is parsed to determine what the next version would be. In dry-run this stops short of tagging or publishing; it still confirms the commit history is well-formed enough to produce a valid release.
-2. **Image build** — the container image is built for every published architecture and pushed to the registry. This is the same build a live release performs, so it confirms the Dockerfile still produces a working image end to end — dry-run only changes the tag it's pushed under, not the build itself.
-3. **Template push** — the Terraform template is applied against the real Coder deployment and Kubernetes cluster, using the image just built. This confirms the template is actually valid against live provider/cluster state, not just internally consistent. Dry-run redirects this push to a separate, clearly-named template rather than the one real workspaces use, and backs it with disposable storage instead of the shared persistent volume — so nothing here can affect an existing workspace no matter what the change does.
+1. **Release source** — test mode builds the PR branch or manually dispatched ref, and names the test template with that event's commit SHA. Live mode uses the GitHub release tag created by release-please for both. This keeps a test publish tied to the code under review without pretending that a release exists.
+2. **Image build** — the container image is built for every published architecture and pushed to the registry. This is the same build a live release performs, so it confirms the Dockerfile still produces a working image end to end — test mode only changes the tag it is pushed under, not the build itself.
+3. **Template push** — the Terraform template is applied against the real Coder deployment and Kubernetes cluster, using the image just built. This confirms the template is actually valid against live provider/cluster state, not just internally consistent. Test mode redirects this push to a separate, clearly-named template rather than the one real workspaces use, and backs it with disposable storage instead of the shared persistent volume — so nothing here can affect an existing workspace no matter what the change does.
 
-Because all three stages run for real in dry-run — just scoped away from production — a passing PR is a meaningful signal that a live release would also succeed, not a guess based on static checks alone.
+Because both publishing stages run for real in test mode — just scoped away from production — a passing PR is a meaningful signal that a live release would also succeed, not a guess based on static checks alone.
 
 ## The memory watchdog is the one part with runtime behaviour
 
@@ -69,4 +69,4 @@ None of this proves the described drill did not happen — a drill run through t
 
 ## After merge
 
-Merging to `main` is what flips the pipeline into live mode — there's no separate promotion step afterward. The dry-run pass on the PR is the actual release gate.
+Merging an ordinary PR to `main` updates release-please's standing release PR; it does not publish artifacts. Merging that release PR creates the GitHub release, which flips the publish pipeline into live mode. The test-mode pass on the original PR is the actual artifact-release gate.
