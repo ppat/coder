@@ -25,8 +25,46 @@ PR workflows are scoped directly by changed paths:
 The temporary Coder deployment has no `CODER_ACCESS_URL`, so Coder creates its development tunnel. This is the
 workspace agent's route back from Kind; the runner continues to call Coder on localhost and template testing needs
 neither Tailscale nor the private registry. Test mode omits the production `/tmp` volume and uses a 2 GiB home volume;
-live workspaces retain their production storage. The Compose Coder and Postgres versions mirror production and carry
-explicit Renovate annotations in `.github/compose/.env`.
+live workspaces retain their production storage. The Compose Coder version matches the live deployment's Helm chart
+version and the Postgres version matches the live CloudNativePG cluster's (see `homelab-ops-kubernetes-apps`'s
+`apps/subsystems/coder/`) — the Postgres *image* itself is the plain upstream one rather than CloudNativePG's, since
+this Compose stack isn't standing in for CloudNativePG, just a same-version Postgres for Coder to talk to. Both
+versions are Renovate-tracked in `.github/compose/.env`.
+
+## Running the template test locally
+
+`test-template.yaml` needs nothing CI has that a laptop doesn't — no secrets, no Tailscale, no private registry. With
+`kind`, `docker compose`, `kubectl`, and the `coder` CLI on `PATH`, from the repo root:
+
+```bash
+kind create cluster --name coder-template-test
+kubectl create namespace coder
+
+kind export kubeconfig --name coder-template-test --kubeconfig /tmp/kind-kubeconfig
+cp /tmp/kind-kubeconfig /tmp/coder-kubeconfig
+sed -Ei 's#https://127\.0\.0\.1:[0-9]+#https://coder-template-test-control-plane:6443#' /tmp/coder-kubeconfig
+chmod 644 /tmp/coder-kubeconfig
+
+CODER_KUBECONFIG=/tmp/coder-kubeconfig docker compose -f .github/compose/compose.yaml up --detach
+
+# once http://localhost:7080/api/v2/buildinfo responds:
+docker compose -f .github/compose/compose.yaml exec coder \
+  coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
+coder login http://localhost:7080 --username ci --password ci-password
+
+coder template push --directory templates/kubernetes/homelab-workspace \
+  --var workspace_image=ghcr.io/ppat/coder-workspace:<a-released-tag> --var test_mode=true \
+  --name local --yes homelab-workspace-test
+coder create local-test --template homelab-workspace-test --no-wait --yes \
+  --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce
+coder ping --num 3 --timeout 30s local-test
+coder ssh local-test -- env
+```
+
+Tear down with `docker compose -f .github/compose/compose.yaml down --volumes` and
+`kind delete cluster --name coder-template-test`. `compose.yaml` uses Compose's default project-directory-from-file
+resolution, so the same commands also work as `docker compose up --detach` etc. from inside `.github/compose/` with
+no `-f` needed.
 
 ## What each stage confirms
 
