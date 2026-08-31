@@ -49,13 +49,13 @@ Commitlint (`commitlint.config.js`) enforces Conventional Commits.
 
 ## Release flow
 
-`.github/workflows/release.yaml` triggers on changes to `images/homelab-workspace/**`, `templates/**`, or the release workflow/config itself, and on merge to `main`:
+`.github/workflows/release.yaml` runs release-please on every merge to `main`:
 
-1. `semantic-release` (`.releaserc.js`) cuts a version from commit history, updates `CHANGELOG.md`.
-2. The workspace image builds for `linux/amd64,linux/arm64` and pushes to the private registry.
-3. The Terraform template pushes to the live Coder deployment via `coder template push`, tagged with the released version.
+1. It creates or updates the release PR from Conventional Commit history. Merging that PR creates the GitHub release/tag and the next release PR.
+2. The published GitHub release triggers `.github/workflows/publish.yaml`, which builds the workspace image for `linux/amd64,linux/arm64` and pushes it to the private registry.
+3. The same publish workflow pushes the Terraform template to the live Coder deployment, tagged with the released version.
 
-PRs and manual `workflow_dispatch` runs exercise this same pipeline in dry-run/test mode instead of publishing for real — see [TESTING.md](TESTING.md), which is the required reading before touching `templates/**` or `images/**`.
+PRs affecting the image, template, or publish workflow exercise only `.github/workflows/publish.yaml` in test mode — no release simulation is needed. See [TESTING.md](TESTING.md), which is required reading before touching `templates/**` or `images/**`.
 
 ## Where things live
 
