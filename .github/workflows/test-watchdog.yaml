@@ -1,6 +1,6 @@
 ---
 # yamllint disable rule:line-length
-name: test
+name: test watchdog
 
 # Repo-local rather than a reusable workflow because ppat/github-workflows has
 # nothing for "execute a test script" - the shellcheck workflow only lints,
@@ -13,7 +13,7 @@ name: test
 on:
   pull_request:
     paths:
-    - .github/workflows/test.yaml
+    - .github/workflows/test-watchdog.yaml
     - templates/kubernetes/homelab-workspace/script-memory-watchdog*.sh
   workflow_dispatch:
 

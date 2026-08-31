@@ -1,33 +1,46 @@
 # TESTING.md
 
-How changes to the template or image get verified before they can affect production. There's no separate test suite or staging environment (see [DESIGN.md](DESIGN.md)) — verification is the release pipeline itself, run in a mode that exercises everything a real release would except the parts that would affect the live template or its persistent state.
+How changes to the template or image get verified before they can affect production. The release workflow publishes
+only a GitHub release; PR workflows test the changed layer without touching the live Coder deployment.
 
 ## Intent
 
-A change to `templates/**` or `images/**` isn't trustworthy just because it parses (that's what lint/`terraform validate` already cover — see [CLAUDE.md](CLAUDE.md)). It's trustworthy once the same pipeline that would ship it has actually built the image and applied the template against the real cluster and provider. The test workflow's job is to make that possible on every PR, automatically, without any risk to the production template or the shared persistent state real workspaces depend on.
+A change to `templates/**` or `images/**` is not trustworthy just because it parses (that is what lint and
+`terraform validate` cover — see [CLAUDE.md](CLAUDE.md)). Each PR path must test the artifact it changes without
+changing a live template, its backing storage, or a published image tag.
 
 ## How it works
 
-The publish pipeline (`.github/workflows/publish.yaml`) runs in one of two modes, gated by the event that starts it:
+`publish.yaml` runs only for a published GitHub release. It still builds the multi-architecture image, publishes it to
+the registries, and pushes the live Coder template with that release tag.
 
-- **Test mode** — automatic on any PR touching `images/**`, `templates/**`, or the publish workflow, and available on demand via manual dispatch.
-- **Live mode** — runs only when release-please has published a GitHub release after its release PR is merged.
+PR workflows are scoped directly by changed paths:
 
-Both modes run the identical image build and template-push sequence; only the release source and destination differ. Release coordination is separate: `.github/workflows/release.yaml` runs release-please on `main`, creating or updating its release PR. A PR test does not simulate that release step.
+- `test-image.yaml` runs for image changes. It delegates the multi-architecture build and private-registry cache to
+  the shared image-build workflow, which connects to Tailscale for that registry.
+- `test-template.yaml` runs for template changes. It creates a local Coder/Postgres compose deployment, gives Coder
+  the test-cluster kubeconfig, publishes the template with the latest released GHCR workspace image, creates a
+  workspace, pings its agent three times with a timeout, and verifies SSH by running `env`.
+
+The temporary Coder deployment has no `CODER_ACCESS_URL`, so Coder creates its development tunnel. This is the
+workspace agent's route back from Kind; the runner continues to call Coder on localhost and template testing needs
+neither Tailscale nor the private registry. Test mode omits the production `/tmp` volume and uses a 2 GiB home volume;
+live workspaces retain their production storage. The Compose Coder and Postgres versions mirror production and carry
+explicit Renovate annotations in `.github/compose/.env`.
 
 ## What each stage confirms
 
-1. **Release source** — test mode builds the PR branch or manually dispatched ref, and names the test template with that event's commit SHA. Live mode uses the GitHub release tag created by release-please for both. This keeps a test publish tied to the code under review without pretending that a release exists.
-2. **Image build** — the container image is built for every published architecture and pushed to the registry. This is the same build a live release performs, so it confirms the Dockerfile still produces a working image end to end — test mode only changes the tag it is pushed under, not the build itself.
-3. **Template push** — the Terraform template is applied against the real Coder deployment and Kubernetes cluster, using the image just built. This confirms the template is actually valid against live provider/cluster state, not just internally consistent. Test mode redirects this push to a separate, clearly-named template rather than the one real workspaces use, and backs it with disposable storage instead of the shared persistent volume — so nothing here can affect an existing workspace no matter what the change does.
-
-Because both publishing stages run for real in test mode — just scoped away from production — a passing PR is a meaningful signal that a live release would also succeed, not a guess based on static checks alone.
+1. **Image build** — an image change exercises both published architectures and the existing private cache through
+   the shared image-build workflow.
+2. **Template runtime** — a template-only PR applies against fresh Coder, Postgres, and Kubernetes state, using the
+   last released GHCR image. The workspace start, agent ping, and SSH command prove the rendered template's runtime
+   path rather than merely its Terraform syntax.
 
 ## The memory watchdog is the one part with runtime behaviour
 
 Everything else here is declarative and is covered by the stages above. `script-memory-watchdog.sh` decides at runtime whether to kill a process, so it gets two things neither lint nor a template push can provide:
 
-- **Fixtures** — `./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh`, also run by the `watchdog` job in `.github/workflows/test.yaml`. The suite is built around negative assertions paired with the mutation that must flip them: "it did not kill the agent session" proves nothing unless removing one rule makes it kill the agent session. Two of its own safety properties matter as much as its assertions: `kill` is shadowed by a function throughout, because the fixture pids name real processes in whatever container runs the suite; and every load of the watchdog redirects its stdout emission to a temporary file, with the suite exiting outright if that seam did not take — the real default is the container's own stdout, and a run without the seam has already put fixture kill lines into a live workspace's log stream.
+- **Fixtures** — `./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh`, also run by the `watchdog` job in `.github/workflows/test-watchdog.yaml`. The suite is built around negative assertions paired with the mutation that must flip them: "it did not kill the agent session" proves nothing unless removing one rule makes it kill the agent session. Two of its own safety properties matter as much as its assertions: `kill` is shadowed by a function throughout, because the fixture pids name real processes in whatever container runs the suite; and every load of the watchdog redirects its stdout emission to a temporary file, with the suite exiting outright if that seam did not take — the real default is the container's own stdout, and a run without the seam has already put fixture kill lines into a live workspace's log stream.
 - **A live drill on a disposable `test_mode` workspace**, which has disposable storage and can be wrecked freely. Fixtures cannot answer whether a real process tree classifies correctly, whether a supervisor really does respawn what was killed, or whether the respawned process comes back inside its share (a drift the watchdog should keep policing) or above it (an `oversize` it should report and leave alone). The drill that has been run: a stand-in session root (`exec -a claude bash`, to exercise the shebang branch of the claude-root guard rather than the trivial compiled-binary one) with an over-budget helper that a supervisor respawns, a second helper inside its budget, and a process detached into its own session with `setsid` — the same mechanism Claude Code uses to detach a Bash tool call — larger than both.
 
 Neither replaces the other, and the live one is where every defect that mattered in this component has been found.

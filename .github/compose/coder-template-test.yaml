@@ -1,0 +1,34 @@
+---
+services:
+  coder:
+    image: ghcr.io/coder/coder:${CODER_VERSION}
+    ports:
+    - "7080:7080"
+    environment:
+      CODER_HTTP_ADDRESS: 0.0.0.0:7080
+      CODER_PG_CONNECTION_URL: postgresql://coder:coder@database/coder?sslmode=disable
+      KUBECONFIG: /home/coder/.kube/config
+    volumes:
+    - ${CODER_KUBECONFIG}:/home/coder/.kube/config:ro
+    networks:
+      default:
+      kind:
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:${POSTGRES_VERSION}
+    environment:
+      POSTGRES_USER: coder
+      POSTGRES_PASSWORD: coder
+      POSTGRES_DB: coder
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coder -d coder"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  kind:
+    external: true

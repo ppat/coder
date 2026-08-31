@@ -1,0 +1,112 @@
+---
+# yamllint disable rule:line-length
+name: test template
+
+on:
+  pull_request:
+    paths:
+    - .github/compose/**
+    - .github/workflows/test-template.yaml
+    - templates/kubernetes/homelab-workspace/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CODER_URL: http://localhost:7080
+  KIND_CLUSTER: coder-template-test
+  TEMPLATE_NAME: homelab-workspace-test
+  WORKSPACE_NAME: template-test
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Create Kubernetes test cluster
+      run: kind create cluster --name "${KIND_CLUSTER}"
+
+    - name: Start local Coder
+      env:
+        COMPOSE_FILE: .github/compose/coder-template-test.yaml
+        CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
+        RUNNER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-runner
+      shell: bash
+      run: |
+        kind export kubeconfig --name "${KIND_CLUSTER}" --kubeconfig "${RUNNER_KUBECONFIG}"
+        cp "${RUNNER_KUBECONFIG}" "${CODER_KUBECONFIG}"
+        sed -Ei "s#https://127\\.0\\.0\\.1:[0-9]+#https://${KIND_CLUSTER}-control-plane:6443#" "${CODER_KUBECONFIG}"
+        chmod 644 "${CODER_KUBECONFIG}"
+        export CODER_KUBECONFIG
+        docker compose -f "${COMPOSE_FILE}" up --detach
+
+    - name: Wait for local Coder
+      shell: bash
+      run: |
+        timeout 5m bash -c "until curl --fail --silent --show-error \"${CODER_URL}/api/v2/buildinfo\" > /dev/null; do sleep 2; done"
+
+    - name: Create local Coder user
+      env:
+        CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
+      run: |
+        docker compose -f .github/compose/coder-template-test.yaml exec --tty=false coder \
+        coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
+
+    - name: Install and log in to Coder CLI
+      shell: bash
+      run: |
+        source .github/compose/.env
+        curl --fail --silent --show-error --location \
+        "https://github.com/coder/coder/releases/download/${CODER_VERSION}/coder_${CODER_VERSION#v}_linux_amd64.tar.gz" \
+        | tar --extract --gzip --to-stdout ./coder > "${RUNNER_TEMP}/coder"
+        chmod +x "${RUNNER_TEMP}/coder"
+        echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+        export PATH="${RUNNER_TEMP}:${PATH}"
+        export CODER_SESSION_TOKEN
+        CODER_SESSION_TOKEN="$(curl --fail --silent --show-error -X POST "${CODER_URL}/api/v2/users/login" \
+        -H 'Content-Type: application/json' \
+        --data '{"email":"ci@example.invalid","password":"ci-password"}' | jq --raw-output .session_token)"
+        test -n "${CODER_SESSION_TOKEN}" && test "${CODER_SESSION_TOKEN}" != null
+        coder login --use-token-as-session "${CODER_URL}"
+
+    - name: Publish template
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
+        WORKSPACE_IMAGE="ghcr.io/ppat/coder-workspace:${RELEASE_TAG}"
+        coder template push --directory templates/kubernetes/homelab-workspace \
+        --var "workspace_image=${WORKSPACE_IMAGE}" --var test_mode=true \
+        --name "${{ github.sha }}" --yes "${TEMPLATE_NAME}"
+
+    - name: Start workspace
+      shell: bash
+      run: |
+        coder create "${WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
+        --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce
+
+    - name: Ping workspace agent
+      shell: bash
+      run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}"
+
+    - name: Run command over workspace SSH
+      shell: bash
+      run: |
+        coder ssh "${WORKSPACE_NAME}" -- env
+
+    - name: Show Coder logs on failure
+      if: failure()
+      env:
+        CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
+      run: docker compose -f .github/compose/coder-template-test.yaml logs

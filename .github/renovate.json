@@ -5,6 +5,7 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/(^|/).+\\.ya?ml$/",
+        "/(^|/)\\.env$/",
         "/(^|/)Dockerfile$/"
       ],
       "matchStrings": [

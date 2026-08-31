@@ -32,7 +32,7 @@ tflint --config=../../../.tflint.hcl
 
 CI (`.github/workflows/lint.yaml`) runs the same checks per file-type via reusable workflows in `ppat/github-workflows`, scoped to changed files on PRs, or everything on `workflow_dispatch`/schedule.
 
-A separate workflow, `.github/workflows/test.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
+A separate workflow, `.github/workflows/test-watchdog.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
 
 ```bash
 ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
@@ -55,7 +55,10 @@ Commitlint (`commitlint.config.js`) enforces Conventional Commits.
 2. The published GitHub release triggers `.github/workflows/publish.yaml`, which builds the workspace image for `linux/amd64,linux/arm64` and pushes it to the private registry.
 3. The same publish workflow pushes the Terraform template to the live Coder deployment, tagged with the released version.
 
-PRs affecting the image, template, or publish workflow exercise only `.github/workflows/publish.yaml` in test mode — no release simulation is needed. See [TESTING.md](TESTING.md), which is required reading before touching `templates/**` or `images/**`.
+PR validation is deliberately narrower than publishing: `test-image.yaml` builds image changes against the private
+registry cache, while `test-template.yaml` publishes template changes to a local Coder/Postgres test control plane
+and verifies a workspace on the test cluster. See [TESTING.md](TESTING.md), which is required reading before touching
+`templates/**` or `images/**`.
 
 ## Where things live
 
@@ -76,7 +79,7 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `script-agent-startup.sh` / `script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
 | `script-container-entrypoint.sh` | The workspace container's `command`. Wipes `/tmp` and `exec`s Coder's generated `/workspace-init.sh` — the wipe must precede the agent, see the gotcha below |
 | `script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). It bounds the **standing population of restartable helpers** against a fixed **2048 MiB envelope** for the VS Code tree (per-role shares of it, PSS, ten-minute dwell) and records every per-process sweep. It does **not** try to prevent an acute OOM. `memory_watchdog_mode` selects `observe` / `enforce` (the default; arms every role). `enforce-all` is retired and honoured as `enforce` |
-| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
+| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test-watchdog.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
 | `script-vscode-server-gc.sh` | Weekly GC of `~/.vscode-server` (interrupted downloads, superseded server versions/extensions, orphaned CLI binaries — see the script's own header for the exact signal per class, and the `coder_script.vscode_server_gc` comment in `scripts.tf` for why it's template-owned rather than dotfiles-owned) |
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
