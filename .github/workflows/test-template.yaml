@@ -70,32 +70,29 @@ jobs:
         coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
 
     - name: Install and log in to Coder CLI
-      shell: bash
-      run: |
-        source .github/compose/.env
-        curl --fail --silent --show-error --location \
-        "https://github.com/coder/coder/releases/download/${CODER_VERSION}/coder_${CODER_VERSION#v}_linux_amd64.tar.gz" \
-        | tar --extract --gzip --to-stdout ./coder > "${RUNNER_TEMP}/coder"
-        chmod +x "${RUNNER_TEMP}/coder"
-        echo "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
-        export PATH="${RUNNER_TEMP}:${PATH}"
-        export CODER_SESSION_TOKEN
-        CODER_SESSION_TOKEN="$(curl --fail --silent --show-error -X POST "${CODER_URL}/api/v2/users/login" \
-        -H 'Content-Type: application/json' \
-        --data '{"email":"ci@example.invalid","password":"ci-password"}' | jq --raw-output .session_token)"
-        test -n "${CODER_SESSION_TOKEN}" && test "${CODER_SESSION_TOKEN}" != null
-        coder login --use-token-as-session "${CODER_URL}"
+      uses: ./actions/coder-cli-login
+      with:
+        coder_url: ${{ env.CODER_URL }}
+        coder_email: ci@example.invalid
+        coder_password: ci-password
 
-    - name: Publish template
+    - name: Determine latest released workspace image
+      id: image
       env:
         GH_TOKEN: ${{ github.token }}
       shell: bash
       run: |
         RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
-        WORKSPACE_IMAGE="ghcr.io/ppat/coder-workspace:${RELEASE_TAG}"
-        coder template push --directory templates/kubernetes/homelab-workspace \
-        --var "workspace_image=${WORKSPACE_IMAGE}" --var test_mode=true \
-        --name "${{ github.sha }}" --yes "${TEMPLATE_NAME}"
+        echo "workspace_image=ghcr.io/ppat/coder-workspace:${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+
+    - name: Publish template
+      uses: ./actions/coder-template-push
+      with:
+        template_dir: templates/kubernetes/homelab-workspace
+        template_name: ${{ env.TEMPLATE_NAME }}
+        template_version: ${{ github.sha }}
+        workspace_image: ${{ steps.image.outputs.workspace_image }}
+        test_mode: "true"
 
     - name: Start workspace
       shell: bash

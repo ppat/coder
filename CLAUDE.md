@@ -86,6 +86,8 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 
 **Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules in `exceptions.json`, `image-cli-tools.json`, `template-terraform-provider.json` that set different automerge delays per dependency class.
 
+**Composite actions** (`actions/`): the steps `publish.yaml`'s release path and `test-template.yaml`'s PR path both need against whichever Coder deployment they're each pointed at (the live one vs. the disposable Compose one) — `coder-cli-login` waits for the deployment, installs the matching CLI version, and logs in; `coder-template-push` pushes the template and confirms the push landed. Every input crosses via `env:`/`with:`, never interpolated directly into a `run:` script, so a secret value can't reach a shell string unescaped.
+
 ## Implementation gotchas
 
 Things that look arbitrary in the code but are load-bearing (full reasoning in [DESIGN.md](DESIGN.md)):
