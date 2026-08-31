@@ -2,6 +2,34 @@
 
 
 
+## [2.28.0](https://github.com/ppat/coder/compare/v2.27.1...v2.28.0) (2026-08-31)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* add annotation on coder workspace pods to tell descheduler to not evict them ([#894](https://github.com/ppat/coder/issues/894)) ([6ee84db](https://github.com/ppat/coder/commit/6ee84db71591a2043aa8547a266cd73a171eb17a))
+* **dev-tools:** update bun (non-major) ([#890](https://github.com/ppat/coder/issues/890)) ([f6a347b](https://github.com/ppat/coder/commit/f6a347b7347a3ed87059e640b773381cfc4b198b))
+* **dev-tools:** update tailscale/tailscale (v1.102.2 -&gt; v1.102.3) ([#885](https://github.com/ppat/coder/issues/885)) ([02cdea3](https://github.com/ppat/coder/commit/02cdea3ea9add2660e07bc38d500b5ea2cdaf497))
+* **github-actions:** update ppat/github-workflows (v4.4.0 -&gt; v5.0.1) ([#877](https://github.com/ppat/coder/issues/877)) ([68cd8e7](https://github.com/ppat/coder/commit/68cd8e7649c60ecad8fc0acfbb374ff308c2fb6a))
+* **github-actions:** update ppat/github-workflows (v5.0.1 -&gt; v6.0.0) ([#880](https://github.com/ppat/coder/issues/880)) ([a652150](https://github.com/ppat/coder/commit/a652150744dd5f6e5add70e4db8fb97498736055))
+* govern the in-tree helpers the watchdog could not name ([#881](https://github.com/ppat/coder/issues/881)) ([d349321](https://github.com/ppat/coder/commit/d3493219aa1d5d7c0a7b7fe31e5ba9bfd7870268))
+* **release:** add release please configuration ([#892](https://github.com/ppat/coder/issues/892)) ([7f1bc0b](https://github.com/ppat/coder/commit/7f1bc0b900b9e2c14b7ea80893be48e4c6b87ecf))
+* **terraform-version:** update terraform (non-major) ([#889](https://github.com/ppat/coder/issues/889)) ([ea81c25](https://github.com/ppat/coder/commit/ea81c25431a2966ea29de0c9120d6fabae38edfe))
+* update digest ubuntu (678c655 -&gt; 2260313) ([#879](https://github.com/ppat/coder/issues/879)) ([2c1f767](https://github.com/ppat/coder/commit/2c1f767e42e5192bc0a918dd5e46929fadae3236))
+
+
+### 🛠 Improvements
+
+* correct and evidence the memory watchdog's kill-path claims ([#882](https://github.com/ppat/coder/issues/882)) ([b4d2c47](https://github.com/ppat/coder/commit/b4d2c475ff75ffa3e450d377dc401bd3fbde93e2))
+* state why the heap ceiling is not ordered ahead of the share ([#886](https://github.com/ppat/coder/issues/886)) ([5c1f6da](https://github.com/ppat/coder/commit/5c1f6da162e04e846fe7f27da5047f4a302d8b31))
+
+
+### ✨ Features
+
+* **github-actions:** publish coder-workspace images to GHCR on release ([#878](https://github.com/ppat/coder/issues/878)) ([41c71c1](https://github.com/ppat/coder/commit/41c71c10dfa0eba2d01054dfe707d4c83ef2d7de))
+* give the VS Code tree one memory envelope and shares of it ([#884](https://github.com/ppat/coder/issues/884)) ([f8cc458](https://github.com/ppat/coder/commit/f8cc4583af52bcc4de531e6911339f25b30a96bd))
+* update ppat/renovate-presets (v0.2.1 -&gt; v0.3.0) ([#888](https://github.com/ppat/coder/issues/888)) ([f3364d6](https://github.com/ppat/coder/commit/f3364d6612b2d893a93927d7e6e6b855006cdfcf))
+
 ## [2.27.1](https://github.com/ppat/coder/compare/v2.27.0...v2.27.1) (2026-08-19)
 
 ## [2.27.0](https://github.com/ppat/coder/compare/v2.26.0...v2.27.0) (2026-08-18)
