@@ -151,9 +151,12 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "coder-scripts"
             sub_path   = "workspace_init_script"
           }
-          volume_mount {
-            mount_path = "/tmp"
-            name       = "tmp"
+          dynamic "volume_mount" {
+            for_each = var.test_mode ? [] : toset(["tmp"])
+            content {
+              mount_path = "/tmp"
+              name       = volume_mount.value
+            }
           }
         }
         enable_service_links = false
@@ -184,7 +187,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           content {
             name = "home"
             empty_dir {
-              size_limit = "10Gi"
+              size_limit = "2Gi"
             }
           }
         }
@@ -217,16 +220,19 @@ resource "kubernetes_deployment_v1" "deployment" {
         # the entrypoint and nowhere later: the Coder agent unpacks its own CLI
         # into /tmp before it runs anything else, so a wipe from the agent
         # startup script deletes it.
-        volume {
-          name = "tmp"
-          ephemeral {
-            volume_claim_template {
-              spec {
-                access_modes       = ["ReadWriteOnce"]
-                storage_class_name = "sc-longhorn-local-non-replicated-ephemeral"
-                resources {
-                  requests = {
-                    storage = "20Gi"
+        dynamic "volume" {
+          for_each = var.test_mode ? [] : toset(["tmp"])
+          content {
+            name = volume.value
+            ephemeral {
+              volume_claim_template {
+                spec {
+                  access_modes       = ["ReadWriteOnce"]
+                  storage_class_name = "sc-longhorn-local-non-replicated-ephemeral"
+                  resources {
+                    requests = {
+                      storage = "20Gi"
+                    }
                   }
                 }
               }

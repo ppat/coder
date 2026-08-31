@@ -1,0 +1,70 @@
+---
+# yamllint disable rule:line-length
+name: Coder template push
+description: >-
+  Pushes the homelab-workspace Terraform template to a Coder deployment
+  (already logged in via the coder CLI) and confirms the push landed.
+
+inputs:
+  template_dir:
+    description: Path to the Terraform template directory.
+    required: true
+  template_name:
+    description: Name of the template to push (created if it does not exist).
+    required: true
+  template_version:
+    description: Name given to the pushed template version.
+    required: true
+  workspace_image:
+    description: Value passed to the template's workspace_image variable.
+    required: true
+  test_mode:
+    description: Value passed to the template's test_mode variable.
+    required: true
+    default: "false"
+  message:
+    description: Message recorded on the pushed template version.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+  - name: Push template
+    shell: bash
+    env:
+      TEMPLATE_DIR: ${{ inputs.template_dir }}
+      TEMPLATE_NAME: ${{ inputs.template_name }}
+      TEMPLATE_VERSION: ${{ inputs.template_version }}
+      WORKSPACE_IMAGE: ${{ inputs.workspace_image }}
+      TEST_MODE: ${{ inputs.test_mode }}
+      TEMPLATE_MESSAGE: ${{ inputs.message }}
+    # yamllint disable-line rule:indentation
+    run: |
+      push_args=(
+        --directory "${TEMPLATE_DIR}"
+        --var "workspace_image=${WORKSPACE_IMAGE}"
+        --var "test_mode=${TEST_MODE}"
+        --name "${TEMPLATE_VERSION}"
+        --yes
+      )
+      if [[ -n "${TEMPLATE_MESSAGE}" ]]; then
+        push_args+=(--message "${TEMPLATE_MESSAGE}")
+      fi
+      set -x
+      coder template push "${push_args[@]}" "${TEMPLATE_NAME}"
+      set +x
+
+  - name: Confirm template was published
+    shell: bash
+    env:
+      TEMPLATE_NAME: ${{ inputs.template_name }}
+    # yamllint disable-line rule:indentation
+    run: |
+      coder templates list --output json > "${RUNNER_TEMP}/templates.json"
+      export SELECTED_TEMPLATE
+      SELECTED_TEMPLATE="$(jq -r --arg name "${TEMPLATE_NAME}" '.[] | select(.Template.name == $name)' "${RUNNER_TEMP}/templates.json")"
+      if [[ -z "${SELECTED_TEMPLATE}" ]]; then
+        echo "::error::Could not find any template published as ${TEMPLATE_NAME}."
+        exit 1
+      fi

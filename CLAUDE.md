@@ -32,13 +32,13 @@ tflint --config=../../../.tflint.hcl
 
 CI (`.github/workflows/lint.yaml`) runs the same checks per file-type via reusable workflows in `ppat/github-workflows`, scoped to changed files on PRs, or everything on `workflow_dispatch`/schedule.
 
-A separate workflow, `.github/workflows/test.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
+A separate workflow, `.github/workflows/test-watchdog.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
 
 ```bash
 ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
 ```
 
-There is no local way to build/publish the image or push the Coder template — see [TESTING.md](TESTING.md) for how a change actually gets exercised (including the `test_mode` flow), and the **Release flow** section below for how it ships for real.
+There is no local way to build/publish the image against the private registry cache (`test-image.yaml` needs the Tailscale-routed credentials CI has), but the template test path needs neither secrets nor CI: `test-template.yaml`'s Kind/Compose/`coder` sequence runs the same on a laptop — see [TESTING.md](TESTING.md) for the local recipe and for how a change actually gets exercised (including the `test_mode` flow), and the **Release flow** section below for how it ships for real.
 
 ## Commit messages
 
@@ -55,7 +55,10 @@ Commitlint (`commitlint.config.js`) enforces Conventional Commits.
 2. The published GitHub release triggers `.github/workflows/publish.yaml`, which builds the workspace image for `linux/amd64,linux/arm64` and pushes it to the private registry.
 3. The same publish workflow pushes the Terraform template to the live Coder deployment, tagged with the released version.
 
-PRs affecting the image, template, or publish workflow exercise only `.github/workflows/publish.yaml` in test mode — no release simulation is needed. See [TESTING.md](TESTING.md), which is required reading before touching `templates/**` or `images/**`.
+PR validation is deliberately narrower than publishing: `test-image.yaml` builds image changes against the private
+registry cache, while `test-template.yaml` publishes template changes to a local Coder/Postgres test control plane
+and verifies a workspace on the test cluster. See [TESTING.md](TESTING.md), which is required reading before touching
+`templates/**` or `images/**`.
 
 ## Where things live
 
@@ -76,12 +79,16 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `script-agent-startup.sh` / `script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
 | `script-container-entrypoint.sh` | The workspace container's `command`. Wipes `/tmp` and `exec`s Coder's generated `/workspace-init.sh` — the wipe must precede the agent, see the gotcha below |
 | `script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). It bounds the **standing population of restartable helpers** against a fixed **2048 MiB envelope** for the VS Code tree (per-role shares of it, PSS, ten-minute dwell) and records every per-process sweep. It does **not** try to prevent an acute OOM. `memory_watchdog_mode` selects `observe` / `enforce` (the default; arms every role). `enforce-all` is retired and honoured as `enforce` |
-| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
+| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test-watchdog.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
 | `script-vscode-server-gc.sh` | Weekly GC of `~/.vscode-server` (interrupted downloads, superseded server versions/extensions, orphaned CLI binaries — see the script's own header for the exact signal per class, and the `coder_script.vscode_server_gc` comment in `scripts.tf` for why it's template-owned rather than dotfiles-owned) |
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
 **Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules in `exceptions.json`, `image-cli-tools.json`, `template-terraform-provider.json` that set different automerge delays per dependency class.
+
+**Local test control plane** (`.github/compose/compose.yaml`): brings up a disposable Coder/Postgres pair for `test-template.yaml`, versioned to match the live deployment in `homelab-ops-kubernetes-apps` (see [TESTING.md](TESTING.md)). Named `compose.yaml`, not e.g. `coder-template-test.yaml`, for two reasons: it runs with no `-f` flag from inside the directory, and it's what makes Renovate's built-in `docker-compose` manager match the file at all — that manager is enabled by default and needs no config here, but only extracts a version it can see as a literal in an `image:` line, so the versions are pinned there directly rather than behind a `${VAR}`/`.env` indirection it can't see through.
+
+**Composite actions** (`actions/`): the steps `publish.yaml`'s release path and `test-template.yaml`'s PR path both need against whichever Coder deployment they're each pointed at (the live one vs. the disposable Compose one) — `coder-cli-login` waits for the deployment, installs the matching CLI version, and logs in; `coder-template-push` pushes the template and confirms the push landed. Every input crosses via `env:`/`with:`, never interpolated directly into a `run:` script, so a secret value can't reach a shell string unescaped.
 
 ## Implementation gotchas
 

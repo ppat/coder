@@ -1,0 +1,116 @@
+---
+# yamllint disable rule:line-length
+name: test template
+
+on:
+  pull_request:
+    paths:
+    - .github/compose/**
+    - .github/workflows/test-template.yaml
+    - templates/kubernetes/homelab-workspace/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CODER_URL: http://localhost:7080
+  COMPOSE_FILE: .github/compose/compose.yaml
+  KIND_CLUSTER: coder-template-test
+  TEMPLATE_NAME: homelab-workspace-test
+  WORKSPACE_NAME: template-test
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Create Kubernetes test cluster
+      run: kind create cluster --name "${KIND_CLUSTER}"
+
+    - name: Create coder namespace
+      # The live cluster's "coder" namespace is created by the platform's own
+      # Helm release, outside this repo - see configmap.tf/deployment.tf's
+      # hardcoded namespace. Kind starts empty, so the test cluster needs it
+      # created explicitly before the template can be applied.
+      run: kubectl create namespace coder
+
+    - name: Start local Coder
+      env:
+        CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
+        RUNNER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-runner
+      shell: bash
+      run: |
+        kind export kubeconfig --name "${KIND_CLUSTER}" --kubeconfig "${RUNNER_KUBECONFIG}"
+        cp "${RUNNER_KUBECONFIG}" "${CODER_KUBECONFIG}"
+        sed -Ei "s#https://127\\.0\\.0\\.1:[0-9]+#https://${KIND_CLUSTER}-control-plane:6443#" "${CODER_KUBECONFIG}"
+        chmod 644 "${CODER_KUBECONFIG}"
+        echo "CODER_KUBECONFIG=${CODER_KUBECONFIG}" >> "${GITHUB_ENV}"
+        docker compose -f "${COMPOSE_FILE}" up --detach
+
+    - name: Wait for local Coder
+      shell: bash
+      run: |
+        timeout 5m bash -c "until curl --fail --silent --show-error \"${CODER_URL}/api/v2/buildinfo\" > /dev/null; do sleep 2; done"
+
+    - name: Create local Coder user
+      # CODER_KUBECONFIG comes from the "Start local Coder" step via $GITHUB_ENV -
+      # docker compose re-resolves the whole compose file (including the volumes
+      # section) for every subcommand, so it still needs a valid value even for
+      # exec, which mounts nothing new.
+      run: |
+        docker compose -f "${COMPOSE_FILE}" exec --tty=false coder \
+        coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
+
+    - name: Install and log in to Coder CLI
+      uses: ./actions/coder-cli-login
+      with:
+        coder_url: ${{ env.CODER_URL }}
+        coder_email: ci@example.invalid
+        coder_password: ci-password
+
+    - name: Determine latest released workspace image
+      id: image
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
+        echo "workspace_image=ghcr.io/ppat/coder-workspace:${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+
+    - name: Publish template
+      uses: ./actions/coder-template-push
+      with:
+        template_dir: templates/kubernetes/homelab-workspace
+        template_name: ${{ env.TEMPLATE_NAME }}
+        template_version: ${{ github.sha }}
+        workspace_image: ${{ steps.image.outputs.workspace_image }}
+        test_mode: "true"
+
+    - name: Start workspace
+      shell: bash
+      run: |
+        coder create "${WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
+        --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce
+
+    - name: Ping workspace agent
+      shell: bash
+      run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}"
+
+    - name: Run command over workspace SSH
+      shell: bash
+      run: |
+        coder ssh "${WORKSPACE_NAME}" -- env
+
+    - name: Show Coder logs on failure
+      if: failure()
+      run: docker compose -f "${COMPOSE_FILE}" logs

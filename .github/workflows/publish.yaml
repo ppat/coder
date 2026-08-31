@@ -3,18 +3,12 @@
 name: publish
 
 on:
-  pull_request:
-    paths:
-    - '.github/workflows/publish.yaml'
-    - 'images/homelab-workspace/**'
-    - 'templates/kubernetes/homelab-workspace/**'
   release:
     types:
     - published
-  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.release.tag_name || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
   cancel-in-progress: true
 
 env:
@@ -22,9 +16,9 @@ env:
   image_cache_name: ${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
   image_path: images/homelab-workspace
   template_path: templates/kubernetes/homelab-workspace
-  publish_mode: ${{ github.event_name == 'release' && 'release' || 'test' }}
-  source_ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.head_ref || github.ref_name }}
-  source_sha: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.pull_request.head.sha || github.sha }}
+  template_name: homelab-workspace
+  source_ref: ${{ github.event.release.tag_name }}
+  source_sha: ${{ github.event.release.tag_name }}
 
 jobs:
   publish-image:
@@ -39,8 +33,8 @@ jobs:
       platforms: linux/amd64,linux/arm64
       private_registry_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
       private_registry_build_cache: ${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
-      git_ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.head_ref || github.ref_name }}
-      ghcr_repository: ${{ github.event_name == 'release' && 'ppat/coder-workspace' || '' }}
+      git_ref: ${{ github.event.release.tag_name }}
+      ghcr_repository: ppat/coder-workspace
       timeout_minutes: 180
     secrets:
       private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
@@ -73,84 +67,21 @@ jobs:
         version: "1.102.3"
 
     - name: Login to Coder
-      id: login
-      env:
-        CODER_URL: "${{ secrets.CODER_URL }}"
-      shell: bash
-      # yamllint disable-line rule:indentation
-      run: |
-        while ! curl -fsSL "${CODER_URL}" > /dev/null; do
-          echo "Waiting for coder service to be ready... sleep 5s!"
-          sleep 5
-        done
-        echo "Coder service is accepting connections..."
-        echo
-
-        echo "Generating authentication token..."
-        export CODER_SESSION_TOKEN
-        CODER_SESSION_TOKEN=$(curl -X POST "${CODER_URL}/api/v2/users/login" \
-          -H 'Content-Type: application/json' \
-          -H 'Accept: application/json' \
-          --data '{"email": "'${{ secrets.CODER_EMAIL }}'", "password": "'${{ secrets.CODER_PASSWORD }}'"}' \
-          | jq -r .session_token)
-        echo "::add-mask::${CODER_SESSION_TOKEN}"
-        if [[ -z "${CODER_SESSION_TOKEN}" || "${CODER_SESSION_TOKEN}" = "null" ]]; then
-          echo "Error generating coder authentication token."
-          exit 1
-        fi
-        echo "Authentication token generated."
-        echo
-        echo "Determining coder version..."
-        export CODER_VERSION
-        CODER_VERSION=$(curl -fsSL "${CODER_URL}/api/v2/buildinfo" | jq -r .version | cut -d'+' -f1 | cut -d'v' -f2)
-        echo "Installing coder CLI..."
-        curl -fsSL https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
-        echo
-        echo "Logging into Coder..."
-        coder login --use-token-as-session "${CODER_URL}"
+      uses: ./actions/coder-cli-login
+      with:
+        coder_url: ${{ secrets.CODER_URL }}
+        coder_email: ${{ secrets.CODER_EMAIL }}
+        coder_password: ${{ secrets.CODER_PASSWORD }}
 
     - name: Publish template
-      id: publish-template
-      env:
-        TEMPLATE_DIR: ${{ env.template_path }}
-        TEMPLATE_VERSION: ${{ env.source_sha }}
-        WORKSPACE_IMAGE: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
-        PUBLISH_MODE: ${{ env.publish_mode }}
-      shell: bash
-      # yamllint disable-line rule:indentation
-      run: |
-        if [[ "${PUBLISH_MODE}" == "release" ]]; then
-          export TEMPLATE_NAME
-          TEMPLATE_NAME="$(echo "${TEMPLATE_DIR}" | cut -d/ -f3)"
-          export RELEASE_MSG="[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${TEMPLATE_VERSION})"
-          export TEST_MODE=false
-        else
-          export TEMPLATE_NAME
-          TEMPLATE_NAME="$(echo "${TEMPLATE_DIR}" | cut -d/ -f3)-test"
-          export RELEASE_MSG="[Changes](https://github.com/${{ github.repository }}/commit/${TEMPLATE_VERSION})"
-          export TEST_MODE=true
-        fi
-        echo "Publishing template ${TEMPLATE_DIR} as ${TEMPLATE_NAME}..."
-        set -x
-        coder template push \
-          --directory "${TEMPLATE_DIR}" \
-          --var "workspace_image=${WORKSPACE_IMAGE}" \
-          --var test_mode=${TEST_MODE} \
-          --name "${TEMPLATE_VERSION}" \
-          --message "${RELEASE_MSG}" \
-          --yes \
-          "${TEMPLATE_NAME}"
-        set +x
-        echo
-        echo "Confirming template has been published..."
-        coder templates list --output json > /tmp/templates.json
-        export SELECTED_TEMPLATE
-        SELECTED_TEMPLATE=$(cat /tmp/templates.json | jq -r '.[] | select(.Template.name == "'"${TEMPLATE_NAME}"'")')
-        if [[ -z $SELECTED_TEMPLATE ]]; then
-          echo "Could not find any template published as $TEMPLATE_NAME."
-          exit 1
-        fi
-        echo "Template has been published successfully."
+      uses: ./actions/coder-template-push
+      with:
+        template_dir: ${{ env.template_path }}
+        template_name: ${{ env.template_name }}
+        template_version: ${{ env.source_sha }}
+        workspace_image: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
+        test_mode: "false"
+        message: "[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ env.source_sha }})"
 
     - name: Tailscale Disconnect
       if: success() || failure()
