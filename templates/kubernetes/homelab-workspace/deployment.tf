@@ -23,6 +23,9 @@ resource "kubernetes_deployment_v1" "deployment" {
     template {
       metadata {
         labels = merge(local.common_labels, local.pod_labels)
+        annotations = {
+          "descheduler.alpha.kubernetes.io/prefer-no-eviction" = "true"
+        }
       }
       spec {
         dynamic "affinity" {
