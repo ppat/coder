@@ -36,6 +36,13 @@ jobs:
     - name: Create Kubernetes test cluster
       run: kind create cluster --name "${KIND_CLUSTER}"
 
+    - name: Create coder namespace
+      # The live cluster's "coder" namespace is created by the platform's own
+      # Helm release, outside this repo - see configmap.tf/deployment.tf's
+      # hardcoded namespace. Kind starts empty, so the test cluster needs it
+      # created explicitly before the template can be applied.
+      run: kubectl create namespace coder
+
     - name: Start local Coder
       env:
         COMPOSE_FILE: .github/compose/coder-template-test.yaml
