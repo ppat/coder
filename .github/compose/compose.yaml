@@ -1,7 +1,7 @@
 ---
 services:
   coder:
-    image: ghcr.io/coder/coder:${CODER_VERSION}
+    image: ghcr.io/coder/coder:v2.35.6
     ports:
     - "7080:7080"
     environment:
@@ -18,7 +18,7 @@ services:
         condition: service_healthy
 
   database:
-    image: postgres:${POSTGRES_VERSION}
+    image: postgres:16.4
     environment:
       POSTGRES_USER: coder
       POSTGRES_PASSWORD: coder

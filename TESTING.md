@@ -29,7 +29,9 @@ live workspaces retain their production storage. The Compose Coder version match
 version and the Postgres version matches the live CloudNativePG cluster's (see `homelab-ops-kubernetes-apps`'s
 `apps/subsystems/coder/`) — the Postgres *image* itself is the plain upstream one rather than CloudNativePG's, since
 this Compose stack isn't standing in for CloudNativePG, just a same-version Postgres for Coder to talk to. Both
-versions are Renovate-tracked in `.github/compose/.env`.
+versions are pinned directly in `compose.yaml`'s `image:` lines and picked up by Renovate's built-in `docker-compose`
+manager — no repo config needed, and (via the `docker:pinDigests` preset already in force here) the same digest
+pinning the Dockerfile's `FROM` line gets.
 
 ## Running the template test locally
 
