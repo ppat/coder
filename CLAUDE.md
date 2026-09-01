@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository purpose
 
-This repo holds [Coder](https://coder.com/) workspace **templates** (Terraform) and the **container images** those templates provision — it is not an application codebase. There is currently one template/image pair, both named `homelab-workspace`:
+This repo holds [Coder](https://coder.com/) workspace **templates** (OpenTofu) and the **container images** those templates provision — it is not an application codebase. There is currently one template/image pair, both named `homelab-workspace`:
 
-- `templates/kubernetes/homelab-workspace/` — Terraform template (`coder/coder` + `hashicorp/kubernetes` providers), deployed to a personal Kubernetes cluster.
+- `templates/kubernetes/homelab-workspace/` — OpenTofu template (`coder/coder` + `hashicorp/kubernetes` providers), deployed to a personal Kubernetes cluster.
 - `images/homelab-workspace/Dockerfile` — the Ubuntu-based image the template's pod runs.
 
 Almost all day-to-day change here is dependency bumps (Renovate) or edits to the template/image; there's no application logic, unit tests, or build step in the traditional sense.
@@ -15,18 +15,18 @@ Almost all day-to-day change here is dependency bumps (Renovate) or edits to the
 
 ## Commands
 
-No package-manager project lives here (`mise.toml` just pins `bun`/`node`/`terraform`/`tflint` tool versions). Local validation is `pre-commit`:
+No package-manager project lives here (`mise.toml` just pins `bun`/`node`/`opentofu`/`tflint` tool versions). Local validation is `pre-commit`:
 
 ```bash
-pre-commit run --all-files        # yamllint, markdownlint, shellcheck, hadolint, commitlint, terraform fmt/validate/tflint
+pre-commit run --all-files        # yamllint, markdownlint, shellcheck, hadolint, commitlint, tofu fmt/validate/tflint
 ```
 
-Terraform checks scoped to the one template directory:
+OpenTofu checks scoped to the one template directory:
 
 ```bash
 cd templates/kubernetes/homelab-workspace
-terraform fmt -check
-terraform validate
+tofu fmt -check
+tofu validate
 tflint --config=../../../.tflint.hcl
 ```
 
@@ -44,7 +44,7 @@ There is no local way to build/publish the image against the private registry ca
 
 Commitlint (`commitlint.config.js`) enforces Conventional Commits.
 
-- Allowed scopes only: `cli-tools`, `dev-tools`, `deps`, `github-actions`, `release`, `renovate`, `terraform-provider`, `terraform-version`, or no scope. An unlisted scope fails commit-msg validation.
+- Allowed scopes only: `cli-tools`, `dev-tools`, `deps`, `github-actions`, `opentofu-provider`, `opentofu-version`, `release`, `renovate`, or no scope. An unlisted scope fails commit-msg validation.
 - Body lines ≤120 chars, except `chore(deps)` commits (Renovate generates these verbatim, so that rule is relaxed for them).
 
 ## Release flow
@@ -53,7 +53,7 @@ Commitlint (`commitlint.config.js`) enforces Conventional Commits.
 
 1. It creates or updates the release PR from Conventional Commit history. Merging that PR creates the GitHub release/tag and the next release PR.
 2. The published GitHub release triggers `.github/workflows/publish.yaml`, which builds the workspace image for `linux/amd64,linux/arm64` and pushes it to the private registry.
-3. The same publish workflow pushes the Terraform template to the live Coder deployment, tagged with the released version.
+3. The same publish workflow pushes the template to the live Coder deployment, tagged with the released version. `coder template push` is a local HCL parse — it never execs terraform/tofu itself (see the gotcha below) — the binary that actually applies it belongs to whichever provisioner runs it, and that provisioner lives in `homelab-ops-kubernetes-apps`, out of this repo's scope (see `homelab-ops-kubernetes-apps#3900` for that repo's own OpenTofu swap).
 
 PR validation is deliberately narrower than publishing: `test-image.yaml` builds image changes against the private
 registry cache, while `test-template.yaml` publishes template changes to a local Coder/Postgres test control plane
@@ -84,7 +84,7 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
-**Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules in `exceptions.json`, `image-cli-tools.json`, `template-terraform-provider.json` that set different automerge delays per dependency class.
+**Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules in `exceptions.json`, `image-cli-tools.json`, `template-opentofu-provider.json` that set different automerge delays per dependency class.
 
 **Local test control plane** (`.github/compose/compose.yaml`): brings up a disposable Coder/Postgres pair for `test-template.yaml`, versioned to match the live deployment in `homelab-ops-kubernetes-apps` (see [TESTING.md](TESTING.md)). Named `compose.yaml`, not e.g. `coder-template-test.yaml`, for two reasons: it runs with no `-f` flag from inside the directory, and it's what makes Renovate's built-in `docker-compose` manager match the file at all — that manager is enabled by default and needs no config here, but only extracts a version it can see as a literal in an `image:` line, so the versions are pinned there directly rather than behind a `${VAR}`/`.env` indirection it can't see through.
 
@@ -97,6 +97,7 @@ Things that look arbitrary in the code but are load-bearing (full reasoning in [
 - `deployment.tf`'s `system` volume is an `empty_dir`, rebuilt from the image on every pod start — a fix to anything under `/usr`, `/etc`, `/var` must go in the image or the init script, not be treated as a one-time patch.
 - The Dockerfile writes shared env vars to `/etc/environment` rather than using `ENV`, because `PATH` needs to be extended by a script running after the image is built, not fixed at build time.
 - `parameters.tf`'s `local.validated_*` allowlist is the only thing stopping `system_packages`/`preferred_nodes` from injecting shell metacharacters into the init container — any new parameter whose value reaches a shell must go through the same validate-then-use step.
+- **This repo's disposable test control plane (`.github/compose/compose.yaml`, `test-template.yaml`) proves the template applies under OpenTofu before that mechanism ever reaches a real deployment.** `coder template push` never execs terraform/tofu itself (it's a local, pure-Go HCL parse); the binary that applies the template is whatever `provisionerd` finds via `LookPath("terraform")`, and Coder's provisioner has zero vendor awareness — only a numeric `terraform version -json` range check (currently 1.1.0–1.15.9), which `tofu version -json` satisfies because OpenTofu deliberately keeps the same JSON key. The official `ghcr.io/coder/coder` image ships its real Terraform binary at `/usr/local/bin/terraform`, root-owned 0755, while the container runs as uid 1000 — so the coder user cannot overwrite it in place, and a bind mount (`${CODER_TOFU_BINARY}:/usr/local/bin/terraform:ro` in `compose.yaml`) is what actually swaps it, not an in-container step. `test-template.yaml` sources that binary via `ppat/homelab-ops-actions/actions/setup-repository-tools` — the same checkout+mise action every reusable lint workflow in `ppat/github-workflows` already uses — reading `mise.toml`'s own `opentofu` pin directly rather than a second hardcoded version string. `opentofu/setup-opentofu` is rejected outright by this repo's locked-down Actions allowlist ("selected" patterns) at workflow-intake time — a real failure mode invisible to `actionlint`, `yamllint`, or any local run, surfacing only as a bare "workflow file issue" with zero jobs created. `setup-repository-tools` does its own checkout into `current/`, so every path this job touches after that step is prefixed accordingly. The local recipe in [TESTING.md](TESTING.md) sources the same mise-installed `tofu` already on `PATH`. Verified directly, not inferred: `docker compose exec coder terraform version` reports an `OpenTofu vX.Y.Z` banner, and a real template push's provisioner log reads `OpenTofu 1.12.6` / `OpenTofu has been successfully initialized!` before `Apply complete!`. **The live Coder deployment's provisioner is a separate repo's decision** — `homelab-ops-kubernetes-apps#3900` makes the equivalent swap there (a Kubernetes init-container-plus-`emptyDir`, since that cluster's containerd can't do single-file image-volume subPath mounts), and the HCL this template emits is fully backward compatible with real Terraform regardless, so this repo's own correctness never depended on that PR landing.
 - `script-memory-watchdog.sh` computes headroom as `memory.max − U`, where `U` sums only the *unreclaimable* fields of `memory.stat` (`anon`, `shmem`, `unevictable`, `slab_unreclaimable`, `kernel_stack`, `pagetables`, `sec_pagetables`, `percpu`, `sock`). Do not "simplify" it to `memory.current` or to `memory.stat`'s `kernel` roll-up: on the live pod those read 96% and 42% of the limit while true `U` is 28%. Nothing acts on this number any more — it is pod-level context for the per-process rows and the honest figure published in the workspace UI.
 - `calibration.csv`'s `du_bytes_per_s` column is a per-sample instantaneous rate (`(M_U - PREV_U) / SAMPLE_INTERVAL`, 10s by default), not a drift rate, and naively averaging it overstates drift roughly fourfold: ~19.8 kB/s (~68 MB/hour) naive mean on the live pod versus ~18.4 MB/hour computed from `u_mb` across two `event=census` rows 26.1h apart. The naive mean is dominated by a handful of 10s allocation/GC spikes (+102 to −58 MB/s) that an hourly comparison washes out. The column and its caveat are documented together at its declaration in the script; nothing currently reads this column programmatically, so the trap is for a human, not a bug.
 - **The watchdog is a drift policer, not an OOM preventer, and the difference is measured.** The graded L1–L4 shedding ladder that used to be here was removed, not tuned: the recorded kills are 70–220 MB/s spikes that go from idle to dead inside a minute, a live reproduction climbed the ladder correctly and logged `no-candidates` because the runaway was not in the tree it managed, and the entire editor tree it could shed is ~0.7 GiB — five seconds of that growth. Before re-adding anything reactive, establish that a poll loop can see the event at all. What the loop *is* good at is MB-per-minute growth in the standing population, which is what it now does.
@@ -136,5 +137,5 @@ This repo is only the image+template layer. When a task's real cause is above or
 
 ## Working on a template or image change
 
-1. Make the change, run `pre-commit run --all-files` and the scoped `terraform validate`/`tflint` commands above.
+1. Make the change, run `pre-commit run --all-files` and the scoped `tofu validate`/`tflint` commands above.
 2. Follow [TESTING.md](TESTING.md) to exercise it via `test_mode` before merging — merging to `main` publishes to the real template/image with no separate promotion step.

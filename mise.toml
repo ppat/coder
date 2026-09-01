@@ -1,7 +1,7 @@
 [tools]
 bun = "1.4.0"
 node = "24.19.0"
-terraform = "1.15.9"
+opentofu = "1.12.6"
 tflint = "0.64.0"
 
 [settings.npm]

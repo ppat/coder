@@ -18,7 +18,7 @@ permissions:
 
 env:
   CODER_URL: http://localhost:7080
-  COMPOSE_FILE: .github/compose/compose.yaml
+  COMPOSE_FILE: current/.github/compose/compose.yaml
   KIND_CLUSTER: coder-template-test
   TEMPLATE_NAME: homelab-workspace-test
   WORKSPACE_NAME: template-test
@@ -28,11 +28,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Setup repository and tools
+      # Checks the repo out into current/ (hence the current/ prefix on every path
+      # reference below) and, with no mise_toml override, installs straight from
+      # current/mise.toml - the same `opentofu` pin the authoring toolchain uses
+      # locally, so there's no second version string to drift from it.
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@f66c9acb40309305e0e1fd3179406b85647aa54c # v2.3.2
       with:
-        fetch-depth: 1
-        persist-credentials: false
+        current_git_ref: ${{ github.head_ref || github.ref }}
+        current_repository: ${{ github.repository }}
+        token: ${{ github.token }}
 
     - name: Create Kubernetes test cluster
       run: kind create cluster --name "${KIND_CLUSTER}"
@@ -55,6 +60,20 @@ jobs:
         sed -Ei "s#https://127\\.0\\.0\\.1:[0-9]+#https://${KIND_CLUSTER}-control-plane:6443#" "${CODER_KUBECONFIG}"
         chmod 644 "${CODER_KUBECONFIG}"
         echo "CODER_KUBECONFIG=${CODER_KUBECONFIG}" >> "${GITHUB_ENV}"
+        # $GITHUB_ENV only takes effect for steps that run AFTER this one - it does
+        # nothing for the `docker compose up` a few lines below, in this same step,
+        # which is why CODER_KUBECONFIG above works (it's this step's own `env:`,
+        # set from the start) while a same-step echo-then-use of CODER_TOFU_BINARY
+        # silently resolved empty and produced docker compose's opaque "invalid
+        # spec: empty section between colons". Exporting it directly makes it visible
+        # to this step's own `docker compose up`; the $GITHUB_ENV write is still needed
+        # so later steps' `docker compose exec`/`logs` calls see it too, since compose
+        # re-resolves the whole file - volumes included - on every subcommand.
+        # cd'd into current/ for this one command only - that's where mise.toml
+        # actually is, unlike this step's own default working directory.
+        CODER_TOFU_BINARY="$(cd current && mise which tofu)"
+        export CODER_TOFU_BINARY
+        echo "CODER_TOFU_BINARY=${CODER_TOFU_BINARY}" >> "${GITHUB_ENV}"
         docker compose -f "${COMPOSE_FILE}" up --detach
 
     - name: Wait for local Coder
@@ -72,7 +91,7 @@ jobs:
         coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
 
     - name: Install and log in to Coder CLI
-      uses: ./actions/coder-cli-login
+      uses: ./current/actions/coder-cli-login
       with:
         coder_url: ${{ env.CODER_URL }}
         coder_email: ci@example.invalid
@@ -88,9 +107,9 @@ jobs:
         echo "workspace_image=ghcr.io/ppat/coder-workspace:${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
 
     - name: Publish template
-      uses: ./actions/coder-template-push
+      uses: ./current/actions/coder-template-push
       with:
-        template_dir: templates/kubernetes/homelab-workspace
+        template_dir: current/templates/kubernetes/homelab-workspace
         template_name: ${{ env.TEMPLATE_NAME }}
         template_version: ${{ github.sha }}
         workspace_image: ${{ steps.image.outputs.workspace_image }}

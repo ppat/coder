@@ -2,18 +2,16 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
     {
-      "commitMessageTopic": "terraform",
-      "description": "group terraform upgrades together",
-      "groupName": "terraform-{{newVersion}}",
+      "commitMessageTopic": "opentofu",
+      "description": "group opentofu upgrades together",
+      "groupName": "opentofu-{{newVersion}}",
       "matchManagers": [
-        "mise",
-        "terraform-version"
+        "mise"
       ],
       "matchPackageNames": [
-        "hashicorp/terraform",
-        "terraform"
+        "opentofu/opentofu"
       ],
-      "semanticCommitScope": "terraform-version"
+      "semanticCommitScope": "opentofu-version"
     },
     {
       "automerge": false,

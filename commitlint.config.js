@@ -38,10 +38,10 @@ module.exports = {
         'dev-tools',
         'deps',
         'github-actions',
+        'opentofu-provider',
+        'opentofu-version',
         'release',
-        'renovate',
-        'terraform-provider',
-        'terraform-version'
+        'renovate'
       ]
     ],
     // 'scope-empty': [2, 'always'],
