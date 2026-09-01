@@ -15,6 +15,13 @@
   ],
   "configMigration": true,
   "dependencyDashboard": true,
+  "description": [
+    "The order of the local entries in `extends` is load-bearing, because later packageRules override earlier ones on the same field.",
+    "`scope-fallback` sits BEFORE the shared presets so that the presets' own `github-actions` and `internal-dependencies` scopes still win where they match; it only catches what nothing else claims.",
+    "`scope-internal` and `scope-shipped` sit AFTER the presets so they can displace the preset's per-update-type commit types and its breaking-marker prefix, in that order - scope-internal normalises the whole repo to a non-releasing `chore`, then scope-shipped re-asserts release-forcing types and the `!` marker for images/** and templates/** only.",
+    "`exceptions` stays last so a per-dependency soak or hold overrides the general footprint policy.",
+    "The commit vocabulary these rules emit is enumerated in commitlint.config.js and explained in .claude/rules/commits.md; the preset pin and that enum have to move together, because two of the scopes are emitted upstream."
+  ],
   "extends": [
     ":ignoreModulesAndTests",
     "abandonments:recommended",
@@ -22,11 +29,12 @@
     "helpers:pinGitHubActionDigests",
     "mergeConfidence:age-confidence-badges",
     "mergeConfidence:all-badges",
-    "github>ppat/renovate-presets#v0.3.0",
-    "github>ppat/renovate-presets:dev-tools#v0.3.0",
-    "github>ppat/renovate-presets:github-actions#v0.3.0",
-    "github>ppat/coder//.github/renovate/template-opentofu-provider",
-    "github>ppat/coder//.github/renovate/image-cli-tools",
+    "github>ppat/coder//.github/renovate/scope-fallback",
+    "github>ppat/renovate-presets#v1.0.0",
+    "github>ppat/renovate-presets:dev-tools#v1.0.0",
+    "github>ppat/renovate-presets:github-actions#v1.0.0",
+    "github>ppat/coder//.github/renovate/scope-internal",
+    "github>ppat/coder//.github/renovate/scope-shipped",
     "github>ppat/coder//.github/renovate/exceptions"
   ],
   "internalChecksFilter": "strict",

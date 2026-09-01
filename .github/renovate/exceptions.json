@@ -3,22 +3,18 @@
   "packageRules": [
     {
       "commitMessageTopic": "opentofu",
-      "description": "group opentofu upgrades together",
+      "description": "Give the OpenTofu binary its own pull request instead of letting it ride in the shared mise group. It is the binary CI uses to validate the template and to apply it in the disposable test control plane, so a bump to it is worth reviewing on its own evidence. Its scope is `internal-dependencies` like every other mise pin - the tool that applies this template in production belongs to the Coder provisioner, in another repo, and is not pinned here.",
       "groupName": "opentofu-{{newVersion}}",
       "matchManagers": [
         "mise"
       ],
       "matchPackageNames": [
         "opentofu/opentofu"
-      ],
-      "semanticCommitScope": "opentofu-version"
+      ]
     },
     {
       "automerge": false,
-      "commitBody": "BREAKING CHANGE",
-      "commitMessageTopic": "{{packageName}}",
-      "description": "delay upgrading ubuntu major versions till 270 days from release (to allow time for compatibility fixes to other packages)",
-      "groupName": "{{packageName}}",
+      "description": "Hold Ubuntu major upgrades for 270 days from release, so the packages layered on top of the base image have time to gain compatibility. Overrides the 30-day soak that scope-shipped.json gives image majors generally; the `feat(image)!:` header comes from there and needs no help here.",
       "matchDatasources": [
         "docker"
       ],
@@ -29,7 +25,9 @@
         "major"
       ],
       "minimumReleaseAge": "270 days",
-      "semanticCommitType": "feat"
+      "reviewers": [
+        "ppat"
+      ]
     },
     {
       "description": "slow down upgrades to these packages to a maximum of once weekly",
