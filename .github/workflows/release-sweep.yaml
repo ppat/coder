@@ -1,0 +1,52 @@
+---
+# yamllint disable rule:line-length
+name: release-sweep
+
+on:
+  pull_request:
+    paths:
+    - '.github/workflows/release-sweep.yaml'
+  schedule:
+  # Monthly on the 15th, off the top of the hour to avoid GitHub's busiest schedule interval.
+  - cron: '17 3 15 * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # A live merge run must never be cancelled mid-flight; only the pull_request dry run is
+  # safe to replace.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+    - name: Generate app token
+      id: app-token
+      if: ${{ github.event_name == 'schedule' }}
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        app-id: ${{ secrets.HOMELAB_BOT_APP_ID }}
+        private-key: ${{ secrets.HOMELAB_BOT_APP_PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # release-sweep's staleness guard compares the release PR's parent against
+        # origin/main, which needs full history; every other workflow here uses the
+        # default fetch-depth: 1.
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Sweep release pull requests
+      uses: ppat/homelab-ops-actions/actions/release-sweep@f66c9acb40309305e0e1fd3179406b85647aa54c # v2.3.2
+      with:
+        # Pull requests touching this file run only the built-in read token; the monthly
+        # schedule supplies the App token needed for an authorized, live merge.
+        token: ${{ github.event_name == 'schedule' && steps.app-token.outputs.token || github.token }}
+        dry_run: ${{ github.event_name == 'pull_request' }}
