@@ -2,6 +2,17 @@
 
 
 
+## [3.0.0](https://github.com/ppat/coder/compare/v2.28.0...v3.0.0) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* the template's authoring and CI toolchain is now OpenTofu, not Terraform - anyone working on templates/kubernetes/homelab-workspace needs `tofu` (via `mise install`) rather than `terraform` on PATH, and Renovate/commitlint commit scopes for provider/tool-version bumps are now opentofu-provider/opentofu-version instead of terraform-provider/ terraform-version.
+
+### ✨ Features
+
+* migrate homelab-workspace template toolchain to OpenTofu ([#898](https://github.com/ppat/coder/issues/898)) ([d464a67](https://github.com/ppat/coder/commit/d464a678fe3a6d328e9fc252db8ed30fcac80afe))
+
 ## [2.28.0](https://github.com/ppat/coder/compare/v2.27.1...v2.28.0) (2026-08-31)
 
 
