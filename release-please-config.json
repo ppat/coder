@@ -1,16 +1,16 @@
 {
   "changelog-sections": [
     { "type": "build", "section": "🏗️ Build System", "hidden": true },
-    { "type": "chore", "section": "🐛 Enhancements + Bug Fixes" },
+    { "type": "chore", "section": "🧹 Maintenance", "hidden": true },
     { "type": "ci", "section": "🚦 Continuous Integration", "hidden": true },
-    { "type": "docs", "section": "🛠 Improvements" },
+    { "type": "docs", "section": "🛠 Improvements", "hidden": true },
     { "type": "feat", "section": "✨ Features" },
     { "type": "fix", "section": "🐛 Enhancements + Bug Fixes" },
     { "type": "perf", "section": "🐛 Enhancements + Bug Fixes" },
     { "type": "refactor", "section": "🐛 Enhancements + Bug Fixes" },
     { "type": "revert", "section": "⚙️ Other" },
-    { "type": "style", "section": "🛠 Improvements" },
-    { "type": "test", "section": "🛠 Improvements" }
+    { "type": "style", "section": "🛠 Improvements", "hidden": true },
+    { "type": "test", "section": "🛠 Improvements", "hidden": true }
   ],
   "draft": false,
   "initial-version": "2.27.1",

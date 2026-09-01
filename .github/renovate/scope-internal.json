@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "Force `chore` on every update. Nothing outside images/** and templates/** can be observed by a consumer of the workspace image or of the Coder template, and a release republishes both deliverables - a two-architecture image build plus a template push to production. Typing internal updates `chore` keeps them hidden from the changelog so they cannot trigger a release that would publish two byte-identical artifacts. scope-shipped.json overrides this back to `fix`/`feat` for the two trees that do ship.",
+      "matchFileNames": [
+        "**"
+      ],
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "Strip the breaking marker that the shared preset's major-update rule puts on every major. A major bump of an authoring tool, a linter or a CI action cannot break a consumer of either shipped artifact, so a `!` here would force a major release of both for a change neither one contains. The marker is restored in scope-shipped.json for the two trees where it is a true claim. Overriding `commitMessagePrefix` rather than `semanticCommitType` is required: an explicit prefix suppresses Renovate's own semantic-prefix generation entirely, so a rule that sets only the type cannot displace it.",
+      "matchFileNames": [
+        "**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "commitMessagePrefix": "{{semanticCommitType}}{{#if semanticCommitScope}}({{semanticCommitScope}}){{/if}}:"
+    }
+  ]
+}

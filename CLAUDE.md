@@ -42,10 +42,11 @@ There is no local way to build/publish the image against the private registry ca
 
 ## Commit messages
 
-Commitlint (`commitlint.config.js`) enforces Conventional Commits.
+**[.claude/rules/commits.md](.claude/rules/commits.md) is the source of truth** — the closed type and scope enums, the ordered scope table, and the decision procedure for picking a header. Read it before writing a commit message here; don't reproduce the enum anywhere else, including in this file.
 
-- Allowed scopes only: `cli-tools`, `dev-tools`, `deps`, `github-actions`, `opentofu-provider`, `opentofu-version`, `release`, `renovate`, or no scope. An unlisted scope fails commit-msg validation.
-- Body lines ≤120 chars, except `chore(deps)` commits (Renovate generates these verbatim, so that rule is relaxed for them).
+The one thing worth stating twice, because it is what makes the vocabulary non-obvious: **the type/scope pairing is the release decision.** A release publishes both deliverables at once, so a type release-please renders may only sit on a scope that ships (`image`, `template`, or empty), and a type it hides may not sit on one. `commitlint.config.js` enforces both directions, and `release-please-config.json`'s `hidden` flags are what the rule is calibrated against — change one and you must change the other.
+
+Body lines are capped at 120 chars, with Renovate's `Co-authored-by:` trailer exempted by line, not by scope.
 
 ## Release flow
 
@@ -84,7 +85,7 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
-**Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules in `exceptions.json`, `image-cli-tools.json`, `template-opentofu-provider.json` that set different automerge delays per dependency class.
+**Renovate** (`.github/renovate.json` + `.github/renovate/*.json`): extends shared `ppat/renovate-presets` plus repo-local rules keyed on **footprint**, not on dependency class — `scope-fallback.json` (before the presets), then `scope-internal.json`, `scope-shipped.json` and `exceptions.json` (after them). Between them they decide the commit scope, the commit type, the breaking marker and the automerge soak for every update. The ordering is what makes that work and is documented in `renovate.json`'s own `description`; the emitted vocabulary must stay inside `commitlint.config.js`'s `scope-enum`, and two of those scopes are emitted by the shared preset rather than locally, so the preset pin and the enum move together.
 
 **Local test control plane** (`.github/compose/compose.yaml`): brings up a disposable Coder/Postgres pair for `test-template.yaml`, versioned to match the live deployment in `homelab-ops-kubernetes-apps` (see [TESTING.md](TESTING.md)). Named `compose.yaml`, not e.g. `coder-template-test.yaml`, for two reasons: it runs with no `-f` flag from inside the directory, and it's what makes Renovate's built-in `docker-compose` manager match the file at all — that manager is enabled by default and needs no config here, but only extracts a version it can see as a literal in an `image:` line, so the versions are pinned there directly rather than behind a `${VAR}`/`.env` indirection it can't see through.
 

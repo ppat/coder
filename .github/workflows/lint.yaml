@@ -4,6 +4,10 @@ name: lint
 
 on:
   pull_request:
+    # `edited` fires on a title change. This repo squash-merges with COMMIT_OR_PR_TITLE, so on a
+    # multi-commit branch the PR title is the string that lands and that release-please parses -
+    # without this, a title edited after checks pass is never re-linted.
+    types: [opened, synchronize, reopened, edited]
   schedule:
   - cron: '0 5 * * 1'
   workflow_dispatch:
@@ -81,6 +85,59 @@ jobs:
       fetch_depth: ${{ github.event.pull_request.commits || 0 }}
       from: ${{ github.event.pull_request.head.sha || 'HEAD' }}~${{ github.event.pull_request.commits || '1' }}
       to: ${{ github.event.pull_request.head.sha || 'HEAD' }}
+
+  # The `commit-messages` job above lints the branch's commits. On a multi-commit branch none of those
+  # strings survive: `squash_merge_commit_title` is COMMIT_OR_PR_TITLE, so GitHub lands the PR title
+  # instead, and that is the string release-please parses for the version bump. It is linted nowhere else,
+  # which is why this job exists rather than being folded into the reusable workflow - that one takes a
+  # commit range, and a PR title is not in the history until after the merge it decides.
+  pr-title:
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.commits > 1 }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Setup repository and tools
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@f66c9acb40309305e0e1fd3179406b85647aa54c # v2.3.2
+      with:
+        current_fetch_depth: 1
+        current_git_ref: ${{ github.head_ref }}
+        current_repository: ${{ github.repository }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        mise_toml: |
+          [tools]
+          bun               = "1.4.0"
+          node              = "24.19.0"
+          [settings.npm]
+          bun               = true
+
+    # This repo tracks no package.json, so the commitlint packages come from ppat/github-workflows the
+    # same way its own lint-commit-messages.yaml sources them. Keeping the manifest there rather than
+    # duplicating four pinned versions here is what stops this job drifting from that one.
+    - name: Checkout github-workflows
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        path: tools
+        repository: ppat/github-workflows
+        ref: main
+        persist-credentials: false
+
+    - name: Install node packages
+      shell: bash
+      working-directory: ./current
+      run: |
+        cp "$GITHUB_WORKSPACE/tools/package.json" .
+        cp "$GITHUB_WORKSPACE/tools/bun.lock" .
+        bun install --frozen-lockfile
+
+    # The title crosses via env, never interpolated into the script: it is attacker-controllable text.
+    - name: Lint pull request title
+      shell: bash
+      working-directory: ./current
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        printf '%s\n' "$PR_TITLE" | bunx commitlint --color --verbose
 
   github-actions:
     needs: [detect-changes]

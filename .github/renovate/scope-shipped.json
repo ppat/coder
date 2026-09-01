@@ -1,0 +1,157 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "addLabels": [
+        "scope:image"
+      ],
+      "commitMessageTopic": "{{packageName}}",
+      "description": "images/** is the workspace image: every pin in it is baked into what container runtimes pull. Matched by path with no manager filter on purpose - the base image (dockerfile manager) and the tool pins (custom.regex manager) both live here, and a dependency site added later under a third manager is scoped correctly with no config change.",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "semanticCommitScope": "image",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": false
+    },
+    {
+      "addLabels": [
+        "scope:template"
+      ],
+      "commitMessageTopic": "{{packageName}}",
+      "description": "templates/** is the Coder template: the provider requirements and lock file are HCL that gets pushed to the control plane and resolved by the provisioner. Matched by path with no manager filter, for the same reason as images/**.",
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "semanticCommitScope": "template",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": true
+    },
+    {
+      "description": "A shipped scope may never carry a type release-please hides: a real change to a published artifact typed `chore` would never be released at all. Map the non-feature update types onto `fix`, explicitly including pin, pinDigest, lockFileMaintenance, rollback and replacement - the shared preset leaves all five unset or typed `chore`, and leaving any of them to fall through is how a shipped change goes silently unpublished (or, since scope-internal.json forces `chore` repo-wide and this scope can never legally carry it, fails commitlint's pairing rule instead - not silent, but a real dependency update stalled on a header no rule fixed for it).",
+      "matchFileNames": [
+        "images/**",
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "lockFileMaintenance",
+        "rollback",
+        "replacement"
+      ],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Feature-bearing update types on a shipped tree take `feat`, which sizes a minor release of both deliverables.",
+      "matchFileNames": [
+        "images/**",
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "semanticCommitType": "feat"
+    },
+    {
+      "description": "Restore the breaking marker that scope-internal.json strips repo-wide. On these two trees a major update genuinely can break a consumer - a new Ubuntu base or a new provider major changes what workspaces get - so it should force a major release and a human decision. The marker must be `!` in the header: a body line reading `BREAKING CHANGE` with no colon does not parse as a breaking note and produces no major bump.",
+      "matchFileNames": [
+        "images/**",
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "commitMessagePrefix": "{{semanticCommitType}}({{semanticCommitScope}})!:"
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "description": "Image patch updates carry the least risk and are automerged after a short soak.",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "minimumReleaseAge": "7 days",
+      "platformAutomerge": true
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "description": "Image minor updates automerge after a longer soak.",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "14 days",
+      "platformAutomerge": true
+    },
+    {
+      "automerge": true,
+      "automergeType": "pr",
+      "description": "Provider patch updates are the lowest-risk template change and automerge quickly.",
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "1 days",
+      "platformAutomerge": true
+    },
+    {
+      "automerge": false,
+      "description": "Template minor updates change what the provisioner applies to real workspaces, so they are reviewed rather than automerged.",
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ]
+    },
+    {
+      "automerge": false,
+      "description": "Major updates on either shipped tree force a major release of both deliverables, so they are always reviewed. The image soaks for 30 days; the template's providers soak longer because a provider major can change resource semantics for every existing workspace.",
+      "matchFileNames": [
+        "images/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "30 days",
+      "reviewers": [
+        "ppat"
+      ]
+    },
+    {
+      "automerge": false,
+      "description": "Template major updates soak longest - see the images/** major rule above for why the two differ.",
+      "matchFileNames": [
+        "templates/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "90 days",
+      "reviewers": [
+        "ppat"
+      ]
+    }
+  ]
+}

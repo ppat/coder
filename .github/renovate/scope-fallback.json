@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "Default every update to the `internal-dependencies` scope, so no update can reach a commit header with the empty scope the shared preset sets at top level. An empty scope is accepted by commitlint as the 'spans both shipped trees' case, so a dependency site that no other rule claims would silently assert a shipped change. This is sound rather than merely safe: images/** and templates/** are claimed by whole-subtree globs in scope-shipped.json, so any site reaching this rule is necessarily outside both shipped trees and is by definition an internal dependency. Extended BEFORE the shared presets so their own `github-actions` and `internal-dependencies` scopes still win where they match.",
+      "matchFileNames": [
+        "**"
+      ],
+      "semanticCommitScope": "internal-dependencies"
+    }
+  ]
+}
