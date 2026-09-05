@@ -97,7 +97,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
 # /usr/libexec/docker/cli-plugins, one of the docker CLI's default plugin search paths, so `docker buildx`/
 # `docker compose` resolve without extra configuration.
 # renovate: datasource=github-releases depName=upx/upx
-ARG UPX_VERSION="5.2.0"
+ARG UPX_VERSION="5.2.1"
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/cache/debconf,id=cache-debconf-${TARGETARCH},sharing=locked \
     --mount=type=cache,target=/var/lib/apt,id=lib-apt-${TARGETARCH},sharing=locked \
