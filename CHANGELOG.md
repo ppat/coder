@@ -2,6 +2,13 @@
 
 
 
+## [3.0.1](https://github.com/ppat/coder/compare/v3.0.0...v3.0.1) (2026-09-05)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update upx/upx (v5.2.0 -&gt; v5.2.1) ([#904](https://github.com/ppat/coder/issues/904)) ([3890d64](https://github.com/ppat/coder/commit/3890d6489e0dd8f52e8e68d8e103816d1ef160ee))
+
 ## [3.0.0](https://github.com/ppat/coder/compare/v2.28.0...v3.0.0) (2026-09-01)
 
 
