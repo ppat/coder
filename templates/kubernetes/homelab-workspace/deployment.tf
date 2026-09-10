@@ -54,6 +54,13 @@ resource "kubernetes_deployment_v1" "deployment" {
             name  = "HOMEBREW_PREFIX"
             value = local.homebrew_directory
           }
+          dynamic "env" {
+            for_each = var.test_mode ? [] : toset(["normalise-tmp-permissions"])
+            content {
+              name  = "NORMALISE_TMP_PERMISSIONS"
+              value = "true"
+            }
+          }
           volume_mount {
             mount_path = local.home_directory
             name       = "home"
@@ -68,6 +75,16 @@ resource "kubernetes_deployment_v1" "deployment" {
             mount_path = "/prepare-workspace-script.sh"
             name       = "coder-scripts"
             sub_path   = "prepare_workspace_script"
+          }
+          # fsGroup makes the production volume group-writable. Prepare its
+          # root as a standard shared temporary directory before the
+          # unprivileged workspace container starts.
+          dynamic "volume_mount" {
+            for_each = var.test_mode ? [] : toset(["tmp"])
+            content {
+              mount_path = "/tmp"
+              name       = volume_mount.value
+            }
           }
           security_context {
             run_as_user = 0
