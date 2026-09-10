@@ -79,7 +79,7 @@ jobs:
         template_dir: ${{ env.template_path }}
         template_name: ${{ env.template_name }}
         template_version: ${{ env.source_sha }}
-        workspace_image: "${{ secrets.CONTAINER_REGISTRY }}/${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
+        workspace_image: "ghcr.io/ppat/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
         test_mode: "false"
         message: "[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ env.source_sha }})"
 
