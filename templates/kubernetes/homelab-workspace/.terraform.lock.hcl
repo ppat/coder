@@ -31,6 +31,7 @@ provider "registry.opentofu.org/coder/coder" {
     "zh:b24ea9037563496f9bfb1692507734140f9e2c41d18ffb489e711916407cb2be",
     "zh:ba4280877960abbcccbd349250dc875c33f320da5cf900e8723ed235eea234d9",
     "zh:be176d22d15cbd5e7ded09b1f270ffe6b0216813c37233c3e63af733c2eb4eaf",
+    "zh:f569b65999264a9416862bca5cd2a6177d94ccb0424f3a4ef424428912b9cb3c",
   ]
 }
 

@@ -6,14 +6,12 @@ data "coder_parameter" "resources_memory" {
   description  = "The amount of memory in GiB"
   icon         = "/icon/memory.svg"
   mutable      = true
+  type         = "number"
+  form_type    = "slider"
 
-  option {
-    name  = "4 GiB"
-    value = "4"
-  }
-  option {
-    name  = "8 GB"
-    value = "8"
+  validation {
+    min = 2
+    max = 16
   }
 }
 
@@ -36,6 +34,8 @@ data "coder_parameter" "memory_watchdog_mode" {
   description  = "What the memory watchdog may do about a process that has been over its share of the 2048 MiB VS Code envelope for ten minutes"
   icon         = "/icon/memory.svg"
   mutable      = true
+  type         = "string"
+  form_type    = "radio"
 
   option {
     name        = "Observe only"
