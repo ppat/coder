@@ -2,6 +2,20 @@
 
 
 
+## [3.1.0](https://github.com/ppat/coder/compare/v3.0.0...v3.1.0) (2026-09-11)
+
+
+### ✨ Features
+
+* **template:** add dynamic workspace controls ([#912](https://github.com/ppat/coder/issues/912)) ([fc0f589](https://github.com/ppat/coder/commit/fc0f5891140b28fa6ecff1ffca3c3d251c353176))
+* **template:** update coder/coder (2.18.0 -&gt; 2.19.0) ([#902](https://github.com/ppat/coder/issues/902)) ([aff6a09](https://github.com/ppat/coder/commit/aff6a097bde3c7a3672cc4d1646725a70134f133))
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update upx/upx (v5.2.0 -&gt; v5.2.1) ([#904](https://github.com/ppat/coder/issues/904)) ([3890d64](https://github.com/ppat/coder/commit/3890d6489e0dd8f52e8e68d8e103816d1ef160ee))
+* **template:** restore sticky bit on workspace tmp ([#908](https://github.com/ppat/coder/issues/908)) ([8d1fe2a](https://github.com/ppat/coder/commit/8d1fe2a653f2cd653abf81d6527620f417aeab42))
+
 ## [3.0.0](https://github.com/ppat/coder/compare/v2.28.0...v3.0.0) (2026-09-01)
 
 
