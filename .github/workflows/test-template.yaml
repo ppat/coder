@@ -119,6 +119,7 @@ jobs:
       shell: bash
       run: |
         coder create "${WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
+        --parameter dotfiles_url=https://github.com/ppat/dotfiles.git \
         --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce
 
     - name: Ping workspace agent
@@ -129,6 +130,21 @@ jobs:
       shell: bash
       run: |
         coder ssh "${WORKSPACE_NAME}" -- env
+
+    - name: Confirm dotfiles were applied
+      shell: bash
+      run: |
+        # Expand the positional parameter inside the runner-owned polling shell.
+        # shellcheck disable=SC2016
+        timeout 15m bash -c \
+        'until coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/applied; do
+        ! coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/failed || exit 1
+        sleep 5
+        done' \
+        _ "${WORKSPACE_NAME}"
+        coder ssh "${WORKSPACE_NAME}" -- test -f /home/coder/.config/mise/config.toml
+        origin="$(coder ssh "${WORKSPACE_NAME}" -- git -C /home/coder/.local/share/chezmoi remote get-url origin)"
+        [[ "${origin}" == "https://github.com/ppat/dotfiles.git" ]]
 
     - name: Show Coder logs on failure
       if: failure()
