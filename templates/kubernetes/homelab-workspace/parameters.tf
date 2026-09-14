@@ -26,6 +26,22 @@ data "coder_parameter" "preferred_nodes" {
   type         = "list(string)"
 }
 
+data "coder_parameter" "dotfiles_url" {
+  name = "dotfiles_url"
+
+  default      = ""
+  display_name = "Dotfiles Repository"
+  description  = "Optional HTTPS Git repository to apply with Chezmoi when the workspace starts"
+  icon         = "/icon/git.svg"
+  type         = "string"
+  form_type    = "input"
+
+  validation {
+    regex = "^$|^https://[A-Za-z0-9.-]+(?::[0-9]+)?/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$"
+    error = "Enter an HTTPS repository URL, or leave this empty"
+  }
+}
+
 data "coder_parameter" "memory_watchdog_mode" {
   name = "memory_watchdog_mode"
 
@@ -75,4 +91,11 @@ locals {
     for str in jsondecode(data.coder_parameter.preferred_nodes.value) :
     str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
   ] : []
+
+  # Keep an invalid value inert even if it came from stored state created
+  # before the parameter acquired its form validation.
+  validated_dotfiles_url = length(regexall(
+    "^https://[A-Za-z0-9.-]+(?::[0-9]+)?/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$",
+    data.coder_parameter.dotfiles_url.value
+  )) > 0 ? data.coder_parameter.dotfiles_url.value : ""
 }

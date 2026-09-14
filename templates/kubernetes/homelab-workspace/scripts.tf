@@ -2,6 +2,51 @@
 # is the coder agent - so coder_script is the only thing that can start a daemon
 # or run something on a schedule here.
 
+# Dotfiles are personal state layered over the template, so applying them is
+# deliberately non-blocking: a broken or unavailable repository must remain a
+# visible script failure without withholding SSH access to repair the workspace.
+resource "coder_script" "dotfiles" {
+  agent_id           = coder_agent.main.id
+  display_name       = "Apply dotfiles"
+  icon               = "/icon/terminal.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = <<-EOT
+    set -euo pipefail
+
+    if [[ -z "$${DOTFILES_URL}" ]]; then
+      echo "no dotfiles repository configured"
+      exit 0
+    fi
+
+    state_dir="$${HOME}/.local/state/dotfiles"
+    mkdir -p "$${state_dir}"
+    rm -f "$${state_dir}/applied" "$${state_dir}/failed"
+    trap 'status=$?; if (( status != 0 )); then printf "%s\n" "$status" >"$${state_dir}/failed"; fi' EXIT
+
+    chezmoi_bin="$${HOMEBREW_PREFIX}/bin/chezmoi"
+    if [[ ! -x "$${chezmoi_bin}" ]]; then
+      "$${HOMEBREW_PREFIX}/bin/brew" install chezmoi
+    fi
+
+    source_dir="$$($${chezmoi_bin} source-path)"
+    if [[ -d "$${source_dir}/.git" ]]; then
+      "$${chezmoi_bin}" update --skip-secrets
+    else
+      override_data="$$(jq -cn '{
+        name: env.DOTFILES_OWNER_NAME,
+        email: env.DOTFILES_OWNER_EMAIL,
+        coderUsername: env.DOTFILES_CODER_USERNAME,
+        bwsAccessToken: ""
+      }')"
+      "$${chezmoi_bin}" init --apply --skip-secrets \
+        --override-data "$${override_data}" \
+        "$${DOTFILES_URL}"
+    fi
+    touch "$${state_dir}/applied"
+  EOT
+}
+
 # Starts the memory watchdog, which bounds the standing population of
 # restartable helper processes. See script-memory-watchdog.sh for what it does
 # and does not attempt, and DESIGN.md for why the acute OOM half of its former
