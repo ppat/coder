@@ -4,6 +4,30 @@ resource "coder_env" "welcome_message" {
   value    = local.homebrew_directory
 }
 
+resource "coder_env" "dotfiles_url" {
+  agent_id = coder_agent.main.id
+  name     = "DOTFILES_URL"
+  value    = local.validated_dotfiles_url
+}
+
+resource "coder_env" "dotfiles_owner_name" {
+  agent_id = coder_agent.main.id
+  name     = "DOTFILES_OWNER_NAME"
+  value    = data.coder_workspace_owner.me.full_name
+}
+
+resource "coder_env" "dotfiles_owner_email" {
+  agent_id = coder_agent.main.id
+  name     = "DOTFILES_OWNER_EMAIL"
+  value    = data.coder_workspace_owner.me.email
+}
+
+resource "coder_env" "dotfiles_coder_username" {
+  agent_id = coder_agent.main.id
+  name     = "DOTFILES_CODER_USERNAME"
+  value    = data.coder_workspace_owner.me.name
+}
+
 # The switch that arms the memory watchdog. "observe" measures and records what
 # it would have done; "enforce" kills any process that has been over its share of
 # the 2048 MiB VS Code envelope for ten minutes and had previously been seen
