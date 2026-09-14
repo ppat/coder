@@ -2,6 +2,13 @@
 
 
 
+## [3.2.0](https://github.com/ppat/coder/compare/v3.1.0...v3.2.0) (2026-09-14)
+
+
+### ✨ Features
+
+* apply and test optional dotfiles on workspace start ([#915](https://github.com/ppat/coder/issues/915)) ([f42c36a](https://github.com/ppat/coder/commit/f42c36a64febddcdaf5ebae830a57696caaf4caa))
+
 ## [3.1.0](https://github.com/ppat/coder/compare/v3.0.0...v3.1.0) (2026-09-11)
 
 
