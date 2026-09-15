@@ -17,11 +17,13 @@ the registries, and pushes the live Coder template with that release tag.
 PR workflows are scoped directly by changed paths:
 
 - `test-image.yaml` runs for image changes. It delegates the multi-architecture build and private-registry cache to
-  the shared image-build workflow, which connects to Tailscale for that registry.
+  the shared image-build workflow, then calls the template integration workflow with that branch image. The image is
+  built once: the integration job pulls the published branch artifact and loads it into Kind.
 - `test-template.yaml` runs for template changes. It creates a local Coder/Postgres compose deployment, gives Coder
   the test-cluster kubeconfig and an OpenTofu binary bind-mounted over its bundled `terraform`, publishes the
   template with the latest released GHCR workspace image, creates a workspace, pings its agent three times with a
-  timeout, and verifies SSH by running `env`.
+  timeout, and verifies SSH by running `env`. As a reusable workflow called by `test-image.yaml`, it instead uses the
+  exact branch image and exercises the contract between image and template.
 
 This test control plane is where this repo proves OpenTofu is the thing that actually *applies* the template —
 the live deployment's provisioner is a separate repo's decision, out of this repo's control (see the
@@ -42,7 +44,8 @@ pinning the Dockerfile's `FROM` line gets.
 
 ## Running the template test locally
 
-`test-template.yaml` needs nothing CI has that a laptop doesn't — no secrets, no Tailscale, no private registry. With
+The standalone `test-template.yaml` path needs nothing CI has that a laptop doesn't — no secrets, no Tailscale, no
+private registry. With
 `kind`, `docker compose`, `kubectl`, the `coder` CLI, and `tofu` (`mise install`, pinned in `mise.toml`) on `PATH`,
 from the repo root:
 
@@ -70,7 +73,8 @@ coder template push --directory templates/kubernetes/homelab-workspace \
   --var workspace_image=ghcr.io/ppat/coder-workspace:<a-released-tag> --var test_mode=true \
   --name local --yes homelab-workspace-test
 coder create local-test --template homelab-workspace-test --no-wait --yes \
-  --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce
+  --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce \
+  --parameter dotfiles_url='' --parameter service_commands='[]'
 coder ping --num 3 --timeout 30s local-test
 coder ssh local-test -- env
 ```
@@ -89,7 +93,12 @@ no `-f` needed.
 
 1. **Image build** — an image change exercises both published architectures and the existing private cache through
    the shared image-build workflow.
-2. **Template runtime** — a template-only PR applies against fresh Coder, Postgres, and Kubernetes state, using the
+2. **Image/template integration** — the image workflow passes its published branch tag to the reusable template
+   workflow. Two service commands record if either starts before Chezmoi completes; one exits repeatedly and must be
+   invoked at least twice, while the other must remain running as an independent Supervisor process. This proves the
+   changed image supplies Supervisor, the changed template starts it only after dotfiles, and Supervisor expands and
+   restarts the commands. The template workflow loads the existing image into Kind; it does not build another one.
+3. **Template runtime** — a template-only PR applies against fresh Coder, Postgres, and Kubernetes state, using the
    last released GHCR image. The workspace start, agent ping, and SSH command prove the rendered template's runtime
    path rather than merely its Terraform syntax.
 

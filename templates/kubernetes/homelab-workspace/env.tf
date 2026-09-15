@@ -28,6 +28,24 @@ resource "coder_env" "dotfiles_coder_username" {
   value    = data.coder_workspace_owner.me.name
 }
 
+resource "coder_env" "service_commands" {
+  agent_id = coder_agent.main.id
+  name     = "SUPERVISOR_SERVICE_COMMANDS"
+  value    = jsonencode(local.validated_service_commands)
+}
+
+resource "coder_env" "service_count" {
+  agent_id = coder_agent.main.id
+  name     = "SUPERVISOR_SERVICE_COUNT"
+  value    = tostring(length(local.validated_service_commands))
+}
+
+resource "coder_env" "template_test_mode" {
+  agent_id = coder_agent.main.id
+  name     = "TEMPLATE_TEST_MODE"
+  value    = tostring(var.test_mode)
+}
+
 # The switch that arms the memory watchdog. "observe" measures and records what
 # it would have done; "enforce" kills any process that has been over its share of
 # the 2048 MiB VS Code envelope for ten minutes and had previously been seen

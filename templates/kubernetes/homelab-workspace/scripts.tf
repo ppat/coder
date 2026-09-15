@@ -1,68 +1,19 @@
-# Agent-side scripts. There is no systemd and no supervisor in this pod - PID 1
-# is the coder agent - so coder_script is the only thing that can start a daemon
-# or run something on a schedule here.
+# Agent-side scripts. PID 1 remains the Coder agent. Supervisor manages only the
+# user-defined services started after dotfiles; scheduled template work remains
+# a coder_script responsibility.
 
 # Dotfiles are personal state layered over the template, so applying them is
 # deliberately non-blocking: a broken or unavailable repository must remain a
 # visible script failure without withholding SSH access to repair the workspace.
+# The external script starts Supervisor only after Chezmoi succeeds, making this
+# one script the ordering boundary instead of racing two run-on-start scripts.
 resource "coder_script" "dotfiles" {
   agent_id           = coder_agent.main.id
   display_name       = "Apply dotfiles"
   icon               = "/icon/terminal.svg"
   run_on_start       = true
   start_blocks_login = false
-  script             = <<-EOT
-    set -euo pipefail
-
-    if [[ -z "$${DOTFILES_URL}" ]]; then
-      echo "no dotfiles repository configured"
-      exit 0
-    fi
-
-    state_dir="$${HOME}/.local/state/dotfiles"
-    mkdir -p "$${state_dir}"
-    rm -f "$${state_dir}/applied" "$${state_dir}/failed"
-    exec > >(/usr/bin/tee "$${state_dir}/run.log") 2>&1
-    trap 'status=$?; if (( status != 0 )); then printf "%s\n" "$status" >"$${state_dir}/failed"; fi' EXIT
-
-    chezmoi_bin="$${HOMEBREW_PREFIX}/bin/chezmoi"
-    if [[ ! -x "$${chezmoi_bin}" ]]; then
-      "$${HOMEBREW_PREFIX}/bin/brew" install chezmoi
-    fi
-
-    config_dir="$${XDG_CONFIG_HOME:-$${HOME}/.config}/chezmoi"
-    config_file="$${config_dir}/chezmoi.toml"
-    if [[ ! -e "$${config_file}" ]]; then
-      mkdir -p "$${config_dir}"
-      escape_toml() {
-        local value="$${1//\\/\\\\}"
-        printf '%s' "$${value//\"/\\\"}"
-      }
-      {
-        printf '[data]\n'
-        printf 'name = "%s"\n' "$(escape_toml "$${DOTFILES_OWNER_NAME}")"
-        printf 'email = "%s"\n' "$(escape_toml "$${DOTFILES_OWNER_EMAIL}")"
-        printf 'coderUsername = "%s"\n' "$(escape_toml "$${DOTFILES_CODER_USERNAME}")"
-        printf 'bwsAccessToken = ""\n'
-      } >"$${config_file}"
-    fi
-
-    source_dir="$($${chezmoi_bin} source-path)"
-    if [[ -d "$${source_dir}/.git" ]]; then
-      "$${chezmoi_bin}" update --skip-secrets
-    else
-      mkdir -p "$(dirname "$${source_dir}")"
-      git clone -- "$${DOTFILES_URL}" "$${source_dir}"
-      if [[ "${var.test_mode}" == "true" ]]; then
-        # The integration test verifies this template's Chezmoi orchestration;
-        # repository-owned workstation bootstrap scripts are outside its scope.
-        "$${chezmoi_bin}" init --apply --skip-secrets --exclude=scripts
-      else
-        "$${chezmoi_bin}" init --apply --skip-secrets
-      fi
-    fi
-    touch "$${state_dir}/applied"
-  EOT
+  script             = "/bin/bash /dotfiles.sh"
 }
 
 # Starts the memory watchdog, which bounds the standing population of
@@ -80,14 +31,7 @@ resource "coder_script" "memory_watchdog" {
   icon               = "/icon/memory.svg"
   run_on_start       = true
   start_blocks_login = false
-  script             = <<-EOT
-    set -u
-    state_dir="$${HOME}/.local/state/vscode-memory-watchdog"
-    mkdir -p "$${state_dir}"
-    /usr/bin/setsid --fork /bin/bash /memory-watchdog.sh \
-      </dev/null >>"$${state_dir}/boot.log" 2>&1
-    echo "memory watchdog started in $${WATCHDOG_MODE:-observe} mode; state in $${state_dir}"
-  EOT
+  script             = "/bin/bash /memory-watchdog-start.sh"
 }
 
 # Weekly garbage collection of ~/.vscode-server, which grows without bound and
