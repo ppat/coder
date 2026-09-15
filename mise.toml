@@ -1,6 +1,6 @@
 [tools]
-bun = "1.4.0"
-node = "24.19.0"
+bun = "1.4.2"
+node = "24.21.0"
 opentofu = "1.12.6"
 tflint = "0.64.0"
 
