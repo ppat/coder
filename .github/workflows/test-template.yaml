@@ -162,27 +162,29 @@ jobs:
 
     - name: Ping workspace agent
       shell: bash
-      run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}"
+      # Name the primary agent explicitly so adding another agent cannot make
+      # this otherwise unrelated readiness check ambiguous.
+      run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
 
     - name: Run command over workspace SSH
       shell: bash
       run: |
-        coder ssh "${WORKSPACE_NAME}" -- env
+        coder ssh "${WORKSPACE_NAME}.main" -- env
 
     - name: Confirm script bundle and temporary storage
       shell: bash
       run: |
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-agent-startup.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-container-entrypoint.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-dotfiles.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-memory-watchdog.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-memory-watchdog-start.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-prepare-workspace.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-service-command.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-start-services.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -f /scripts/supervisord.conf
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/script-vscode-server-gc.sh
-        coder ssh "${WORKSPACE_NAME}" -- test -x /scripts/workspace-init.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-agent-startup.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-container-entrypoint.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-dotfiles.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-memory-watchdog.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-memory-watchdog-start.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-prepare-workspace.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-service-command.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-start-services.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -f /scripts/supervisord.conf
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-vscode-server-gc.sh
+        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/workspace-init.sh
         deployment_name="$(kubectl --namespace coder get deployment \
         --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
         --output jsonpath='{.items[0].metadata.name}')"
@@ -203,9 +205,9 @@ jobs:
         fi
         sleep 5
         done' \
-        _ "${WORKSPACE_NAME}"
-        coder ssh "${WORKSPACE_NAME}" -- test -f /home/coder/.config/mise/config.toml
-        origin="$(coder ssh "${WORKSPACE_NAME}" -- git -C /home/coder/.local/share/chezmoi remote get-url origin)"
+        _ "${WORKSPACE_NAME}.main"
+        coder ssh "${WORKSPACE_NAME}.main" -- test -f /home/coder/.config/mise/config.toml
+        origin="$(coder ssh "${WORKSPACE_NAME}.main" -- git -C /home/coder/.local/share/chezmoi remote get-url origin)"
         [[ "${origin}" == "https://github.com/ppat/dotfiles.git" ]]
 
     - name: Confirm supervised service starts after dotfiles and restarts
@@ -216,24 +218,24 @@ jobs:
         if ! timeout 2m bash -c \
         'until count="$(coder ssh "$1" -- stat --format=%s /tmp/service-restarts 2>/dev/null)" &&
         [ "$count" -ge 2 ]; do sleep 2; done' \
-        _ "${WORKSPACE_NAME}"; then
-        coder ssh "${WORKSPACE_NAME}" -- \
+        _ "${WORKSPACE_NAME}.main"; then
+        coder ssh "${WORKSPACE_NAME}.main" -- \
         supervisorctl --configuration /scripts/supervisord.conf status || true
-        coder ssh "${WORKSPACE_NAME}" -- ls -la /home/coder/.local/state/supervisor /tmp/service-* || true
-        coder ssh "${WORKSPACE_NAME}" -- tail -n 100 /home/coder/.local/state/supervisor/service-0.log || true
-        coder ssh "${WORKSPACE_NAME}" -- tail -n 100 /home/coder/.local/state/supervisor/service-1.log || true
+        coder ssh "${WORKSPACE_NAME}.main" -- ls -la /home/coder/.local/state/supervisor /tmp/service-* || true
+        coder ssh "${WORKSPACE_NAME}.main" -- tail -n 100 /home/coder/.local/state/supervisor/service-0.log || true
+        coder ssh "${WORKSPACE_NAME}.main" -- tail -n 100 /home/coder/.local/state/supervisor/service-1.log || true
         exit 1
         fi
-        coder ssh "${WORKSPACE_NAME}" -- test ! -e /tmp/service-started-too-early
-        coder ssh "${WORKSPACE_NAME}" -- test -e /tmp/service-steady
-        coder ssh "${WORKSPACE_NAME}" -- \
+        coder ssh "${WORKSPACE_NAME}.main" -- test ! -e /tmp/service-started-too-early
+        coder ssh "${WORKSPACE_NAME}.main" -- test -e /tmp/service-steady
+        coder ssh "${WORKSPACE_NAME}.main" -- \
         supervisorctl --configuration /scripts/supervisord.conf status service:service-0
-        coder ssh "${WORKSPACE_NAME}" -- \
+        coder ssh "${WORKSPACE_NAME}.main" -- \
         supervisorctl --configuration /scripts/supervisord.conf status service:service-1
 
     - name: Show dotfiles log
       if: always()
-      run: coder ssh "${WORKSPACE_NAME}" -- cat /home/coder/.local/state/dotfiles/run.log || true
+      run: coder ssh "${WORKSPACE_NAME}.main" -- cat /home/coder/.local/state/dotfiles/run.log || true
 
     - name: Confirm workspace-owned home PVC lifecycle
       shell: bash
@@ -248,14 +250,14 @@ jobs:
         tmp_pvc_name="$(kubectl --namespace coder get pvc --output json | jq --raw-output --arg uid "${pod_uid}" \
         '.items[] | select(any(.metadata.ownerReferences[]?; .uid == $uid)) | .metadata.name')"
         [[ -n "${tmp_pvc_name}" ]]
-        coder ssh "${WORKSPACE_NAME}" -- touch /home/coder/.home-pvc-lifecycle
+        coder ssh "${WORKSPACE_NAME}.main" -- touch /home/coder/.home-pvc-lifecycle
         coder stop "${WORKSPACE_NAME}" --yes
         kubectl --namespace coder get "persistentvolumeclaim/${pvc_name}"
         kubectl --namespace coder wait --for=delete \
         "persistentvolumeclaim/${tmp_pvc_name}" --timeout=5m
         coder start "${WORKSPACE_NAME}" --no-wait --yes
-        coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}"
-        coder ssh "${WORKSPACE_NAME}" -- test -f /home/coder/.home-pvc-lifecycle || {
+        coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
+        coder ssh "${WORKSPACE_NAME}.main" -- test -f /home/coder/.home-pvc-lifecycle || {
         echo "::error::Home PVC did not preserve the lifecycle marker across stop/start."
         exit 1
         }
@@ -295,7 +297,7 @@ jobs:
         --parameter home_pvc_size=1 --parameter tmp_pvc_size=2 --parameter memory=4 \
         --parameter preferred_nodes='[]' --parameter service_commands='[]' \
         --parameter memory_watchdog_mode=enforce
-        coder ping --num 3 --timeout 30s "${SIZED_WORKSPACE_NAME}"
+        coder ping --num 3 --timeout 30s "${SIZED_WORKSPACE_NAME}.main"
         pod_uid="$(kubectl --namespace coder get pod \
         --selector "com.coder.workspace.name=${SIZED_WORKSPACE_NAME}" \
         --output jsonpath='{.items[0].metadata.uid}')"
