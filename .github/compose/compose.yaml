@@ -7,6 +7,7 @@ services:
     environment:
       CODER_HTTP_ADDRESS: 0.0.0.0:7080
       CODER_PG_CONNECTION_URL: postgresql://coder:coder@database/coder?sslmode=disable
+      CODER_WILDCARD_ACCESS_URL: "*.localhost"
       KUBECONFIG: /home/coder/.kube/config
     volumes:
     - ${CODER_KUBECONFIG}:/home/coder/.kube/config:ro

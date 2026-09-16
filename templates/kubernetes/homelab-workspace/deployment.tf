@@ -162,7 +162,7 @@ resource "kubernetes_deployment_v1" "deployment" {
             value = "/home/filebrowser/data"
           }
           env {
-            name  = "USER"
+            name = "USER"
             # The image's filebrowser account uses /bin/true. The agent uses
             # this account only to select a shell; the Pod still enforces the
             # non-root UID below.

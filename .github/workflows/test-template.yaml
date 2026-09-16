@@ -166,6 +166,51 @@ jobs:
       # this otherwise unrelated readiness check ambiguous.
       run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
 
+    - name: Confirm File Browser sidecar and Coder app
+      shell: bash
+      run: |
+        deployment_name="$(kubectl --namespace coder get deployment \
+        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
+        --output jsonpath='{.items[0].metadata.name}')"
+        session_token="$(<"${HOME}/.config/coderv2/session")"
+
+        # The second agent is the sidecar's PID 1. Prove Coder can route to it
+        # before probing the process and application that it owns.
+        coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.filebrowser"
+
+        kubectl --namespace coder exec "deployment/${deployment_name}" --container filebrowser -- \
+        sh -c 'tr "\0" " " </proc/1/cmdline | grep -q "coder.*agent"'
+        kubectl --namespace coder exec "deployment/${deployment_name}" --container filebrowser -- \
+        curl --fail --silent --show-error http://localhost:8080/health
+
+        # Both containers see the same workspace subpath of whichever home PVC
+        # the template selected, and the sidecar identity can modify it.
+        printf workspace | coder ssh "${WORKSPACE_NAME}.main" -- \
+        tee /home/coder/.filebrowser-sidecar-test >/dev/null
+        # Expand the command substitution inside the sidecar, not on the runner.
+        # shellcheck disable=SC2016
+        kubectl --namespace coder exec "deployment/${deployment_name}" --container filebrowser -- \
+        sh -c 'test "$(cat /srv/.filebrowser-sidecar-test)" = workspace && printf sidecar > /srv/.filebrowser-sidecar-test'
+        [[ "$(coder ssh "${WORKSPACE_NAME}.main" -- cat /home/coder/.filebrowser-sidecar-test)" == "sidecar" ]]
+
+        # File Browser requires the subdomain proxy because its root-relative
+        # assets cannot survive Coder's path-prefix stripping. Exercise both the
+        # configured home source and frontend through that proxy, not only the
+        # Pod-local listener.
+        app_url="http://files--${WORKSPACE_NAME}--ci.localhost:7080"
+        served_marker="$(curl --fail --silent --show-error \
+        --header "Coder-Session-Token: ${session_token}" \
+        "${app_url}/api/resources/download?source=srv&file=/.filebrowser-sidecar-test")"
+        [[ "${served_marker}" == "sidecar" ]]
+        app_html="$(curl --fail --silent --show-error \
+        --header "Coder-Session-Token: ${session_token}" "${app_url}/")"
+        grep --quiet '<title>' <<<"${app_html}"
+        asset_path="$(grep --only-matching --max-count=1 '/public/static/[^"]*' <<<"${app_html}")"
+        [[ -n "${asset_path}" ]]
+        curl --fail --silent --show-error \
+        --header "Coder-Session-Token: ${session_token}" \
+        --output /dev/null "${app_url}${asset_path}"
+
     - name: Run command over workspace SSH
       shell: bash
       run: |
@@ -315,4 +360,17 @@ jobs:
 
     - name: Show Coder logs on failure
       if: failure()
-      run: docker compose -f "${COMPOSE_FILE}" logs
+      shell: bash
+      run: |
+        kubectl --namespace coder get pods --output wide || true
+        kubectl --namespace coder logs \
+        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
+        --all-containers --prefix --tail=200 || true
+        pod_name="$(kubectl --namespace coder get pods \
+        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
+        --output jsonpath='{.items[0].metadata.name}')"
+        kubectl --namespace coder exec "pod/${pod_name}" --container filebrowser -- \
+        cat /tmp/coder-startup-script.log || true
+        kubectl --namespace coder exec "pod/${pod_name}" --container filebrowser -- \
+        cat /tmp/filebrowser.log || true
+        docker compose -f "${COMPOSE_FILE}" logs
