@@ -18,6 +18,12 @@ inputs:
   workspace_image:
     description: Value passed to the template's workspace_image variable.
     required: true
+  home_pvc_storage_class:
+    description: Storage class used for workspace-owned home PVCs.
+    required: true
+  tmp_pvc_storage_class:
+    description: Storage class used for ephemeral tmp PVCs.
+    required: true
   test_mode:
     description: Value passed to the template's test_mode variable.
     required: true
@@ -37,6 +43,8 @@ runs:
       TEMPLATE_NAME: ${{ inputs.template_name }}
       TEMPLATE_VERSION: ${{ inputs.template_version }}
       WORKSPACE_IMAGE: ${{ inputs.workspace_image }}
+      HOME_PVC_STORAGE_CLASS: ${{ inputs.home_pvc_storage_class }}
+      TMP_PVC_STORAGE_CLASS: ${{ inputs.tmp_pvc_storage_class }}
       TEST_MODE: ${{ inputs.test_mode }}
       TEMPLATE_MESSAGE: ${{ inputs.message }}
     # yamllint disable-line rule:indentation
@@ -44,6 +52,8 @@ runs:
       push_args=(
         --directory "${TEMPLATE_DIR}"
         --var "workspace_image=${WORKSPACE_IMAGE}"
+        --var "home_pvc_storage_class=${HOME_PVC_STORAGE_CLASS}"
+        --var "tmp_pvc_storage_class=${TMP_PVC_STORAGE_CLASS}"
         --var "test_mode=${TEST_MODE}"
         --name "${TEMPLATE_VERSION}"
         --yes

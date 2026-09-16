@@ -169,6 +169,8 @@ jobs:
         template_name: ${{ env.TEMPLATE_NAME }}
         template_version: ${{ github.sha }}
         workspace_image: ${{ steps.pull_request_image.outputs.workspace_image || steps.released_image.outputs.workspace_image }}
+        home_pvc_storage_class: standard
+        tmp_pvc_storage_class: standard
         test_mode: "true"
 
     - name: Start workspace
@@ -180,6 +182,7 @@ jobs:
         --arg value "service_commands=${SERVICE_COMMANDS}" '[$value] | @csv')"
         coder create "${WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
         --parameter dotfiles_url=https://github.com/ppat/dotfiles.git \
+        --parameter use_existing_home_pvc=false --parameter home_pvc_size=2 \
         --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce \
         --parameter "${service_parameter}"
 
@@ -237,6 +240,22 @@ jobs:
     - name: Show dotfiles log
       if: always()
       run: coder ssh "${WORKSPACE_NAME}" -- cat /home/coder/.local/state/dotfiles/run.log
+
+    - name: Confirm workspace-owned home PVC lifecycle
+      shell: bash
+      run: |
+        pvc_name="$(kubectl --namespace coder get pvc \
+        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
+        --output jsonpath='{.items[0].metadata.name}')"
+        [[ -n "${pvc_name}" ]]
+        coder ssh "${WORKSPACE_NAME}" -- touch /home/coder/.home-pvc-lifecycle
+        coder stop "${WORKSPACE_NAME}" --yes
+        kubectl --namespace coder get "persistentvolumeclaim/${pvc_name}"
+        coder start "${WORKSPACE_NAME}" --no-wait --yes
+        coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}"
+        coder ssh "${WORKSPACE_NAME}" -- test -f /home/coder/.home-pvc-lifecycle
+        coder delete "${WORKSPACE_NAME}" --yes
+        kubectl --namespace coder wait --for=delete "persistentvolumeclaim/${pvc_name}" --timeout=5m
 
     - name: Show Coder logs on failure
       if: failure()

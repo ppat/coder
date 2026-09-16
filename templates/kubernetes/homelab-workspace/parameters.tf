@@ -1,3 +1,56 @@
+data "coder_parameter" "use_existing_home_pvc" {
+  name = "use_existing_home_pvc"
+
+  default      = true
+  display_name = "Use an Existing Home PVC"
+  description  = "Use a pre-existing persistent volume claim for the workspace home directory"
+  icon         = "/icon/database.svg"
+  mutable      = false
+  order        = 1
+  type         = "bool"
+  form_type    = "checkbox"
+}
+
+data "coder_parameter" "existing_home_pvc_name" {
+  count = data.coder_parameter.use_existing_home_pvc.value ? 1 : 0
+
+  name = "existing_home_pvc_name"
+
+  default      = "coder-workspace-home"
+  display_name = "Existing Home PVC"
+  description  = "Name of the existing persistent volume claim in the coder namespace"
+  icon         = "/icon/database.svg"
+  mutable      = false
+  order        = 2
+  type         = "string"
+  form_type    = "input"
+
+  validation {
+    regex = "^[a-z0-9](?:[-a-z0-9.]*[a-z0-9])?$"
+    error = "Enter a valid lowercase Kubernetes PVC name"
+  }
+}
+
+data "coder_parameter" "home_pvc_size" {
+  count = data.coder_parameter.use_existing_home_pvc.value ? 0 : 1
+
+  name = "home_pvc_size"
+
+  default      = 20
+  display_name = "Home PVC Size"
+  description  = "Size of the workspace-owned home persistent volume claim in GiB"
+  icon         = "/icon/database.svg"
+  mutable      = false
+  order        = 3
+  type         = "number"
+  form_type    = "input"
+
+  validation {
+    min = 1
+    max = 256
+  }
+}
+
 data "coder_parameter" "resources_memory" {
   name = "memory"
 

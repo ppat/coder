@@ -214,23 +214,11 @@ resource "kubernetes_deployment_v1" "deployment" {
           fs_group               = 10001
           fs_group_change_policy = "OnRootMismatch"
         }
-        dynamic "volume" {
-          for_each = var.test_mode ? [] : toset(["coder-workspace-home"])
-          content {
-            name = "home"
-            persistent_volume_claim {
-              claim_name = volume.key
-              read_only  = false
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = var.test_mode ? toset(["home"]) : []
-          content {
-            name = "home"
-            empty_dir {
-              size_limit = "2Gi"
-            }
+        volume {
+          name = "home"
+          persistent_volume_claim {
+            claim_name = local.home_pvc_name
+            read_only  = false
           }
         }
         volume {
@@ -248,7 +236,7 @@ resource "kubernetes_deployment_v1" "deployment" {
         # pod on the node; container writable layers and empty_dirs all land
         # there, and it is what the kubelet's disk-pressure eviction threshold
         # watches). A Kubernetes "generic ephemeral volume" on
-        # sc-longhorn-local-non-replicated-ephemeral instead lands on the same
+        # selected non-replicated storage class instead lands on the same
         # node's much larger Longhorn-backed partition: still node-local NVMe
         # (no NFS latency), not replicated (this is scratch data - losing it on
         # node failure costs nothing, so paying to replicate it would be pure
@@ -270,7 +258,7 @@ resource "kubernetes_deployment_v1" "deployment" {
               volume_claim_template {
                 spec {
                   access_modes       = ["ReadWriteOnce"]
-                  storage_class_name = "sc-longhorn-local-non-replicated-ephemeral"
+                  storage_class_name = var.tmp_pvc_storage_class
                   resources {
                     requests = {
                       storage = "20Gi"

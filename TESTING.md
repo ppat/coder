@@ -70,9 +70,11 @@ CODER_SESSION_TOKEN="$(curl --fail --silent --show-error -X POST http://localhos
 CODER_SESSION_TOKEN="${CODER_SESSION_TOKEN}" coder login --use-token-as-session http://localhost:7080
 
 coder template push --directory templates/kubernetes/homelab-workspace \
-  --var workspace_image=ghcr.io/ppat/coder-workspace:<a-released-tag> --var test_mode=true \
+  --var workspace_image=ghcr.io/ppat/coder-workspace:<a-released-tag> \
+  --var home_pvc_storage_class=standard --var tmp_pvc_storage_class=standard --var test_mode=true \
   --name local --yes homelab-workspace-test
 coder create local-test --template homelab-workspace-test --no-wait --yes \
+  --parameter use_existing_home_pvc=false --parameter home_pvc_size=2 \
   --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce \
   --parameter dotfiles_url='' --parameter service_commands='[]'
 coder ping --num 3 --timeout 30s local-test

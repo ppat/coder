@@ -80,6 +80,8 @@ jobs:
         template_name: ${{ env.template_name }}
         template_version: ${{ env.source_sha }}
         workspace_image: "ghcr.io/ppat/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
+        home_pvc_storage_class: sc-longhorn-replicated
+        tmp_pvc_storage_class: sc-longhorn-local-non-replicated-ephemeral
         test_mode: "false"
         message: "[Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ env.source_sha }})"
 
