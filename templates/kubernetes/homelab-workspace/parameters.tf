@@ -42,6 +42,17 @@ data "coder_parameter" "dotfiles_url" {
   }
 }
 
+data "coder_parameter" "service_commands" {
+  name = "service_commands"
+
+  default      = jsonencode([])
+  display_name = "Service Commands"
+  description  = "Commands to keep running with Supervisor after dotfiles have been applied"
+  icon         = "/icon/terminal.svg"
+  mutable      = true
+  type         = "list(string)"
+}
+
 data "coder_parameter" "memory_watchdog_mode" {
   name = "memory_watchdog_mode"
 
@@ -90,6 +101,11 @@ locals {
   validated_preferred_nodes = (data.coder_parameter.preferred_nodes.value != "") ? [
     for str in jsondecode(data.coder_parameter.preferred_nodes.value) :
     str if length(regexall("[^a-zA-Z0-9-]", str)) == 0
+  ] : []
+
+  validated_service_commands = (data.coder_parameter.service_commands.value != "") ? [
+    for command in jsondecode(data.coder_parameter.service_commands.value) :
+    command if trimspace(command) != ""
   ] : []
 
   # Keep an invalid value inert even if it came from stored state created

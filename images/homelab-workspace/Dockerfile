@@ -79,6 +79,7 @@ RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-${TARGETARCH},sharing=
       ssh-askpass \
       strace \
       sudo \
+      supervisor \
       sysstat \
       tmux \
       traceroute \

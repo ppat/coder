@@ -154,9 +154,34 @@ resource "kubernetes_deployment_v1" "deployment" {
             sub_path   = "container_entrypoint_script"
           }
           volume_mount {
+            mount_path = "/dotfiles.sh"
+            name       = "coder-scripts"
+            sub_path   = "dotfiles_script"
+          }
+          volume_mount {
             mount_path = "/memory-watchdog.sh"
             name       = "coder-scripts"
             sub_path   = "memory_watchdog_script"
+          }
+          volume_mount {
+            mount_path = "/memory-watchdog-start.sh"
+            name       = "coder-scripts"
+            sub_path   = "memory_watchdog_start_script"
+          }
+          volume_mount {
+            mount_path = "/service-command.sh"
+            name       = "coder-scripts"
+            sub_path   = "service_command_script"
+          }
+          volume_mount {
+            mount_path = "/start-services.sh"
+            name       = "coder-scripts"
+            sub_path   = "start_services_script"
+          }
+          volume_mount {
+            mount_path = "/supervisord.conf"
+            name       = "coder-scripts"
+            sub_path   = "supervisor_config"
           }
           volume_mount {
             mount_path = "/vscode-server-gc.sh"
