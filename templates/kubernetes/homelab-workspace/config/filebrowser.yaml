@@ -1,0 +1,32 @@
+---
+server:
+  port: 8080
+  baseURL: "/"
+  cacheDir: "/home/filebrowser/data/tmp"
+  logging:
+  - levels: "info|warning|error"
+  sources:
+  - path: "/srv"
+
+# Coder's owner-only application proxy is the authentication boundary. The
+# sidecar has no Service and File Browser is not reachable outside the Pod.
+auth:
+  methods:
+    noauth: true
+
+frontend:
+  name: "Workspace Files"
+  disableDefaultLinks: true
+
+userDefaults:
+  listing:
+    showHidden: true
+  account:
+    permissions:
+      admin: false
+      api: false
+      create: true
+      delete: true
+      download: true
+      modify: true
+      share: false

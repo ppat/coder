@@ -18,6 +18,8 @@ resource "kubernetes_config_map_v1" "workspace_scripts" {
     "script-start-services.sh"        = file("${path.cwd}/scripts/script-start-services.sh")
     "supervisord.conf"                = file("${path.cwd}/config/supervisord.conf")
     "script-vscode-server-gc.sh"      = file("${path.cwd}/scripts/script-vscode-server-gc.sh")
+    "filebrowser-agent-init.sh"       = coder_agent.filebrowser.init_script
+    "filebrowser.yaml"                = file("${path.cwd}/config/filebrowser.yaml")
     "workspace-init.sh"               = coder_agent.main.init_script
   }
 }

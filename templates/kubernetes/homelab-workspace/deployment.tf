@@ -145,6 +145,84 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "tmp"
           }
         }
+        container {
+          name    = "filebrowser"
+          command = ["/bin/sh", "/scripts/filebrowser-agent-init.sh"]
+          image   = "gtstef/filebrowser:1.5.6-stable@sha256:7c5d7ac8ffda31294d278063cf9d2e04303b39e6dce1f4c691342240ca7703b8"
+          env {
+            name  = "CODER_AGENT_TOKEN"
+            value = coder_agent.filebrowser.token
+          }
+          env {
+            name  = "FILEBROWSER_CONFIG"
+            value = "/config/filebrowser.yaml"
+          }
+          env {
+            name  = "HOME"
+            value = "/home/filebrowser/data"
+          }
+          env {
+            name  = "USER"
+            # The image's filebrowser account uses /bin/true. The agent uses
+            # this account only to select a shell; the Pod still enforces the
+            # non-root UID below.
+            value = "root"
+          }
+          port {
+            container_port = 8080
+            name           = "filebrowser"
+            protocol       = "TCP"
+          }
+          liveness_probe {
+            http_get {
+              path   = "/health"
+              port   = 8080
+              scheme = "HTTP"
+            }
+            initial_delay_seconds = 15
+            period_seconds        = 30
+            timeout_seconds       = 3
+            failure_threshold     = 3
+          }
+          resources {
+            requests = {
+              "cpu"    = "25m"
+              "memory" = "128Mi"
+            }
+            limits = {
+              "memory" = "256Mi"
+            }
+          }
+          security_context {
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = false
+            privileged                 = false
+            run_as_user                = 10001
+            run_as_group               = 10001
+            run_as_non_root            = true
+          }
+          volume_mount {
+            mount_path = "/srv"
+            name       = "home"
+            sub_path   = data.coder_workspace.me.name
+          }
+          volume_mount {
+            mount_path = "/scripts/filebrowser-agent-init.sh"
+            name       = "coder-scripts"
+            sub_path   = "filebrowser-agent-init.sh"
+            read_only  = true
+          }
+          volume_mount {
+            mount_path = "/config/filebrowser.yaml"
+            name       = "coder-scripts"
+            sub_path   = "filebrowser.yaml"
+            read_only  = true
+          }
+          volume_mount {
+            mount_path = "/home/filebrowser/data"
+            name       = "filebrowser-data"
+          }
+        }
         enable_service_links = false
         hostname             = local.sanitized_workspace_name
         node_selector = {
@@ -171,6 +249,10 @@ resource "kubernetes_deployment_v1" "deployment" {
             name         = "init-scripts-${data.coder_workspace.me.id}"
             default_mode = "0750"
           }
+        }
+        volume {
+          name = "filebrowser-data"
+          empty_dir {}
         }
         # /tmp is scratch space (agent/tool tempfiles, build caches, downloaded
         # archives) and needs to be fast - it cannot be the NFS-backed "home"
