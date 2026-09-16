@@ -14,7 +14,7 @@ on:
   pull_request:
     paths:
     - .github/workflows/test-watchdog.yaml
-    - templates/kubernetes/homelab-workspace/script-memory-watchdog*.sh
+    - templates/kubernetes/homelab-workspace/scripts/script-memory-watchdog*.sh
   workflow_dispatch:
 
 concurrency:
@@ -40,4 +40,4 @@ jobs:
       # Exits non-zero when any assertion fails, which is what fails the build.
       # Needs nothing but bash and a writable TMPDIR: builds its fixtures under
       # mktemp -d, touches no network, finishes in a couple of seconds.
-      run: ./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
+      run: ./templates/kubernetes/homelab-workspace/scripts/script-memory-watchdog-test.sh

@@ -35,7 +35,7 @@ CI (`.github/workflows/lint.yaml`) runs the same checks per file-type via reusab
 A separate workflow, `.github/workflows/test-watchdog.yaml`, runs the one thing here that's a test rather than a linter: its `watchdog` job runs `script-memory-watchdog-test.sh` and fails the build on a failed assertion. It's repo-local rather than a reusable workflow because `ppat/github-workflows` has nothing for "execute a test script", and the suite needs only bash and a writable `TMPDIR`:
 
 ```bash
-./templates/kubernetes/homelab-workspace/script-memory-watchdog-test.sh
+./templates/kubernetes/homelab-workspace/scripts/script-memory-watchdog-test.sh
 ```
 
 There is no local way to build/publish the image against the private registry cache (`test-image.yaml` needs the Tailscale-routed credentials CI has), but the template test path needs neither secrets nor CI: `test-template.yaml`'s Kind/Compose/`coder` sequence runs the same on a laptop — see [TESTING.md](TESTING.md) for the local recipe and for how a change actually gets exercised, and the **Release flow** section below for how it ships for real.
@@ -77,11 +77,12 @@ Quick orientation map — for what each piece is *for* and the decisions behind 
 | `env.tf` | `coder_env` resources exposed to the agent |
 | `scripts.tf` | `coder_script` resources — the memory watchdog daemon and the weekly `vscode-server` GC schedule |
 | `variables.tf` | Publish-time image, storage-class, and dotfiles-script controls |
-| `script-agent-startup.sh` / `script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
-| `script-container-entrypoint.sh` | The workspace container's `command`. Wipes `/tmp` and `exec`s Coder's generated `/scripts/workspace-init.sh` — the wipe must precede the agent, see the gotcha below |
-| `script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). It bounds the **standing population of restartable helpers** against a fixed **2048 MiB envelope** for the VS Code tree (per-role shares of it, PSS, ten-minute dwell) and records every per-process sweep. It does **not** try to prevent an acute OOM. `memory_watchdog_mode` selects `observe` / `enforce` (the default; arms every role). `enforce-all` is retired and honoured as `enforce` |
-| `script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test-watchdog.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
-| `script-vscode-server-gc.sh` | Weekly GC of `~/.vscode-server` (interrupted downloads, superseded server versions/extensions, orphaned CLI binaries — see the script's own header for the exact signal per class, and the `coder_script.vscode_server_gc` comment in `scripts.tf` for why it's template-owned rather than dotfiles-owned) |
+| `scripts/script-agent-startup.sh` / `scripts/script-prepare-workspace.sh` | Scripts run on agent/workspace startup |
+| `scripts/script-container-entrypoint.sh` | The workspace container's `command`. Wipes `/tmp` and `exec`s Coder's generated `/scripts/workspace-init.sh` — the wipe must precede the agent, see the gotcha below |
+| `scripts/script-memory-watchdog.sh` | Userspace memory watchdog — see [DESIGN.md](DESIGN.md#design-tensions-and-decisions). It bounds the **standing population of restartable helpers** against a fixed **2048 MiB envelope** for the VS Code tree (per-role shares of it, PSS, ten-minute dwell) and records every per-process sweep. It does **not** try to prevent an acute OOM. `memory_watchdog_mode` selects `observe` / `enforce` (the default; arms every role). `enforce-all` is retired and honoured as `enforce` |
+| `scripts/script-memory-watchdog-test.sh` | Fixture tests for the watchdog's envelope and shares, process selection, dwell, the oversize rule and the kill-rate report. Run by hand (`./scripts/script-memory-watchdog-test.sh`) and by the `watchdog` job in `.github/workflows/test-watchdog.yaml`. `kill` is shadowed by a function throughout — the fixture pids are real pids in whatever container runs the suite |
+| `scripts/script-vscode-server-gc.sh` | Weekly GC of `~/.vscode-server` (interrupted downloads, superseded server versions/extensions, orphaned CLI binaries — see the script's own header for the exact signal per class, and the `coder_script.vscode_server_gc` comment in `scripts.tf` for why it's template-owned rather than dotfiles-owned) |
+| `config/supervisord.conf` | Native Supervisor configuration mounted alongside the scripts |
 
 **Image** (`images/homelab-workspace/Dockerfile`): three build stages — `base` (minimal bootstrap deps) → `system-base` (`unminimize` + full interactive toolset) → final stage (env vars into `/etc/environment`, fixed-UID/GID `coder` user, `USER coder`). All `apt`-touching `RUN` steps use BuildKit cache mounts — match that pattern when adding packages.
 
