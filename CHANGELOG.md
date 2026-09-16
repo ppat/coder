@@ -2,6 +2,13 @@
 
 
 
+## [3.3.0](https://github.com/ppat/coder/compare/v3.2.0...v3.3.0) (2026-09-16)
+
+
+### ✨ Features
+
+* supervise user-defined workspace services ([#921](https://github.com/ppat/coder/issues/921)) ([0329913](https://github.com/ppat/coder/commit/03299138223c45f7a6963d2d8ba417c25b9b9cf6))
+
 ## [3.2.0](https://github.com/ppat/coder/compare/v3.1.0...v3.2.0) (2026-09-14)
 
 
