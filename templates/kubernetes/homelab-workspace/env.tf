@@ -40,10 +40,10 @@ resource "coder_env" "service_count" {
   value    = tostring(length(local.validated_service_commands))
 }
 
-resource "coder_env" "template_test_mode" {
+resource "coder_env" "skip_dotfiles_scripts" {
   agent_id = coder_agent.main.id
-  name     = "TEMPLATE_TEST_MODE"
-  value    = tostring(var.test_mode)
+  name     = "SKIP_DOTFILES_SCRIPTS"
+  value    = tostring(var.skip_dotfiles_scripts)
 }
 
 # The switch that arms the memory watchdog. "observe" measures and records what

@@ -48,18 +48,15 @@ resource "kubernetes_deployment_v1" "deployment" {
         automount_service_account_token = false
         init_container {
           name    = "prepare-workspace"
-          command = ["/bin/bash", "/prepare-workspace-script.sh"]
+          command = ["/bin/bash", "/scripts/script-prepare-workspace.sh"]
           image   = var.workspace_image
           env {
             name  = "HOMEBREW_PREFIX"
             value = local.homebrew_directory
           }
-          dynamic "env" {
-            for_each = var.test_mode ? [] : toset(["normalise-tmp-permissions"])
-            content {
-              name  = "NORMALISE_TMP_PERMISSIONS"
-              value = "true"
-            }
+          env {
+            name  = "NORMALISE_TMP_PERMISSIONS"
+            value = "true"
           }
           volume_mount {
             mount_path = local.home_directory
@@ -72,19 +69,15 @@ resource "kubernetes_deployment_v1" "deployment" {
             sub_path   = "${data.coder_workspace.me.name}/.linuxbrew"
           }
           volume_mount {
-            mount_path = "/prepare-workspace-script.sh"
+            mount_path = "/scripts"
             name       = "coder-scripts"
-            sub_path   = "prepare_workspace_script"
           }
           # fsGroup makes the production volume group-writable. Prepare its
           # root as a standard shared temporary directory before the
           # unprivileged workspace container starts.
-          dynamic "volume_mount" {
-            for_each = var.test_mode ? [] : toset(["tmp"])
-            content {
-              mount_path = "/tmp"
-              name       = volume_mount.value
-            }
+          volume_mount {
+            mount_path = "/tmp"
+            name       = "tmp"
           }
           security_context {
             run_as_user = 0
@@ -92,13 +85,13 @@ resource "kubernetes_deployment_v1" "deployment" {
         }
         container {
           name = "workspace"
-          # Not Coder's generated /workspace-init.sh directly: the entrypoint
+          # Not Coder's generated /scripts/workspace-init.sh directly: the entrypoint
           # wipes /tmp and then execs it. The wipe has to happen before the
           # agent unpacks its CLI into /tmp, and this is the only hook that runs
           # on a container-only restart within a live Pod (init containers do
           # not) - see script-container-entrypoint.sh and the "tmp" volume
           # below.
-          command = ["/bin/bash", "/container-entrypoint.sh"]
+          command = ["/bin/bash", "/scripts/script-container-entrypoint.sh"]
           image   = var.workspace_image
           env {
             name  = "CODER_AGENT_TOKEN"
@@ -144,61 +137,12 @@ resource "kubernetes_deployment_v1" "deployment" {
             name       = "home"
           }
           volume_mount {
-            mount_path = "/agent-startup.sh"
+            mount_path = "/scripts"
             name       = "coder-scripts"
-            sub_path   = "agent_startup_script"
           }
           volume_mount {
-            mount_path = "/container-entrypoint.sh"
-            name       = "coder-scripts"
-            sub_path   = "container_entrypoint_script"
-          }
-          volume_mount {
-            mount_path = "/dotfiles.sh"
-            name       = "coder-scripts"
-            sub_path   = "dotfiles_script"
-          }
-          volume_mount {
-            mount_path = "/memory-watchdog.sh"
-            name       = "coder-scripts"
-            sub_path   = "memory_watchdog_script"
-          }
-          volume_mount {
-            mount_path = "/memory-watchdog-start.sh"
-            name       = "coder-scripts"
-            sub_path   = "memory_watchdog_start_script"
-          }
-          volume_mount {
-            mount_path = "/service-command.sh"
-            name       = "coder-scripts"
-            sub_path   = "service_command_script"
-          }
-          volume_mount {
-            mount_path = "/start-services.sh"
-            name       = "coder-scripts"
-            sub_path   = "start_services_script"
-          }
-          volume_mount {
-            mount_path = "/supervisord.conf"
-            name       = "coder-scripts"
-            sub_path   = "supervisor_config"
-          }
-          volume_mount {
-            mount_path = "/vscode-server-gc.sh"
-            name       = "coder-scripts"
-            sub_path   = "vscode_server_gc_script"
-          }
-          volume_mount {
-            mount_path = "/workspace-init.sh"
-            name       = "coder-scripts"
-            sub_path   = "workspace_init_script"
-          }
-          dynamic "volume_mount" {
-            for_each = var.test_mode ? [] : toset(["tmp"])
-            content {
-              mount_path = "/tmp"
-              name       = volume_mount.value
-            }
+            mount_path = "/tmp"
+            name       = "tmp"
           }
         }
         enable_service_links = false
@@ -250,19 +194,16 @@ resource "kubernetes_deployment_v1" "deployment" {
         # the entrypoint and nowhere later: the Coder agent unpacks its own CLI
         # into /tmp before it runs anything else, so a wipe from the agent
         # startup script deletes it.
-        dynamic "volume" {
-          for_each = var.test_mode ? [] : toset(["tmp"])
-          content {
-            name = volume.value
-            ephemeral {
-              volume_claim_template {
-                spec {
-                  access_modes       = ["ReadWriteOnce"]
-                  storage_class_name = var.tmp_pvc_storage_class
-                  resources {
-                    requests = {
-                      storage = "20Gi"
-                    }
+        volume {
+          name = "tmp"
+          ephemeral {
+            volume_claim_template {
+              spec {
+                access_modes       = ["ReadWriteOnce"]
+                storage_class_name = var.tmp_pvc_storage_class
+                resources {
+                  requests = {
+                    storage = "${data.coder_parameter.tmp_pvc_size.value}Gi"
                   }
                 }
               }

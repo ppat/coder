@@ -25,7 +25,7 @@ set -euo pipefail
 # cleanup script that only exists via a dotfiles deploy can't cover the case
 # that motivated writing it. See configmap.tf (mounts this into the
 # ConfigMap the pod reads from) and deployment.tf (mounts it into the
-# workspace container at /vscode-server-gc.sh); scripts.tf's coder_script
+# workspace container at /scripts/script-vscode-server-gc.sh); scripts.tf's coder_script
 # "vscode_server_gc" invokes it directly on its weekly cron -- no existence
 # check, because the ConfigMap mount guarantees it's there whenever the pod
 # is, and see that resource's comment for the silent-no-op failure mode this

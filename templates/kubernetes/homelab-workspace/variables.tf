@@ -10,6 +10,10 @@ variable "tmp_pvc_storage_class" {
   type = string
 }
 
-variable "test_mode" {
+variable "kubernetes_config_path" {
+  type = string
+}
+
+variable "skip_dotfiles_scripts" {
   type = bool
 }

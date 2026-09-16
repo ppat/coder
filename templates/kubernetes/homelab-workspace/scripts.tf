@@ -13,7 +13,7 @@ resource "coder_script" "dotfiles" {
   icon               = "/icon/terminal.svg"
   run_on_start       = true
   start_blocks_login = false
-  script             = "/bin/bash /dotfiles.sh"
+  script             = "/bin/bash /scripts/script-dotfiles.sh"
 }
 
 # Starts the memory watchdog, which bounds the standing population of
@@ -31,7 +31,7 @@ resource "coder_script" "memory_watchdog" {
   icon               = "/icon/memory.svg"
   run_on_start       = true
   start_blocks_login = false
-  script             = "/bin/bash /memory-watchdog-start.sh"
+  script             = "/bin/bash /scripts/script-memory-watchdog-start.sh"
 }
 
 # Weekly garbage collection of ~/.vscode-server, which grows without bound and
@@ -55,5 +55,5 @@ resource "coder_script" "vscode_server_gc" {
   icon         = "/icon/code.svg"
   # Coder's cron is 6-field (seconds first), not the usual 5. Sundays at 04:00.
   cron   = "0 0 4 * * 0"
-  script = "/bin/bash /vscode-server-gc.sh"
+  script = "/bin/bash /scripts/script-vscode-server-gc.sh"
 }

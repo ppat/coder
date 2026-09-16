@@ -17,7 +17,7 @@ TMP_WIPE_STATUS_FILE="/tmp/.tmp-wipe-status"
 #
 # This has to run in the container entrypoint, before the Coder agent exists,
 # and not in the agent startup script. Coder's own bootstrap (the generated
-# /workspace-init.sh) unpacks the agent CLI into a per-boot mktemp directory
+# /scripts/workspace-init.sh) unpacks the agent CLI into a per-boot mktemp directory
 # under /tmp, chdirs into it, appends it to the PATH of every session and script
 # the agent runs, and only then runs the startup script - so a wipe from the
 # startup script deletes the CLI the agent installed moments earlier, which is
@@ -57,7 +57,7 @@ main() {
   # than spawning it: the agent has to stay PID 1, both because it reaps orphans
   # in this container and because the Deployment's liveness probe pgreps for it.
   echo "Starting Coder agent..."
-  exec /bin/bash /workspace-init.sh
+  exec /bin/bash /scripts/workspace-init.sh
 }
 
 main

@@ -40,7 +40,7 @@ data "coder_parameter" "home_pvc_size" {
   display_name = "Home PVC Size"
   description  = "Size of the workspace-owned home persistent volume claim in GiB"
   icon         = "/icon/database.svg"
-  mutable      = false
+  mutable      = true
   order        = 3
   type         = "number"
   form_type    = "input"
@@ -48,6 +48,24 @@ data "coder_parameter" "home_pvc_size" {
   validation {
     min = 1
     max = 256
+  }
+}
+
+data "coder_parameter" "tmp_pvc_size" {
+  name = "tmp_pvc_size"
+
+  default      = 1
+  display_name = "Temporary Storage Size"
+  description  = "Size of the ephemeral temporary-storage persistent volume claim in GiB"
+  icon         = "/icon/database.svg"
+  mutable      = true
+  order        = 4
+  type         = "number"
+  form_type    = "slider"
+
+  validation {
+    min = 1
+    max = 50
   }
 }
 

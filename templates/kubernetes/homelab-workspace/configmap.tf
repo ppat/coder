@@ -8,16 +8,16 @@ resource "kubernetes_config_map_v1" "workspace_scripts" {
   }
 
   data = {
-    agent_startup_script         = file("${path.cwd}/script-agent-startup.sh")
-    container_entrypoint_script  = file("${path.cwd}/script-container-entrypoint.sh")
-    dotfiles_script              = file("${path.cwd}/script-dotfiles.sh")
-    memory_watchdog_script       = file("${path.cwd}/script-memory-watchdog.sh")
-    memory_watchdog_start_script = file("${path.cwd}/script-memory-watchdog-start.sh")
-    prepare_workspace_script     = file("${path.cwd}/script-prepare-workspace.sh")
-    service_command_script       = file("${path.cwd}/script-service-command.sh")
-    start_services_script        = file("${path.cwd}/script-start-services.sh")
-    supervisor_config            = file("${path.cwd}/supervisord.conf")
-    vscode_server_gc_script      = file("${path.cwd}/script-vscode-server-gc.sh")
-    workspace_init_script        = coder_agent.main.init_script
+    "script-agent-startup.sh"         = file("${path.cwd}/script-agent-startup.sh")
+    "script-container-entrypoint.sh"  = file("${path.cwd}/script-container-entrypoint.sh")
+    "script-dotfiles.sh"              = file("${path.cwd}/script-dotfiles.sh")
+    "script-memory-watchdog.sh"       = file("${path.cwd}/script-memory-watchdog.sh")
+    "script-memory-watchdog-start.sh" = file("${path.cwd}/script-memory-watchdog-start.sh")
+    "script-prepare-workspace.sh"     = file("${path.cwd}/script-prepare-workspace.sh")
+    "script-service-command.sh"       = file("${path.cwd}/script-service-command.sh")
+    "script-start-services.sh"        = file("${path.cwd}/script-start-services.sh")
+    "supervisord.conf"                = file("${path.cwd}/supervisord.conf")
+    "script-vscode-server-gc.sh"      = file("${path.cwd}/script-vscode-server-gc.sh")
+    "workspace-init.sh"               = coder_agent.main.init_script
   }
 }

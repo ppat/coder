@@ -44,7 +44,7 @@ else
   else
     mkdir -p "$(dirname "${source_dir}")"
     git clone -- "${DOTFILES_URL}" "${source_dir}"
-    if [[ "${TEMPLATE_TEST_MODE}" == "true" ]]; then
+    if [[ "${SKIP_DOTFILES_SCRIPTS}" == "true" ]]; then
       # The integration test verifies this template's Chezmoi orchestration;
       # repository-owned workstation bootstrap scripts are outside its scope.
       "${chezmoi_bin}" init --apply --skip-secrets --exclude=scripts
@@ -55,4 +55,4 @@ else
 fi
 
 touch "${state_dir}/applied"
-/bin/bash /start-services.sh
+/bin/bash /scripts/script-start-services.sh
