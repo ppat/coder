@@ -190,7 +190,7 @@ resource "kubernetes_deployment_v1" "deployment" {
               "memory" = "128Mi"
             }
             limits = {
-              "memory" = "512Mi"
+              "memory" = "256Mi"
             }
           }
           security_context {
