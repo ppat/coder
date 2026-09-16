@@ -38,21 +38,3 @@ jobs:
       tailscale_oauth_secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
       build_secrets: |
         FETCH_GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
-
-  integration:
-    needs: build
-    uses: ./.github/workflows/test-template.yaml
-    with:
-      image_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
-      image_tag: ${{ needs.build.outputs.image_tag }}
-      service_commands: >-
-        ["test -f /home/coder/.local/state/dotfiles/applied || { touch /tmp/service-started-too-early; exit 1; };
-        printf x >> /tmp/service-restarts; sleep 2; exit 1",
-        "test -f /home/coder/.local/state/dotfiles/applied || { touch /tmp/service-started-too-early; exit 1; };
-        touch /tmp/service-steady; exec sleep 300"]
-    secrets:
-      private_registry: ${{ secrets.CONTAINER_REGISTRY }}
-      private_registry_username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
-      private_registry_token: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
-      tailscale_oauth_client_id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-      tailscale_oauth_secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}

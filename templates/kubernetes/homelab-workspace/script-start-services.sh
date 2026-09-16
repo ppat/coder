@@ -18,5 +18,5 @@ if [[ -s "${state_dir}/supervisord.pid" ]]; then
   rm -f "${state_dir}/supervisord.pid" "${state_dir}/supervisor.sock"
 fi
 
-/usr/bin/supervisord --configuration /supervisord.conf
+/usr/bin/supervisord --configuration /scripts/supervisord.conf
 echo "started ${SUPERVISOR_SERVICE_COUNT} supervised service command(s); state in ${state_dir}"

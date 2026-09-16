@@ -17,5 +17,5 @@ provider "coder" {
 }
 
 provider "kubernetes" {
-  config_path = var.test_mode ? "/home/coder/.kube/config" : null
+  config_path = var.kubernetes_config_path != "" ? var.kubernetes_config_path : null
 }

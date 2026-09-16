@@ -24,8 +24,12 @@ inputs:
   tmp_pvc_storage_class:
     description: Storage class used for ephemeral tmp PVCs.
     required: true
-  test_mode:
-    description: Value passed to the template's test_mode variable.
+  kubernetes_config_path:
+    description: Provisioner-local kubeconfig path, or empty for in-cluster authentication.
+    required: true
+    default: ""
+  skip_dotfiles_scripts:
+    description: Whether Chezmoi should skip repository-owned bootstrap scripts.
     required: true
     default: "false"
   message:
@@ -45,7 +49,8 @@ runs:
       WORKSPACE_IMAGE: ${{ inputs.workspace_image }}
       HOME_PVC_STORAGE_CLASS: ${{ inputs.home_pvc_storage_class }}
       TMP_PVC_STORAGE_CLASS: ${{ inputs.tmp_pvc_storage_class }}
-      TEST_MODE: ${{ inputs.test_mode }}
+      KUBERNETES_CONFIG_PATH: ${{ inputs.kubernetes_config_path }}
+      SKIP_DOTFILES_SCRIPTS: ${{ inputs.skip_dotfiles_scripts }}
       TEMPLATE_MESSAGE: ${{ inputs.message }}
     # yamllint disable-line rule:indentation
     run: |
@@ -54,7 +59,8 @@ runs:
         --var "workspace_image=${WORKSPACE_IMAGE}"
         --var "home_pvc_storage_class=${HOME_PVC_STORAGE_CLASS}"
         --var "tmp_pvc_storage_class=${TMP_PVC_STORAGE_CLASS}"
-        --var "test_mode=${TEST_MODE}"
+        --var "kubernetes_config_path=${KUBERNETES_CONFIG_PATH}"
+        --var "skip_dotfiles_scripts=${SKIP_DOTFILES_SCRIPTS}"
         --name "${TEMPLATE_VERSION}"
         --yes
       )
