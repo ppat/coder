@@ -2,6 +2,20 @@
 
 
 
+## [3.4.0](https://github.com/ppat/coder/compare/v3.3.0...v3.4.0) (2026-09-17)
+
+
+### ✨ Features
+
+* **template:** add File Browser workspace app ([#928](https://github.com/ppat/coder/issues/928)) ([4ee1905](https://github.com/ppat/coder/commit/4ee19050ac06254a82f3e0d81edce839156bf6b8))
+* **template:** add workspace-owned home storage ([#923](https://github.com/ppat/coder/issues/923)) ([e5d5743](https://github.com/ppat/coder/commit/e5d5743ec962639eddad9debebaa665fea90b054))
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* simplify template storage and runtime tests ([#925](https://github.com/ppat/coder/issues/925)) ([c0a2247](https://github.com/ppat/coder/commit/c0a224744987f3be85cf43a4f09df2e423d46e1a))
+* **template:** organize runtime assets into subdirectories ([#926](https://github.com/ppat/coder/issues/926)) ([5c42f5b](https://github.com/ppat/coder/commit/5c42f5b5abfd762741c9f6deb7cc29bd454b0113))
+
 ## [3.3.0](https://github.com/ppat/coder/compare/v3.2.0...v3.3.0) (2026-09-16)
 
 
