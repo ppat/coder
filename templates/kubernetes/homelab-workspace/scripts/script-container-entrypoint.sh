@@ -39,8 +39,14 @@ TMP_WIPE_STATUS_FILE="/tmp/.tmp-wipe-status"
 # can fail loudly in the workspace UI without taking the workspace down.
 wipe_tmp() {
   echo "Wiping /tmp..."
-  local errors
-  errors="$(find /tmp -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>&1)" || true
+  local errors preserve_lost_found=()
+  # A fresh filesystem may expose a protected, root-owned lost+found. Preserve
+  # only that structural entry; a user-created namesake remains scratch data.
+  if [[ -d /tmp/lost+found && ! -L /tmp/lost+found ]] &&
+    [[ "$(stat -c '%u' /tmp/lost+found 2>/dev/null)" == "0" ]]; then
+    preserve_lost_found=(-not -path /tmp/lost+found)
+  fi
+  errors="$(find /tmp -mindepth 1 -maxdepth 1 "${preserve_lost_found[@]}" -exec rm -rf -- {} + 2>&1)" || true
   if [[ -n "${errors}" ]]; then
     echo "ERROR: failed to fully wipe /tmp:" >&2
     echo "${errors}" >&2
