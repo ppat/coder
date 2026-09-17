@@ -17,5 +17,5 @@ provider "coder" {
 }
 
 provider "kubernetes" {
-  config_path = var.kubernetes_config_path != "" ? var.kubernetes_config_path : null
+  config_path = var.kubernetes_config_path != "in-cluster" ? var.kubernetes_config_path : null
 }
