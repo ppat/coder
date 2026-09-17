@@ -11,7 +11,8 @@ record_env_vars() {
   touch "${ENV_VARS_FILE}"
   for key in $(env | cut -d= -f1 | grep '^CODER_VAR_'); do
     value=$(printenv "$key")
-    echo "$key=\"$value\"" >> "${ENV_VARS_FILE}"
+    k=$(echo "$key" | sed 's/^CODER_VAR_//')
+    echo "$k=\"$value\"" >> "${ENV_VARS_FILE}"
   done
 }
 
