@@ -2,6 +2,13 @@
 
 
 
+## [3.4.1](https://github.com/ppat/coder/compare/v3.4.0...v3.4.1) (2026-09-17)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **template:** support explicit in-cluster authentication ([#934](https://github.com/ppat/coder/issues/934)) ([c03da50](https://github.com/ppat/coder/commit/c03da50c6c6b565582e75621300c521811e2c961))
+
 ## [3.4.0](https://github.com/ppat/coder/compare/v3.3.0...v3.4.0) (2026-09-17)
 
 
