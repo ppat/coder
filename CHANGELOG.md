@@ -2,6 +2,13 @@
 
 
 
+## [3.4.2](https://github.com/ppat/coder/compare/v3.4.1...v3.4.2) (2026-09-17)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **template:** fix startup scripts ([#938](https://github.com/ppat/coder/issues/938)) ([a344d53](https://github.com/ppat/coder/commit/a344d5335dce0318ba28c21ce864d502f589ef9b))
+
 ## [3.4.1](https://github.com/ppat/coder/compare/v3.4.0...v3.4.1) (2026-09-17)
 
 
