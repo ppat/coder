@@ -54,6 +54,31 @@ runs:
       TEMPLATE_MESSAGE: ${{ inputs.message }}
     # yamllint disable-line rule:indentation
     run: |
+      existing_version=""
+      if coder templates list --output json | jq --exit-status --arg name "${TEMPLATE_NAME}" \
+        'any(.[]; .Template.name == $name)' >/dev/null; then
+        existing_version="$(coder templates versions list "${TEMPLATE_NAME}" --include-archived --output json | jq --compact-output \
+          --arg name "${TEMPLATE_VERSION}" '.[] | select(.TemplateVersion.name == $name)')"
+      fi
+      if [[ -n "${existing_version}" ]]; then
+        existing_status="$(jq --raw-output '.TemplateVersion.job.status' <<<"${existing_version}")"
+        existing_active="$(jq --raw-output '.active' <<<"${existing_version}")"
+        existing_id="$(jq --raw-output '.TemplateVersion.id' <<<"${existing_version}")"
+        if [[ "${existing_status}" != "failed" || "${existing_active}" != "false" ]]; then
+          echo "::error::Template version ${TEMPLATE_VERSION} already exists with status=${existing_status}, active=${existing_active}; refusing to replace it."
+          exit 1
+        fi
+
+        coder_url="$(<"${HOME}/.config/coderv2/url")"
+        coder_session_token="$(<"${HOME}/.config/coderv2/session")"
+        failed_version_name="${TEMPLATE_VERSION}-failed-${existing_id%%-*}"
+        curl --fail --silent --show-error --request PATCH \
+          --header "Coder-Session-Token: ${coder_session_token}" \
+          --header "Content-Type: application/json" \
+          --data "$(jq --null-input --arg name "${failed_version_name}" '{name: $name}')" \
+          "${coder_url}/api/v2/templateversions/${existing_id}" >/dev/null
+      fi
+
       variables_file="${RUNNER_TEMP}/coder-template-variables.yaml"
       jq --null-input \
         --arg kubernetes_config_path "${KUBERNETES_CONFIG_PATH}" \
