@@ -2,6 +2,13 @@
 
 
 
+## [3.5.0](https://github.com/ppat/coder/compare/v3.4.2...v3.5.0) (2026-09-17)
+
+
+### ✨ Features
+
+* **template:** load coder agent env vars from k8s secret if available ([#940](https://github.com/ppat/coder/issues/940)) ([27ce30c](https://github.com/ppat/coder/commit/27ce30cf838428b5b6877903fc14ee13308a2a45))
+
 ## [3.4.2](https://github.com/ppat/coder/compare/v3.4.1...v3.4.2) (2026-09-17)
 
 
