@@ -81,10 +81,6 @@ prepare_environment() {
 }
 
 normalise_tmp_permissions() {
-  if [[ "${NORMALISE_TMP_PERMISSIONS:-}" != "true" ]]; then
-    return
-  fi
-
   # fsGroup makes the production volume group-writable. The sticky bit keeps
   # processes that share /tmp from replacing one another's entries.
   chmod 1777 /tmp

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -eo pipefail
 
+ENV_VARS_FILE="/home/coder/.env.pod"
+
+
 # Coder's bootstrap unpacks the agent CLI into a per-boot directory under /tmp
 # and the agent appends that directory to the PATH of everything it runs, so
 # resolving "coder" here goes through exactly the same lookup a metadata script
@@ -31,6 +34,9 @@ main() {
     cp /etc/skel/.profile ~/.profile
     echo 'set -o allexport; source /etc/environment; set +o allexport' >> ~/.bashrc
     echo '------------------------------------------------------------'
+  fi
+  if [[ -f "${ENV_VARS_FILE}" ]]; then
+    set -a; source "${ENV_VARS_FILE}"; set +a
   fi
   echo 'Done'
 }
