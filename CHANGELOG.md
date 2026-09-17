@@ -2,6 +2,13 @@
 
 
 
+## [3.5.1](https://github.com/ppat/coder/compare/v3.5.0...v3.5.1) (2026-09-17)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **template:** fix coder pod env var ([#942](https://github.com/ppat/coder/issues/942)) ([d045bf0](https://github.com/ppat/coder/commit/d045bf03abb03dbe7fad33973f64868a3f230ca4))
+
 ## [3.5.0](https://github.com/ppat/coder/compare/v3.4.2...v3.5.0) (2026-09-17)
 
 
