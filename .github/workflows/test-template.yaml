@@ -108,6 +108,18 @@ jobs:
         RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
         echo "workspace_image=ghcr.io/ppat/coder-workspace:${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
 
+    - name: Confirm in-cluster publish input
+      uses: ./current/actions/coder-template-push
+      with:
+        template_dir: current/templates/kubernetes/homelab-workspace
+        template_name: in-cluster-test
+        template_version: ${{ github.sha }}
+        workspace_image: ${{ steps.released_image.outputs.workspace_image }}
+        home_pvc_storage_class: standard
+        tmp_pvc_storage_class: standard
+        kubernetes_config_path: in-cluster
+        skip_dotfiles_scripts: "true"
+
     - name: Publish template
       uses: ./current/actions/coder-template-push
       with:
