@@ -6,9 +6,15 @@ on:
   release:
     types:
     - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to publish.
+        required: true
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name || inputs.release_tag }}
   cancel-in-progress: true
 
 env:
@@ -17,8 +23,8 @@ env:
   image_path: images/homelab-workspace
   template_path: templates/kubernetes/homelab-workspace
   template_name: homelab-workspace
-  source_ref: ${{ github.event.release.tag_name }}
-  source_sha: ${{ github.event.release.tag_name }}
+  source_ref: ${{ github.event.release.tag_name || inputs.release_tag }}
+  source_sha: ${{ github.event.release.tag_name || inputs.release_tag }}
 
 jobs:
   publish-image:
@@ -33,7 +39,7 @@ jobs:
       platforms: linux/amd64,linux/arm64
       private_registry_repository: ${{ vars.CONTAINER_REGISTRY_PATH }}/coder-workspace
       private_registry_build_cache: ${{ vars.CONTAINER_REGISTRY_CACHE_PATH }}/coder-workspace
-      git_ref: ${{ github.event.release.tag_name }}
+      git_ref: ${{ github.event.release.tag_name || inputs.release_tag }}
       ghcr_repository: ppat/coder-workspace
       timeout_minutes: 180
     secrets:
@@ -50,11 +56,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - name: Checkout
+    - name: Checkout publishing automation
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
         persist-credentials: false
+        path: .automation
+        ref: main
+
+    - name: Checkout release source
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+        path: release
         ref: ${{ env.source_ref }}
 
     - name: Tailscale Connect
@@ -67,16 +82,16 @@ jobs:
         version: "1.102.4"
 
     - name: Login to Coder
-      uses: ./actions/coder-cli-login
+      uses: ./.automation/actions/coder-cli-login
       with:
         coder_url: ${{ secrets.CODER_URL }}
         coder_email: ${{ secrets.CODER_EMAIL }}
         coder_password: ${{ secrets.CODER_PASSWORD }}
 
     - name: Publish template
-      uses: ./actions/coder-template-push
+      uses: ./.automation/actions/coder-template-push
       with:
-        template_dir: ${{ env.template_path }}
+        template_dir: release/${{ env.template_path }}
         template_name: ${{ env.template_name }}
         template_version: ${{ env.source_sha }}
         workspace_image: "ghcr.io/ppat/coder-workspace:${{ needs.publish-image.outputs.image_tag }}"
