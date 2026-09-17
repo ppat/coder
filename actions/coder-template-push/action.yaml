@@ -54,12 +54,18 @@ runs:
       TEMPLATE_MESSAGE: ${{ inputs.message }}
     # yamllint disable-line rule:indentation
     run: |
+      variables_file="${RUNNER_TEMP}/coder-template-variables.yaml"
+      jq --null-input \
+        --arg kubernetes_config_path "${KUBERNETES_CONFIG_PATH}" \
+        '{kubernetes_config_path: $kubernetes_config_path}' > "${variables_file}"
       push_args=(
         --directory "${TEMPLATE_DIR}"
         --var "workspace_image=${WORKSPACE_IMAGE}"
         --var "home_pvc_storage_class=${HOME_PVC_STORAGE_CLASS}"
         --var "tmp_pvc_storage_class=${TMP_PVC_STORAGE_CLASS}"
-        --var "kubernetes_config_path=${KUBERNETES_CONFIG_PATH}"
+        # Coder discards an empty `--var name=` assignment. A variables file
+        # preserves the required empty string used for in-cluster auth.
+        --variables-file "${variables_file}"
         --var "skip_dotfiles_scripts=${SKIP_DOTFILES_SCRIPTS}"
         --name "${TEMPLATE_VERSION}"
         --yes
