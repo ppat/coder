@@ -57,3 +57,12 @@ resource "coder_script" "vscode_server_gc" {
   cron   = "0 0 4 * * 0"
   script = "/bin/bash /scripts/script-vscode-server-gc.sh"
 }
+
+resource "coder_script" "supervised_services" {
+  agent_id           = coder_agent.main.id
+  display_name       = "Supervised Services"
+  icon               = "/icon/terminal.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = "/bin/bash /scripts/script-start-services.sh"
+}

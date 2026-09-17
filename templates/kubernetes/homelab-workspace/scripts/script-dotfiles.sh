@@ -55,4 +55,3 @@ else
 fi
 
 touch "${state_dir}/applied"
-/bin/bash /scripts/script-start-services.sh

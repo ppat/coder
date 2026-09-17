@@ -6,6 +6,15 @@ if (( SUPERVISOR_SERVICE_COUNT == 0 )); then
   exit 0
 fi
 
+dotfiles_state_file="${HOME}/.local/state/dotfiles/applied"
+timeout 180s bash -c "until [ -e '$dotfiles_state_file' ]; do sleep 5; done"
+if [ $? -eq 124 ]; then
+  echo "Timed out waiting for dotfiles to be applied. Please check the logs for errors."
+  exit 1
+else
+  echo "Dotfiles applied successfully. Proceeding to start supervised services."
+fi
+
 state_dir="${XDG_STATE_HOME:-${HOME}/.local/state}/supervisor"
 mkdir -p "${state_dir}"
 
