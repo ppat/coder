@@ -148,6 +148,26 @@ data "coder_parameter" "memory_watchdog_mode" {
   }
 }
 
+data "coder_parameter" "filebrowser_enabled" {
+  name = "filebrowser_enabled"
+
+  default      = "disabled"
+  display_name = "File Browser"
+  description  = "Whether to enable the file browser"
+  mutable      = true
+  type         = "bool"
+  form_type    = "radio"
+
+  option {
+    name  = "Disabled"
+    value = "disabled"
+  }
+  option {
+    name  = "Enabled"
+    value = "enabled"
+  }
+}
+
 
 locals {
   # Coder already constrains this to the two option values server-side, but it

@@ -1,4 +1,6 @@
 resource "coder_agent" "filebrowser" {
+  count = (data.coder_parameter.filebrowser_enabled.value == "enabled") ? 1 : 0
+
   arch                    = "amd64"
   os                      = "linux"
   api_key_scope           = "no_user_data"
@@ -16,7 +18,9 @@ resource "coder_agent" "filebrowser" {
 }
 
 resource "coder_app" "filebrowser" {
-  agent_id     = coder_agent.filebrowser.id
+  count = (data.coder_parameter.filebrowser_enabled.value == "enabled") ? 1 : 0
+
+  agent_id     = coder_agent.filebrowser[0].id
   slug         = "files"
   display_name = "Files"
   icon         = "/icon/folder.svg"
