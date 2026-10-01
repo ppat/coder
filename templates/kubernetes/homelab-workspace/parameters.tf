@@ -151,7 +151,7 @@ data "coder_parameter" "memory_watchdog_mode" {
 data "coder_parameter" "filebrowser_enabled" {
   name = "filebrowser_enabled"
 
-  default      = "disabled"
+  default      = false
   display_name = "File Browser"
   description  = "Whether to enable the file browser"
   mutable      = true
@@ -160,11 +160,11 @@ data "coder_parameter" "filebrowser_enabled" {
 
   option {
     name  = "Disabled"
-    value = "disabled"
+    value = false
   }
   option {
     name  = "Enabled"
-    value = "enabled"
+    value = true
   }
 }
 
