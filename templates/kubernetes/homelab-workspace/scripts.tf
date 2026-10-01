@@ -58,6 +58,24 @@ resource "coder_script" "vscode_server_gc" {
   script = "/bin/bash /scripts/script-vscode-server-gc.sh"
 }
 
+# Hourly bounding of the tool caches under the home directory, a fixed-size
+# volume (a PVC, or an existing claim such as a quota'd NFS share) whose
+# filling fails every write in the pod. Go's build cache alone outgrows Go's
+# own five-day trim at agent build rates. Hourly,
+# because that is the rate those caches fill at; the script's lock makes an
+# overrunning pass skip the next tick rather than race it. Template-owned and
+# invoked with no existence check, for the reason vscode_server_gc above is.
+# See script-cache-gc.sh for each cache's eviction rule and why it is safe
+# while other sessions use the cache.
+resource "coder_script" "cache_gc" {
+  agent_id     = coder_agent.main.id
+  display_name = "Cache GC"
+  icon         = "/icon/folder.svg"
+  # 6-field cron, seconds first: minute 17 of every hour.
+  cron   = "0 17 * * * *"
+  script = "/bin/bash /scripts/script-cache-gc.sh"
+}
+
 resource "coder_script" "supervised_services" {
   agent_id           = coder_agent.main.id
   display_name       = "Supervised Services"
