@@ -333,7 +333,4 @@ jobs:
         kubectl --namespace coder logs \
         --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
         --all-containers --prefix --tail=200 || true
-        pod_name="$(kubectl --namespace coder get pods \
-        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.name}')"
         docker compose -f "${COMPOSE_FILE}" logs
