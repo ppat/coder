@@ -336,8 +336,4 @@ jobs:
         pod_name="$(kubectl --namespace coder get pods \
         --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
         --output jsonpath='{.items[0].metadata.name}')"
-        kubectl --namespace coder exec "pod/${pod_name}" --container filebrowser -- \
-        cat /tmp/coder-startup-script.log || true
-        kubectl --namespace coder exec "pod/${pod_name}" --container filebrowser -- \
-        cat /tmp/filebrowser.log || true
         docker compose -f "${COMPOSE_FILE}" logs
