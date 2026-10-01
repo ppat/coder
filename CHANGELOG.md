@@ -2,6 +2,15 @@
 
 
 
+## [3.5.2](https://github.com/ppat/coder/compare/v3.5.1...v3.5.2) (2026-10-01)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update digest ubuntu (2260313 -&gt; da6fc2b) ([#944](https://github.com/ppat/coder/issues/944)) ([03d49e0](https://github.com/ppat/coder/commit/03d49e004016309abb202dff39d5592d30927b00))
+* **template:** drop broken file browser ([#950](https://github.com/ppat/coder/issues/950)) ([483981a](https://github.com/ppat/coder/commit/483981a4a5179879edee8a118bdaa6b44176d6e0))
+* **template:** fix dotfiles script ([#948](https://github.com/ppat/coder/issues/948)) ([6204e8e](https://github.com/ppat/coder/commit/6204e8e374d490b7b6e3539450ddea7e13e22fff))
+
 ## [3.5.1](https://github.com/ppat/coder/compare/v3.5.0...v3.5.1) (2026-09-17)
 
 
