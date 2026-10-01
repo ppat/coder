@@ -156,16 +156,7 @@ data "coder_parameter" "filebrowser_enabled" {
   description  = "Whether to enable the file browser"
   mutable      = true
   type         = "bool"
-  form_type    = "radio"
-
-  option {
-    name  = "Disabled"
-    value = false
-  }
-  option {
-    name  = "Enabled"
-    value = true
-  }
+  form_type    = "checkbox"
 }
 
 

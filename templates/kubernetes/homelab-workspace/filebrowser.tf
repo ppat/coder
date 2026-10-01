@@ -1,5 +1,5 @@
 resource "coder_agent" "filebrowser" {
-  count = (data.coder_parameter.filebrowser_enabled.value == "true") ? 1 : 0
+  count = data.coder_parameter.filebrowser_enabled.value ? 1 : 0
 
   arch                    = "amd64"
   os                      = "linux"
@@ -18,7 +18,7 @@ resource "coder_agent" "filebrowser" {
 }
 
 resource "coder_app" "filebrowser" {
-  count = (data.coder_parameter.filebrowser_enabled.value == "true") ? 1 : 0
+  count = data.coder_parameter.filebrowser_enabled.value ? 1 : 0
 
   agent_id     = coder_agent.filebrowser[0].id
   slug         = "files"

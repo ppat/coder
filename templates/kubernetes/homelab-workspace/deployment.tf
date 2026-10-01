@@ -142,7 +142,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "container" {
-          for_each = data.coder_parameter.filebrowser_enabled.value == "true" ? toset(["filebrowser"]) : []
+          for_each = data.coder_parameter.filebrowser_enabled.value ? toset(["filebrowser"]) : []
           content {
             name    = "filebrowser"
             command = ["/bin/sh", "/scripts/filebrowser-agent-init.sh"]
@@ -250,7 +250,7 @@ resource "kubernetes_deployment_v1" "deployment" {
           }
         }
         dynamic "volume" {
-          for_each = data.coder_parameter.filebrowser_enabled.value == "true" ? toset(["filebrowser"]) : []
+          for_each = data.coder_parameter.filebrowser_enabled.value ? toset(["filebrowser"]) : []
           content {
             name = "filebrowser-data"
             empty_dir {
