@@ -104,6 +104,7 @@ data "coder_parameter" "dotfiles_url" {
   display_name = "Dotfiles Repository"
   description  = "Optional HTTPS Git repository to apply with Chezmoi when the workspace starts"
   icon         = "/icon/git.svg"
+  mutable      = true
   type         = "string"
   form_type    = "input"
 
