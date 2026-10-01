@@ -170,7 +170,8 @@ jobs:
         --parameter dotfiles_url=https://github.com/ppat/dotfiles.git \
         --parameter use_existing_home_pvc=false --parameter home_pvc_size=2 --parameter tmp_pvc_size=1 \
         --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce \
-        --parameter "${service_parameter}"
+        --parameter "${service_parameter}" \
+        --parameter "filebrowser_enabled=true"
 
     - name: Ping workspace agent
       shell: bash
