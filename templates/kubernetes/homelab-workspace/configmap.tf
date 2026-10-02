@@ -9,6 +9,7 @@ resource "kubernetes_config_map_v1" "workspace_scripts" {
 
   data = {
     "script-agent-startup.sh"         = file("${path.cwd}/scripts/script-agent-startup.sh")
+    "script-cache-gc.sh"              = file("${path.cwd}/scripts/script-cache-gc.sh")
     "script-container-entrypoint.sh"  = file("${path.cwd}/scripts/script-container-entrypoint.sh")
     "script-dotfiles.sh"              = file("${path.cwd}/scripts/script-dotfiles.sh")
     "script-memory-watchdog.sh"       = file("${path.cwd}/scripts/script-memory-watchdog.sh")
