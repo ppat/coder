@@ -2,6 +2,13 @@
 
 
 
+## [3.6.0](https://github.com/ppat/coder/compare/v3.5.2...v3.6.0) (2026-10-02)
+
+
+### ✨ Features
+
+* **template:** bound home-directory tool caches with an hourly cache GC ([#954](https://github.com/ppat/coder/issues/954)) ([7c3a1b1](https://github.com/ppat/coder/commit/7c3a1b1bf7db487eac63d732a412c0fe7bf81afc))
+
 ## [3.5.2](https://github.com/ppat/coder/compare/v3.5.1...v3.5.2) (2026-10-01)
 
 
