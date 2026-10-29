@@ -1,7 +1,7 @@
 [tools]
 bun = "1.4.3"
 node = "24.21.0"
-opentofu = "1.13.1"
+opentofu = "1.13.2"
 tflint = "0.64.0"
 
 [settings.npm]
