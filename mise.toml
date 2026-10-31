@@ -1,8 +1,8 @@
 [tools]
-bun = "1.4.3"
-node = "24.21.0"
+bun = "1.4.4"
+node = "24.22.1"
 opentofu = "1.13.2"
-tflint = "0.64.0"
+tflint = "0.65.0"
 
 [settings.npm]
 bun = true
