@@ -2,6 +2,13 @@
 
 
 
+## [3.6.1](https://github.com/ppat/coder/compare/v3.6.0...v3.6.1) (2026-10-31)
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update digest ubuntu (da6fc2b -&gt; c098726) ([#958](https://github.com/ppat/coder/issues/958)) ([2740279](https://github.com/ppat/coder/commit/2740279a639d56c854573b7a190e7476ae2c3458))
+
 ## [3.6.0](https://github.com/ppat/coder/compare/v3.5.2...v3.6.0) (2026-10-12)
 
 
