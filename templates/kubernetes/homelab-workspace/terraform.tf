@@ -8,7 +8,7 @@ terraform {
     }
     kubernetes = {
       source  = "registry.opentofu.org/hashicorp/kubernetes"
-      version = "3.2.1"
+      version = "3.4.0"
     }
   }
 }
