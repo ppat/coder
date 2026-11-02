@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@a44731e42a98c1746bbe8075fda85a28bf96eb97 # v8.4.0
+    uses: ppat/github-workflows/.github/workflows/build-docker-image.yaml@e95dcb3a80a8e832d6ab2749d0e36329641c72b9 # v8.5.0
     with:
       image_context_path: images/homelab-workspace
       label_title: "Homelab Workspace"
