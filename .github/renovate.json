@@ -23,16 +23,13 @@
     "The commit vocabulary these rules emit is enumerated in commitlint.config.js and explained in .claude/rules/commits.md; the preset pin and that enum have to move together, because two of the scopes are emitted upstream."
   ],
   "extends": [
-    ":ignoreModulesAndTests",
     "abandonments:recommended",
     "docker:pinDigests",
     "helpers:pinGitHubActionDigests",
-    "mergeConfidence:age-confidence-badges",
-    "mergeConfidence:all-badges",
     "github>ppat/coder//.github/renovate/scope-fallback",
-    "github>ppat/renovate-presets#v1.0.0",
-    "github>ppat/renovate-presets:dev-tools#v1.0.0",
-    "github>ppat/renovate-presets:github-actions#v1.0.0",
+    "github>ppat/renovate-presets#v1.0.1",
+    "github>ppat/renovate-presets:dev-tools#v1.0.1",
+    "github>ppat/renovate-presets:github-actions#v1.0.1",
     "github>ppat/coder//.github/renovate/scope-internal",
     "github>ppat/coder//.github/renovate/scope-shipped",
     "github>ppat/coder//.github/renovate/exceptions"
