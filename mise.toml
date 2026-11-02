@@ -2,7 +2,7 @@
 bun = "1.4.4"
 node = "26.13.0"
 opentofu = "1.13.2"
-tflint = "0.64.0"
+tflint = "0.65.0"
 
 [settings.npm]
 package_manager = "bun"
