@@ -2,6 +2,19 @@
 
 
 
+## [3.7.0](https://github.com/ppat/coder/compare/v3.6.0...v3.7.0) (2026-11-06)
+
+
+### ✨ Features
+
+* **template:** update hashicorp/kubernetes (3.2.1 -&gt; 3.4.0) ([#965](https://github.com/ppat/coder/issues/965)) ([748fc4f](https://github.com/ppat/coder/commit/748fc4f9be59e78c861bed784f5e8d0f148a987f))
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update digest ubuntu (c098726 -&gt; 6a06111) ([#980](https://github.com/ppat/coder/issues/980)) ([a4d60ed](https://github.com/ppat/coder/commit/a4d60ed6e46ac7cfb739560b7f778acce1bf3075))
+* **image:** update digest ubuntu (da6fc2b -&gt; c098726) ([#958](https://github.com/ppat/coder/issues/958)) ([2740279](https://github.com/ppat/coder/commit/2740279a639d56c854573b7a190e7476ae2c3458))
+
 ## [3.6.0](https://github.com/ppat/coder/compare/v3.5.2...v3.6.0) (2026-10-12)
 
 
