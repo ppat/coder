@@ -20,11 +20,11 @@ check_placement() {
 WORKSPACE_NAME="$1"
 SCRIPT_DIR="$2"
 echo "Checking script bundle presence within workspace..."
-scripts=$(find "${SCRIPT_DIR}/scripts" -type f -not -name '*test*' -exec basename {} + | sort)
+scripts=$(find "${SCRIPT_DIR}/scripts" -type f -not -name '*test*' -printf "%f\n" | sort)
 check_placement "${WORKSPACE_NAME}" "yes" ${scripts} workspace-init.sh | sed 's/^/  /'
 echo
 
 echo "Checking config bundle presence within workspace..."
-configs=$(find "${SCRIPT_DIR}/config" -type f -not -name '*test*' -exec basename {} + | sort)
+configs=$(find "${SCRIPT_DIR}/config" -type f -not -name '*test*' -printf "%f\n" | sort)
 check_placement "${WORKSPACE_NAME}" "no" ${configs} | sed 's/^/  /'
 echo
