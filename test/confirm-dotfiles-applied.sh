@@ -27,5 +27,7 @@ confirm_dotfiles_applied() {
   spotcheck_dotfiles_placement "${workspace_name}" | sed 's/^/  /'
 }
 
+export -f check_dotfiles_status
+export -f spotcheck_dotfiles_placement
 export -f confirm_dotfiles_applied
-timeout 15m bash -c "confirm_dotfiles_applied ${1}"
+timeout 15m bash -c "sconfirm_dotfiles_applied ${1}"

@@ -28,7 +28,7 @@
 # not a harness anybody should run.
 set -uo pipefail
 
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+WATCHDOG_SCRIPT_DIR="$1"
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
@@ -417,7 +417,7 @@ load_watchdog() {
     WATCHDOG_STATE_DIR="${WORK}/state" \
     WATCHDOG_STDOUT_PATH="$STDOUT_FILE" \
     WATCHDOG_MODE="$mode" \
-    . "${SELF_DIR}/script-memory-watchdog.sh"
+    . "${WATCHDOG_SCRIPT_DIR}/script-memory-watchdog.sh"
   # Not an assertion - a refusal. If the seam ever fails to take, every later
   # test in this file writes fixture actions to the container's real stdout.
   if [[ ${STDOUT_PATH:-} != "$STDOUT_FILE" ]]; then
@@ -1955,7 +1955,7 @@ test_singleton_survives_a_hard_kill() {
   local d="${pdir}/4242"
   mkdir -p "$d"
   printf '4242 (bash) S 1 1 1 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 100\n' >"${d}/stat"
-  printf '/bin/bash\0%s\0' "${SELF_DIR}/script-memory-watchdog.sh" >"${d}/cmdline"
+  printf '/bin/bash\0%s\0' "${WATCHDOG_SCRIPT_DIR}/script-memory-watchdog.sh" >"${d}/cmdline"
   printf '4242\n' >"${WORK}/state/watchdog.pid"
   if acquire_singleton; then
     bad "a genuinely running watchdog did not stop a second one"
