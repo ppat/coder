@@ -67,10 +67,13 @@ runs:
 
   - name: Wait for local Coder to accept connections
     id: coder-ready
+    env:
+      KIND_CLUSTER: ${{ inputs.kind_cluster }}
     shell: bash
     run: |
       set -x
       echo "Determining coder port and URL..."
+      docker compose -f "${COMPOSE_FILE}" port -h
       CODER_PORT="$(docker compose -f "${COMPOSE_FILE}" port coder | head -1 | awk '{ print $1 }' | cut -d'/' -f1)"
       CODER_URL="http://localhost:${CODER_PORT}"
       echo "Using Coder URL: ${CODER_URL}"
