@@ -74,7 +74,7 @@ jobs:
       run: |
         RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
 
-        cat <<EOF > "${TEMPLATE_CFG_FILE}""
+        cat <<EOF > "${TEMPLATE_CFG_FILE}"
         workspace_image: ghcr.io/ppat/coder-workspace:${RELEASE_TAG}
         home_pvc_storage_class: standard
         tmp_pvc_storage_class: standard

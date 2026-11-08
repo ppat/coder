@@ -95,7 +95,7 @@ jobs:
         TEMPLATE_CFG_FILE: ${{ runner.temp }}/template-config.yaml
       shell: bash
       run: |
-        cat <<EOF > ${TEMPLATE_CFG_FILE}
+        cat <<EOF > "${TEMPLATE_CFG_FILE}"
         workspace_image: ghcr.io/ppat/coder-workspace:${{ needs.publish-image.outputs.image_tag }}
         home_pvc_storage_class: sc-longhorn-replicated
         tmp_pvc_storage_class: sc-longhorn-local-non-replicated-ephemeral
