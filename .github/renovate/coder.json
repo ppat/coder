@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "commitMessageTopic": "opentofu",
+      "groupName": "coder-{{newVersion}}",
+
+      "matchPackageNames": [
+        "coder",
+        "ghcr.io/coder/coder"
+      ]
+    }
+  ]
+}
