@@ -13,6 +13,6 @@ data "coder_workspace_preset" "test" {
     (data.coder_parameter.use_existing_home_pvc.name) = false
     (data.coder_parameter.dotfiles_url.name)          = "https://github.com/ppat/dotfiles.git"
     (data.coder_parameter.memory_watchdog_mode.name)  = "enforce"
-    (data.coder_parameter.service_commands.name)      = join(",", local.test_service_commands)
+    (data.coder_parameter.service_commands.name)      = jsonencode(local.test_service_commands)
   }
 }
