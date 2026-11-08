@@ -67,6 +67,8 @@ runs:
 
   - name: Wait for local Coder to accept connections
     id: coder-ready
+    env:
+      KIND_CLUSTER: ${{ inputs.kind_cluster }}
     shell: bash
     run: |
       echo "Determining coder port and URL..."
