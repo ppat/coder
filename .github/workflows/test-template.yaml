@@ -8,6 +8,7 @@ on:
     - actions/**
     - .github/compose/**
     - .github/workflows/test-template.yaml
+    - mise.toml
     - templates/kubernetes/homelab-workspace/**
     - test/**
     - mise.toml
