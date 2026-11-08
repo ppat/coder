@@ -11,10 +11,6 @@ data "coder_workspace_preset" "test" {
   description = "Preset used for testing the homelab-workspace template within github actions ci workflow"
   parameters = {
     (data.coder_parameter.use_existing_home_pvc.name) = false
-    (data.coder_parameter.home_pvc_size[0].name)      = 2
-    (data.coder_parameter.tmp_pvc_size.name)          = 1
-    (data.coder_parameter.resources_memory.name)      = 2
-    (data.coder_parameter.preferred_nodes.name)       = "[]"
     (data.coder_parameter.dotfiles_url.name)          = "https://github.com/ppat/dotfiles.git"
     (data.coder_parameter.memory_watchdog_mode.name)  = "enforce"
     (data.coder_parameter.service_commands.name)      = join(",", local.test_service_commands)

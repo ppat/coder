@@ -17,6 +17,18 @@
         "major"
       ],
       "commitMessagePrefix": "{{semanticCommitType}}{{#if semanticCommitScope}}({{semanticCommitScope}}){{/if}}:"
+    },
+    {
+      "commitMessageTopic": "opentofu",
+      "groupName": "coder-{{newVersion}}",
+      "matchManagers": [
+
+        "mise"
+      ],
+      "matchPackageNames": [
+        "coder",
+        "ghcr.io/coder/coder"
+      ]
     }
   ]
 }
