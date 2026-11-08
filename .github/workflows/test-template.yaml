@@ -100,15 +100,15 @@ jobs:
 
     - name: Confirm script bundle is present within workspace
       shell: bash
-      run: ./.automation/test/check-script-bundle.sh "${WORKSPACE_NAME}.main"
+      run: ./.automation/test/check-script-bundle.sh "${WORKSPACE_NAME}" "current/templates/kubernetes/homelab-workspace"
 
     - name: Confirm dotfiles were applied
       shell: bash
-      run: timeout 15m ./.automation/test/confirm-dotfiles-applied.sh "${WORKSPACE_NAME}.main"
+      run: ./.automation/test/confirm-dotfiles-applied.sh "${WORKSPACE_NAME}"
 
     - name: Confirm supervised service starts after dotfiles and restarts
       shell: bash
-      run: timeout 15m ./.automation/test/confirm-supervised-service-status.sh "${WORKSPACE_NAME}.main"
+      run: ./.automation/test/confirm-supervised-service-status.sh "${WORKSPACE_NAME}"
 
     - name: Show dotfiles log
       if: always()
@@ -116,7 +116,7 @@ jobs:
 
     - name: Confirm workspace restart behavior - home PVC survives and tmp PVC is replaced
       shell: bash
-      run: ./.automation/test/confirm-storage-volume-behavior.sh "${WORKSPACE_NAME}.main"
+      run: ./.automation/test/confirm-storage-volume-behavior.sh "${WORKSPACE_NAME}"
 
     - name: Show Coder logs on failure
       if: failure()

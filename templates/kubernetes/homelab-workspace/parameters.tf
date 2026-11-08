@@ -36,7 +36,7 @@ data "coder_parameter" "home_pvc_size" {
 
   name = "home_pvc_size"
 
-  default      = 20
+  default      = 4
   display_name = "Home PVC Size"
   description  = "Size of the workspace-owned home persistent volume claim in GiB"
   icon         = "/icon/database.svg"

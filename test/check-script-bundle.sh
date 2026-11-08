@@ -17,12 +17,14 @@ check_placement() {
   done
 }
 
+WORKSPACE_NAME="$1"
+SCRIPT_DIR="$2"
 echo "Checking script bundle presence within workspace..."
-scripts=$(find "$2/templates/kubernetes/homelab-workspace/scripts" -type f -not -name '*test*' -exec basename {} + | sort)
-check_placement "$1" "yes" ${scripts} workspace-init.sh | sed 's/^/  /'
+scripts=$(find "${SCRIPT_DIR}/scripts" -type f -not -name '*test*' -exec basename {} + | sort)
+check_placement "${WORKSPACE_NAME}" "yes" ${scripts} workspace-init.sh | sed 's/^/  /'
 echo
 
 echo "Checking config bundle presence within workspace..."
-configs=$(find "$2/templates/kubernetes/homelab-workspace/config" -type f -not -name '*test*' -exec basename {} + | sort)
-check_placement "$1" "no" ${configs} | sed 's/^/  /'
+configs=$(find "${SCRIPT_DIR}/config" -type f -not -name '*test*' -exec basename {} + | sort)
+check_placement "${WORKSPACE_NAME}" "no" ${configs} | sed 's/^/  /'
 echo
