@@ -21,10 +21,11 @@ spotcheck_dotfiles_placement() {
   done
 }
 
-main() {
+confirm_dotfiles_applied() {
   local workspace_name="$1"
   check_dotfiles_status "${workspace_name}" | sed 's/^/  /'
   spotcheck_dotfiles_placement "${workspace_name}" | sed 's/^/  /'
 }
 
-timeout 15m main
+export -f confirm_dotfiles_applied
+timeout 15m bash -c "confirm_dotfiles_applied ${1}"

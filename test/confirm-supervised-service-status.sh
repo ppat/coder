@@ -9,7 +9,8 @@ wait_for_service_restarts() {
 }
 
 WORKSPACE_NAME="$1"
-if ! timeout 2m wait_for_service_restarts "${WORKSPACE_NAME}"; then
+export -f wait_for_service_restarts
+if ! timeout 2m bash -c "wait_for_service_restarts ${WORKSPACE_NAME}"; then
   echo "::error::Supervised services restarted at least twice within 2 minutes, indicating a failure to start properly. See supervisorctl status and service logs below."
   echo
   coder ssh "${WORKSPACE_NAME}.main" -- supervisorctl --configuration /scripts/supervisord.conf status || true
