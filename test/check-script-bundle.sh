@@ -18,13 +18,11 @@ check_placement() {
 }
 
 echo "Checking script bundle presence within workspace..."
-# shellcheck disable=SC2044
-scripts=$(for f in $(find templates/kubernetes/homelab-workspace/scripts -type f -not -name '*test*'); do basename $f; done | sort)
+scripts=$(find "$2/templates/kubernetes/homelab-workspace/scripts" -type f -not -name '*test*' -exec basename {} + | sort)
 check_placement "$1" "yes" ${scripts} workspace-init.sh | sed 's/^/  /'
 echo
 
 echo "Checking config bundle presence within workspace..."
-# shellcheck disable=SC2044
-configs=$(for f in $(find templates/kubernetes/homelab-workspace/config -type f -not -name '*test*'); do basename $f; done | sort)
+configs=$(find "$2/templates/kubernetes/homelab-workspace/config" -type f -not -name '*test*' -exec basename {} + | sort)
 check_placement "$1" "no" ${configs} | sed 's/^/  /'
 echo
