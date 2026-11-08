@@ -2,8 +2,7 @@
 # yamllint disable rule:line-length
 name: Coder CLI login
 description: >-
-  Waits for a Coder deployment to accept connections, installs the matching
-  CLI version, and logs the CLI in with a session token obtained via the
+  Waits for a Coder deployment to accept connections, logs the CLI in with a session token obtained via the
   deployment's email/password login endpoint.
 
 inputs:
@@ -26,15 +25,6 @@ runs:
       CODER_URL: ${{ inputs.coder_url }}
     run: |
       timeout 5m bash -c "until curl --fail --silent --show-error \"\${CODER_URL}/api/v2/buildinfo\" > /dev/null; do sleep 2; done"
-
-  - name: Install Coder CLI
-    shell: bash
-    env:
-      CODER_URL: ${{ inputs.coder_url }}
-    run: |
-      export CODER_VERSION
-      CODER_VERSION="$(curl --fail --silent --show-error "${CODER_URL}/api/v2/buildinfo" | jq --raw-output .version | cut -d'+' -f1 | cut -d'v' -f2)"
-      curl --fail --silent --show-error --location https://coder.com/install.sh | sh -s -- --method standalone --version "${CODER_VERSION}"
 
   - name: Log in to Coder
     shell: bash

@@ -189,6 +189,11 @@ resource "kubernetes_deployment_v1" "deployment" {
           name = "tmp"
           ephemeral {
             volume_claim_template {
+              metadata {
+                labels = merge(local.common_labels, {
+                  "storage-type" = "tmp"
+                })
+              }
               spec {
                 access_modes       = ["ReadWriteOnce"]
                 storage_class_name = var.tmp_pvc_storage_class
