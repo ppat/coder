@@ -22,7 +22,7 @@
       "commitMessageTopic": "opentofu",
       "groupName": "coder-{{newVersion}}",
       "matchManagers": [
-
+        "docker-compose",
         "mise"
       ],
       "matchPackageNames": [
