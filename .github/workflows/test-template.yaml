@@ -9,10 +9,9 @@ on:
     - .github/compose/**
     - .github/workflows/test-template.yaml
     - mise.toml
+    - mise.lock
     - templates/kubernetes/homelab-workspace/**
     - test/**
-    - mise.toml
-    - mise.lock
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
