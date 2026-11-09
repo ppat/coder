@@ -3,14 +3,16 @@ set -euo pipefail
 
 check_dotfiles_status() {
   local workspace_name="$1"
-  until coder ssh "${workspace_name}.main" -- test -f /home/coder/.local/state/dotfiles/applied; do
-    if coder ssh "${workspace_name}.main" -- test -f /home/coder/.local/state/dotfiles/failed; then
-      echo "::error::Dotfiles failed to apply. See run.log below."
-      coder ssh "${workspace_name}.main" -- cat /home/coder/.local/state/dotfiles/run.log | sed 's/^/  /'
-      exit 1
-    fi
-    sleep 5
-  done
+  # Expand the positional parameter inside the runner-owned polling shell.
+  # shellcheck disable=SC2016
+  timeout 15m bash -c \
+    'until coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/applied; do
+      if coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/failed; then
+        coder ssh "$1" -- cat /home/coder/.local/state/dotfiles/run.log
+        exit 1
+      fi
+      sleep 5
+    done' _ "${workspace_name}.main"
 }
 
 spotcheck_dotfiles_placement() {
@@ -21,13 +23,8 @@ spotcheck_dotfiles_placement() {
   done
 }
 
-confirm_dotfiles_applied() {
-  local workspace_name="$1"
-  check_dotfiles_status "${workspace_name}" | sed 's/^/  /'
-  spotcheck_dotfiles_placement "${workspace_name}" | sed 's/^/  /'
-}
-
-export -f check_dotfiles_status
-export -f spotcheck_dotfiles_placement
-export -f confirm_dotfiles_applied
-timeout 15m bash -c "sconfirm_dotfiles_applied ${1}"
+WORKSPACE_NAME="$1"
+check_dotfiles_status "${WORKSPACE_NAME}" | sed 's/^/  /'
+echo
+spotcheck_dotfiles_placement "${WORKSPACE_NAME}" | sed 's/^/  /'
+echo

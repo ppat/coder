@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-wait_for_service_restarts() {
-  workspace_name="$1"
-  until count="$(coder ssh "${workspace_name}.main" -- stat --format=%s /tmp/service-restarts 2>/dev/null)" && [ "$count" -ge 2 ]; do
-    sleep 2;
-  done
-}
-
 WORKSPACE_NAME="$1"
-export -f wait_for_service_restarts
-if ! timeout 2m bash -c "wait_for_service_restarts ${WORKSPACE_NAME}"; then
+# Expand the positional parameter inside the runner-owned polling shell.
+# shellcheck disable=SC2016
+if ! timeout 2m bash -c \
+  'until count="$(coder ssh "$1" -- stat --format=%s /tmp/service-restarts 2>/dev/null)" &&
+  [ "$count" -ge 2 ]; do sleep 2; done' \
+  _ "${WORKSPACE_NAME}.main"; then
   echo "::error::Supervised services restarted at least twice within 2 minutes, indicating a failure to start properly. See supervisorctl status and service logs below."
   echo
   coder ssh "${WORKSPACE_NAME}.main" -- supervisorctl --configuration /scripts/supervisord.conf status || true
