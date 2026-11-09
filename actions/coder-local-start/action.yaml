@@ -69,7 +69,6 @@ runs:
     id: coder-ready
     shell: bash
     run: |
-      set -x
       echo "Determining coder port and URL..."
       CODER_PORT="$(yq .services.coder.ports[0] ${COMPOSE_FILE} | cut -d':' -f2)"
       CODER_URL="http://localhost:${CODER_PORT}"
