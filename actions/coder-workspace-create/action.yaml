@@ -49,4 +49,4 @@ runs:
       WORKSPACE_NAME: ${{ inputs.workspace_name }}
     shell: bash
     run: |
-      coder ssh "${WORKSPACE_NAME}.main" -- env
+      coder ssh "${WORKSPACE_NAME}.main" -- env | sort
