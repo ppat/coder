@@ -10,15 +10,20 @@ place_lifecycle_markers() {
 restart_workspace() {
   workspace_name="$1"
   tmp_pvc_name="$(kubectl get -n coder pvc -l com.coder.workspace.name=${WORKSPACE_NAME},storage-type=tmp -o name)"
+  pod_name="$(kubectl get -n coder pod -l com.coder.workspace.name=${WORKSPACE_NAME} -o name)"
 
   echo "Stopping workspace..."
-  coder stop "${workspace_name}" --yes
+  coder stop "${workspace_name}" --yes | sed 's/^/  /'
+  echo "Waiting for pod to be deleted..."
+  kubectl --namespace coder wait --for=delete "${pod_name}" --timeout=5m | sed 's/^/  /'
   echo "Waiting for tmp PVC to be deleted..."
-  kubectl --namespace coder wait --for=delete "${tmp_pvc_name}" --timeout=5m
+  kubectl --namespace coder wait --for=delete "${tmp_pvc_name}" --timeout=5m | sed 's/^/  /'
+  echo "Show resources after stop:"
+  kubectl --namespace coder get pods,pvc | sed 's/^/  /'
   echo "Starting workspace..."
-  coder start "${workspace_name}" --no-wait --yes
+  coder start "${workspace_name}" --no-wait --yes | sed 's/^/  /'
   echo "Waiting for workspace to be ready..."
-  coder ping --num 3 --timeout 30s "${workspace_name}.main"
+  coder ping --num 3 --timeout 30s "${workspace_name}.main" | sed 's/^/  /'
 }
 
 confirm_pvc_lifecycle_behavior() {
@@ -27,7 +32,7 @@ confirm_pvc_lifecycle_behavior() {
     echo "::error::Home PVC did not preserve the lifecycle marker across restarts."
     exit 1
   }
-  coder ssh "${workspace_name}.main" -- test -f /tmp/.tmp-pvc-lifecycle || {
+  coder ssh "${workspace_name}.main" -- test ! -f /tmp/.tmp-pvc-lifecycle || {
     echo "::error::Expected a fresh Temp PVC, but got the same as the lifecycle marker was preserved across restarts."
     exit 1
   }

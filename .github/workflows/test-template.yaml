@@ -122,10 +122,13 @@ jobs:
       if: failure()
       shell: bash
       run: |
+        echo "------------------------ K8S PODS -------------------------"
         kubectl --namespace coder get pods --output wide || true
-        echo
+        echo "--------------------- WORKSPACE LOGS ----------------------"
         kubectl --namespace coder logs \
         --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
         --all-containers --prefix --tail=200 || true
         echo
+        echo "------------------- DOCKER COMPOSE LOGS -------------------"
         docker compose -f "${COMPOSE_FILE}" logs
+        echo "-------------------====================--------------------"

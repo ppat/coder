@@ -8,11 +8,13 @@ check_dotfiles_status() {
   timeout 15m bash -c \
     'until coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/applied; do
       if coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/failed; then
+        echo "::error::Dotfiles failed to apply. See run.log below."
         coder ssh "$1" -- cat /home/coder/.local/state/dotfiles/run.log
         exit 1
       fi
       sleep 5
     done' _ "${workspace_name}.main"
+    echo "Dotfiles applied successfully."
 }
 
 spotcheck_dotfiles_placement() {
