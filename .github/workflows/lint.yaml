@@ -47,7 +47,7 @@ jobs:
 
   opentofu-dirs:
     needs: [detect-changes]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     outputs:
       opentofu_dirs: ${{ steps.determine-tf-dirs.outputs.dirs }}
@@ -93,7 +93,7 @@ jobs:
   # commit range, and a PR title is not in the history until after the merge it decides.
   pr-title:
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.commits > 1 }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
     - name: Setup repository and tools
