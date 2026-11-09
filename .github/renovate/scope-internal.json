@@ -19,7 +19,7 @@
       "commitMessagePrefix": "{{semanticCommitType}}{{#if semanticCommitScope}}({{semanticCommitScope}}){{/if}}:"
     },
     {
-      "commitMessageTopic": "opentofu",
+      "commitMessageTopic": "coder",
       "groupName": "coder-{{newVersion}}",
       "matchManagers": [
         "docker-compose",
