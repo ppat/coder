@@ -3,8 +3,8 @@ set -euo pipefail
 
 place_lifecycle_markers() {
   workspace_name="$1"
-  coder ssh "${workspace_name}.main" -- touch /home/coder/.home-pvc-lifecycle
-  coder ssh "${workspace_name}.main" -- touch /tmp/.tmp-pvc-lifecycle
+  coder ssh --wait no "${workspace_name}.main" -- touch /home/coder/.home-pvc-lifecycle
+  coder ssh --wait no "${workspace_name}.main" -- touch /tmp/.tmp-pvc-lifecycle
 }
 
 restart_workspace() {
@@ -28,11 +28,11 @@ restart_workspace() {
 
 confirm_pvc_lifecycle_behavior() {
   workspace_name="$1"
-  coder ssh "${workspace_name}.main" -- test -f /home/coder/.home-pvc-lifecycle || {
+  coder ssh --wait no "${workspace_name}.main" -- test -f /home/coder/.home-pvc-lifecycle || {
     echo "::error::Home PVC did not preserve the lifecycle marker across restarts."
     exit 1
   }
-  coder ssh "${workspace_name}.main" -- test ! -f /tmp/.tmp-pvc-lifecycle || {
+  coder ssh --wait no "${workspace_name}.main" -- test ! -f /tmp/.tmp-pvc-lifecycle || {
     echo "::error::Expected a fresh Temp PVC, but got the same as the lifecycle marker was preserved across restarts."
     exit 1
   }

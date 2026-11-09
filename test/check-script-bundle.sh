@@ -10,9 +10,9 @@ check_placement() {
   for file in ${files}; do
     echo "Checking script: ${file}..."
     if [[ "${file_executable}" == *"yes"* ]]; then
-      coder ssh "${workspace_name}.main" -- test -x "/scripts/${file}" || (echo "::error::File ${file} is missing or not executable" && exit 1)
+      coder ssh --wait no "${workspace_name}.main" -- test -x "/scripts/${file}" || (echo "::error::File ${file} is missing or not executable" && exit 1)
     else
-      coder ssh "${workspace_name}.main" -- test -f "/scripts/${file}" || (echo "::error::File ${file} is missing" && exit 1)
+      coder ssh --wait no "${workspace_name}.main" -- test -f "/scripts/${file}" || (echo "::error::File ${file} is missing" && exit 1)
     fi
   done
 }
