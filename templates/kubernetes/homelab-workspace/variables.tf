@@ -1,19 +1,24 @@
 variable "workspace_image" {
-  type = string
+  description = "Workspace container image"
+  type        = string
 }
 
 variable "home_pvc_storage_class" {
-  type = string
+  description = "Storage class used for the home PVC."
+  type        = string
 }
 
 variable "tmp_pvc_storage_class" {
-  type = string
+  description = "Storage class used for ephemeral tmp PVCs."
+  type        = string
 }
 
 variable "kubernetes_config_path" {
-  type = string
+  description = "Provisioner-local kubeconfig path, or in-cluster for in-cluster authentication."
+  type        = string
 }
 
 variable "skip_dotfiles_scripts" {
-  type = bool
+  description = "Whether Chezmoi should skip repository-owned bootstrap scripts."
+  type        = bool
 }

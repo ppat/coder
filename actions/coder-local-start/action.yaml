@@ -1,0 +1,90 @@
+---
+# yamllint disable rule:line-length
+name: Coder Local Cluster Start
+description: >-
+  Create a local coder deployment with docker compose and start a kind cluster for that Coder deployment
+  to deploy coder workspaces in. This is intended for use in GitHub Actions workflows that need to run tests.
+
+inputs:
+  kind_cluster:
+    description: Name of the kind cluster to create.
+    default: coder-template-test
+  docker_compose_file:
+    description: Path to the docker compose file for the local Coder deployment.
+    required: true
+  coder_email:
+    description: Email of the user to log in as.
+    required: true
+  coder_password:
+    description: Password of the user to log in as.
+    required: true
+
+outputs:
+  coder_url:
+    description: Base URL of the Coder deployment.
+    value: ${{ steps.coder-ready.outputs.coder-url }}
+
+runs:
+  using: composite
+  steps:
+  - name: Create Kubernetes test cluster
+    env:
+      KIND_CLUSTER: ${{ inputs.kind_cluster }}
+    shell: bash
+    run: kind create cluster --name "${KIND_CLUSTER}"
+
+  - name: Prep environment
+    env:
+      KIND_CLUSTER: ${{ inputs.kind_cluster }}
+      COMPOSE_FILE: ${{ inputs.docker_compose_file }}
+      CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
+      RUNNER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-runner
+    shell: bash
+    # prepare environment variables and cfg files needed for all subsequent docker compose invocations
+    run: |
+      kind export kubeconfig --name "${KIND_CLUSTER}" --kubeconfig "${RUNNER_KUBECONFIG}"
+
+      cp "${RUNNER_KUBECONFIG}" "${CODER_KUBECONFIG}"
+      sed -Ei "s#https://127\\.0\\.0\\.1:[0-9]+#https://${KIND_CLUSTER}-control-plane:6443#" "${CODER_KUBECONFIG}"
+      chmod 644 "${CODER_KUBECONFIG}"
+      echo "CODER_KUBECONFIG=${CODER_KUBECONFIG}" >> "${GITHUB_ENV}"
+
+      CODER_TOFU_BINARY="$(cd current && mise which tofu)"
+      echo "CODER_TOFU_BINARY=${CODER_TOFU_BINARY}" >> "${GITHUB_ENV}"
+      echo "COMPOSE_FILE=${COMPOSE_FILE}" >> "${GITHUB_ENV}"
+
+  - name: Create coder namespace
+    shell: bash
+    run: kubectl create namespace coder
+
+  - name: Start local Coder
+    shell: bash
+    run: |
+      echo "Using environment:"
+      env | sort | grep -E '^(CODER|COMPOSE_FILE|DOCKER|KIND|KUBECONFIG)' | sed 's/^/  /'
+      echo
+      docker compose -f "${COMPOSE_FILE}" up --detach
+
+  - name: Wait for local Coder to accept connections
+    id: coder-ready
+    shell: bash
+    run: |
+      echo "Determining coder port and URL..."
+      CODER_PORT="$(yq .services.coder.ports[0] ${COMPOSE_FILE} | cut -d':' -f2)"
+      CODER_URL="http://localhost:${CODER_PORT}"
+      echo "Using Coder URL: ${CODER_URL}"
+      echo
+      timeout 5m bash -c "until curl --fail --silent --show-error \"${CODER_URL}/api/v2/buildinfo\" > /dev/null; do sleep 2; done"
+      echo "Coder is ready at ${CODER_URL}"
+      echo "coder-url=$CODER_URL" >> $GITHUB_OUTPUT
+
+  - name: Create local Coder user
+    env:
+      USERNAME: ci
+      EMAIL: ${{ inputs.coder_email }}
+      PASSWORD: ${{ inputs.coder_password }}
+    shell: bash
+    # yamllint disable-line rule:indentation
+    run: |
+      docker compose -f "${COMPOSE_FILE}" exec --tty=false coder \
+        coder server create-admin-user --username ci --email ${EMAIL} --password ${PASSWORD}

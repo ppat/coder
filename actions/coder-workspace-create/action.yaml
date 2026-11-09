@@ -1,0 +1,52 @@
+---
+# yamllint disable rule:line-length
+name: Coder Workspace Create
+description: >-
+  Creates a workspace from a template and waits for the workspace to be ready to accept connections.
+
+inputs:
+  template_name:
+    description: Name of the template to use for creating the workspace.
+    required: true
+  workspace_name:
+    description: Name of the workspace to create.
+    required: true
+
+outputs:
+  coder_url:
+    description: Base URL of the Coder deployment.
+    value: ${{ steps.coder-ready.outputs.coder-url }}
+
+runs:
+  using: composite
+  steps:
+  - name: Start workspace
+    env:
+      TEMPLATE_NAME: ${{ inputs.template_name }}
+      WORKSPACE_NAME: ${{ inputs.workspace_name }}
+    shell: bash
+    # yamllint disable-line rule:indentation
+    run: |
+      set -x
+      coder create "${WORKSPACE_NAME}" \
+        --template "${TEMPLATE_NAME}" \
+        --preset test \
+        --use-parameter-defaults true \
+        --no-wait \
+        --yes \
+      set +x
+
+  - name: Ping workspace agent
+    env:
+      WORKSPACE_NAME: ${{ inputs.workspace_name }}
+    shell: bash
+    # Name the primary agent explicitly so adding another agent cannot make
+    # this otherwise unrelated readiness check ambiguous.
+    run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
+
+  - name: Test workspace connection and running command on workspace over ssh
+    env:
+      WORKSPACE_NAME: ${{ inputs.workspace_name }}
+    shell: bash
+    run: |
+      coder ssh "${WORKSPACE_NAME}.main" -- env | sort

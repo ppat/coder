@@ -15,22 +15,9 @@ inputs:
   template_version:
     description: Name given to the pushed template version.
     required: true
-  workspace_image:
-    description: Value passed to the template's workspace_image variable.
+  template_cfg_file:
+    description: Path to the template's configuration file with terraform variables configured.
     required: true
-  home_pvc_storage_class:
-    description: Storage class used for workspace-owned home PVCs.
-    required: true
-  tmp_pvc_storage_class:
-    description: Storage class used for ephemeral tmp PVCs.
-    required: true
-  kubernetes_config_path:
-    description: Provisioner-local kubeconfig path, or in-cluster for in-cluster authentication.
-    required: true
-  skip_dotfiles_scripts:
-    description: Whether Chezmoi should skip repository-owned bootstrap scripts.
-    required: true
-    default: "false"
   message:
     description: Message recorded on the pushed template version.
     required: false
@@ -42,14 +29,11 @@ runs:
   - name: Push template
     shell: bash
     env:
+      CODER_URL: ${{ inputs.coder_url }}
       TEMPLATE_DIR: ${{ inputs.template_dir }}
       TEMPLATE_NAME: ${{ inputs.template_name }}
       TEMPLATE_VERSION: ${{ inputs.template_version }}
-      WORKSPACE_IMAGE: ${{ inputs.workspace_image }}
-      HOME_PVC_STORAGE_CLASS: ${{ inputs.home_pvc_storage_class }}
-      TMP_PVC_STORAGE_CLASS: ${{ inputs.tmp_pvc_storage_class }}
-      KUBERNETES_CONFIG_PATH: ${{ inputs.kubernetes_config_path }}
-      SKIP_DOTFILES_SCRIPTS: ${{ inputs.skip_dotfiles_scripts }}
+      TEMPLATE_CFG_FILE: ${{ inputs.template_cfg_file }}
       TEMPLATE_MESSAGE: ${{ inputs.message }}
     # yamllint disable-line rule:indentation
     run: |
@@ -78,13 +62,14 @@ runs:
           "${coder_url}/api/v2/templateversions/${existing_id}" >/dev/null
       fi
 
+      echo
+      echo "Using template cfg file: ${TEMPLATE_CFG_FILE}"
+      cat ${TEMPLATE_CFG_FILE} | sed 's/^/  /'
+      echo
+
       push_args=(
         --directory "${TEMPLATE_DIR}"
-        --var "workspace_image=${WORKSPACE_IMAGE}"
-        --var "home_pvc_storage_class=${HOME_PVC_STORAGE_CLASS}"
-        --var "tmp_pvc_storage_class=${TMP_PVC_STORAGE_CLASS}"
-        --var "kubernetes_config_path=${KUBERNETES_CONFIG_PATH}"
-        --var "skip_dotfiles_scripts=${SKIP_DOTFILES_SCRIPTS}"
+        --variables-file "${TEMPLATE_CFG_FILE}"
         --name "${TEMPLATE_VERSION}"
         --yes
       )

@@ -1,8 +1,12 @@
 [tools]
-bun = "1.4.4"
-node = "26.13.0"
+bun      = "1.4.4"
+coder    = "2.38.5"
+kind     = "0.33.0"
+kubectl  = "1.37.2"
+node     = "26.13.0"
 opentofu = "1.13.2"
-tflint = "0.65.0"
+tflint   = "0.65.0"
+yq       = "4.54.1"
 
 [settings.npm]
 package_manager = "bun"

@@ -5,10 +5,13 @@ name: test template
 on:
   pull_request:
     paths:
-    - actions/coder-template-push/**
+    - actions/**
     - .github/compose/**
     - .github/workflows/test-template.yaml
     - templates/kubernetes/homelab-workspace/**
+    - test/**
+    - mise.toml
+    - mise.lock
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -18,10 +21,8 @@ permissions:
   contents: read
 
 env:
-  CODER_URL: http://localhost:7080
   CODER_SSH_WAIT: "no"
   COMPOSE_FILE: current/.github/compose/compose.yaml
-  KIND_CLUSTER: coder-template-test
   TEMPLATE_NAME: homelab-workspace-test
   WORKSPACE_NAME: template-test
 
@@ -30,6 +31,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+    - name: Checkout automation actions
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        path: .automation
+        ref: ${{ github.head_ref || github.ref }}
+
     - name: Setup repository and tools
       # Checks the repo out into current/ (hence the current/ prefix on every path
       # reference below) and, with no mise_toml override, installs straight from
@@ -41,296 +49,85 @@ jobs:
         current_repository: ${{ github.repository }}
         token: ${{ github.token }}
 
-    - name: Create Kubernetes test cluster
-      run: kind create cluster --name "${KIND_CLUSTER}"
-
-    - name: Create coder namespace
-      # The live cluster's "coder" namespace is created by the platform's own
-      # Helm release, outside this repo - see configmap.tf/deployment.tf's
-      # hardcoded namespace. Kind starts empty, so the test cluster needs it
-      # created explicitly before the template can be applied.
-      run: kubectl create namespace coder
-
-    - name: Start local Coder
-      env:
-        CODER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-coder
-        RUNNER_KUBECONFIG: ${{ runner.temp }}/kubeconfig-runner
-      shell: bash
-      run: |
-        kind export kubeconfig --name "${KIND_CLUSTER}" --kubeconfig "${RUNNER_KUBECONFIG}"
-        cp "${RUNNER_KUBECONFIG}" "${CODER_KUBECONFIG}"
-        sed -Ei "s#https://127\\.0\\.0\\.1:[0-9]+#https://${KIND_CLUSTER}-control-plane:6443#" "${CODER_KUBECONFIG}"
-        chmod 644 "${CODER_KUBECONFIG}"
-        echo "CODER_KUBECONFIG=${CODER_KUBECONFIG}" >> "${GITHUB_ENV}"
-        # $GITHUB_ENV only takes effect for steps that run AFTER this one - it does
-        # nothing for the `docker compose up` a few lines below, in this same step,
-        # which is why CODER_KUBECONFIG above works (it's this step's own `env:`,
-        # set from the start) while a same-step echo-then-use of CODER_TOFU_BINARY
-        # silently resolved empty and produced docker compose's opaque "invalid
-        # spec: empty section between colons". Exporting it directly makes it visible
-        # to this step's own `docker compose up`; the $GITHUB_ENV write is still needed
-        # so later steps' `docker compose exec`/`logs` calls see it too, since compose
-        # re-resolves the whole file - volumes included - on every subcommand.
-        # cd'd into current/ for this one command only - that's where mise.toml
-        # actually is, unlike this step's own default working directory.
-        CODER_TOFU_BINARY="$(cd current && mise which tofu)"
-        export CODER_TOFU_BINARY
-        echo "CODER_TOFU_BINARY=${CODER_TOFU_BINARY}" >> "${GITHUB_ENV}"
-        docker compose -f "${COMPOSE_FILE}" up --detach
-
-    - name: Wait for local Coder
-      shell: bash
-      run: |
-        timeout 5m bash -c "until curl --fail --silent --show-error \"${CODER_URL}/api/v2/buildinfo\" > /dev/null; do sleep 2; done"
-
-    - name: Create local Coder user
-      # CODER_KUBECONFIG comes from the "Start local Coder" step via $GITHUB_ENV -
-      # docker compose re-resolves the whole compose file (including the volumes
-      # section) for every subcommand, so it still needs a valid value even for
-      # exec, which mounts nothing new.
-      run: |
-        docker compose -f "${COMPOSE_FILE}" exec --tty=false coder \
-        coder server create-admin-user --username ci --email ci@example.invalid --password ci-password
-
-    - name: Install and log in to Coder CLI
-      uses: ./current/actions/coder-cli-login
+    - name: Setup local coder deployment
+      id: setup_local_coder
+      uses: ./.automation/actions/coder-local-start
       with:
-        coder_url: ${{ env.CODER_URL }}
+        docker_compose_file: ${{ env.COMPOSE_FILE }}
         coder_email: ci@example.invalid
         coder_password: ci-password
 
-    - name: Determine latest released workspace image
-      id: released_image
+    - name: Log in to Coder CLI
+      uses: ./.automation/actions/coder-cli-login
+      with:
+        coder_url: ${{ steps.setup_local_coder.outputs.coder_url }}
+        coder_email: ci@example.invalid
+        coder_password: ci-password
+
+    - name: Prepare template configuration
+      id: template_cfg
       env:
         GH_TOKEN: ${{ github.token }}
+        TEMPLATE_CFG_FILE: ${{ runner.temp }}/template-config.yaml
       shell: bash
       run: |
         RELEASE_TAG="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName)"
-        echo "workspace_image=ghcr.io/ppat/coder-workspace:${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
 
-    - name: Confirm in-cluster publish input
-      uses: ./current/actions/coder-template-push
-      with:
-        template_dir: current/templates/kubernetes/homelab-workspace
-        template_name: in-cluster-test
-        template_version: ${{ github.sha }}
-        workspace_image: ${{ steps.released_image.outputs.workspace_image }}
-        home_pvc_storage_class: standard
-        tmp_pvc_storage_class: standard
-        kubernetes_config_path: in-cluster
-        skip_dotfiles_scripts: "true"
-
-    - name: Publish template
-      uses: ./current/actions/coder-template-push
-      with:
-        template_dir: current/templates/kubernetes/homelab-workspace
-        template_name: ${{ env.TEMPLATE_NAME }}
-        template_version: ${{ github.sha }}
-        workspace_image: ${{ steps.released_image.outputs.workspace_image }}
+        cat <<EOF > "${TEMPLATE_CFG_FILE}"
+        workspace_image: ghcr.io/ppat/coder-workspace:${RELEASE_TAG}
         home_pvc_storage_class: standard
         tmp_pvc_storage_class: standard
         kubernetes_config_path: /home/coder/.kube/config
         skip_dotfiles_scripts: "true"
+        EOF
 
-    - name: Confirm storage parameter contracts
-      shell: bash
-      run: |
-        version_id="$(coder templates versions list "${TEMPLATE_NAME}" --output json \
-        | jq --raw-output '.[0].TemplateVersion.id')"
-        [[ "${version_id}" =~ ^[0-9a-f-]{36}$ ]]
-        session_token="$(<"${HOME}/.config/coderv2/session")"
-        owner_id="$(curl --fail --silent --show-error \
-        --header "Coder-Session-Token: ${session_token}" "${CODER_URL}/api/v2/users/me" | jq --raw-output .id)"
-        parameters="$(curl --fail --silent --show-error --request POST \
-        --header "Coder-Session-Token: ${session_token}" --header 'Content-Type: application/json' \
-        --data "$(jq --null-input --arg owner_id "${owner_id}" \
-        '{id: 0, owner_id: $owner_id, inputs: {use_existing_home_pvc: "false"}}')" \
-        "${CODER_URL}/api/v2/templateversions/${version_id}/dynamic-parameters/evaluate")"
-        jq --exit-status \
-        'any(.parameters[]; .name == "home_pvc_size" and .mutable == true
-        and any(.validations[]; .validation_max == 256))' \
-        <<<"${parameters}"
-        jq --exit-status \
-        'any(.parameters[]; .name == "tmp_pvc_size" and .mutable == true and .default_value.value == "1"
-        and any(.validations[]; .validation_min == 1 and .validation_max == 50))' \
-        <<<"${parameters}"
+        echo "template_cfg_file=${TEMPLATE_CFG_FILE}" >> "${GITHUB_OUTPUT}"
 
-    - name: Start workspace
-      env:
-        SERVICE_COMMANDS: >-
-          ["test -f /home/coder/.local/state/dotfiles/applied || { touch /tmp/service-started-too-early; exit 1; };
-          printf x >> /tmp/service-restarts; sleep 2; exit 1",
-          "test -f /home/coder/.local/state/dotfiles/applied || { touch /tmp/service-started-too-early; exit 1; };
-          touch /tmp/service-steady; exec sleep 300"]
-      shell: bash
-      run: |
-        service_parameter="$(jq --null-input --raw-output \
-        --arg value "service_commands=${SERVICE_COMMANDS}" '[$value] | @csv')"
-        coder create "${WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
-        --parameter dotfiles_url=https://github.com/ppat/dotfiles.git \
-        --parameter use_existing_home_pvc=false --parameter home_pvc_size=2 --parameter tmp_pvc_size=1 \
-        --parameter memory=4 --parameter preferred_nodes='[]' --parameter memory_watchdog_mode=enforce \
-        --parameter "${service_parameter}"
+    - name: Publish template
+      uses: ./.automation/actions/coder-template-push
+      with:
+        template_dir: current/templates/kubernetes/homelab-workspace
+        template_name: ${{ env.TEMPLATE_NAME }}
+        template_version: ${{ github.sha }}
+        template_cfg_file: ${{ steps.template_cfg.outputs.template_cfg_file }}
 
-    - name: Ping workspace agent
-      shell: bash
-      # Name the primary agent explicitly so adding another agent cannot make
-      # this otherwise unrelated readiness check ambiguous.
-      run: coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
+    - name: Create workspace
+      uses: ./.automation/actions/coder-workspace-create
+      with:
+        template_name: ${{ env.TEMPLATE_NAME }}
+        workspace_name: ${{ env.WORKSPACE_NAME }}
 
-    - name: Run command over workspace SSH
+    - name: Confirm script bundle is present within workspace
       shell: bash
-      run: |
-        coder ssh "${WORKSPACE_NAME}.main" -- env
-
-    - name: Confirm script bundle and temporary storage
-      shell: bash
-      run: |
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-agent-startup.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-container-entrypoint.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-dotfiles.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-memory-watchdog.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-memory-watchdog-start.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-prepare-workspace.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-service-command.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-start-services.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -f /scripts/supervisord.conf
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/script-vscode-server-gc.sh
-        coder ssh "${WORKSPACE_NAME}.main" -- test -x /scripts/workspace-init.sh
-        deployment_name="$(kubectl --namespace coder get deployment \
-        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.name}')"
-        [[ "$(kubectl --namespace coder get "deployment/${deployment_name}" \
-        --output jsonpath='{.spec.template.spec.volumes[?(@.name=="tmp")].ephemeral.volumeClaimTemplate.spec.resources.requests.storage}')" \
-        == "1Gi" ]]
+      run: ./.automation/test/check-script-bundle.sh "${WORKSPACE_NAME}" "current/templates/kubernetes/homelab-workspace"
 
     - name: Confirm dotfiles were applied
       shell: bash
-      run: |
-        # Expand the positional parameter inside the runner-owned polling shell.
-        # shellcheck disable=SC2016
-        timeout 15m bash -c \
-        'until coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/applied; do
-        if coder ssh "$1" -- test -f /home/coder/.local/state/dotfiles/failed; then
-        coder ssh "$1" -- cat /home/coder/.local/state/dotfiles/run.log
-        exit 1
-        fi
-        sleep 5
-        done' \
-        _ "${WORKSPACE_NAME}.main"
-        coder ssh "${WORKSPACE_NAME}.main" -- test -f /home/coder/.config/mise/config.toml
-        origin="$(coder ssh "${WORKSPACE_NAME}.main" -- git -C /home/coder/.local/share/chezmoi remote get-url origin)"
-        [[ "${origin}" == "https://github.com/ppat/dotfiles.git" ]]
+      run: ./.automation/test/confirm-dotfiles-applied.sh "${WORKSPACE_NAME}"
 
     - name: Confirm supervised service starts after dotfiles and restarts
       shell: bash
-      run: |
-        # Expand the positional parameter inside the runner-owned polling shell.
-        # shellcheck disable=SC2016
-        if ! timeout 2m bash -c \
-        'until count="$(coder ssh "$1" -- stat --format=%s /tmp/service-restarts 2>/dev/null)" &&
-        [ "$count" -ge 2 ]; do sleep 2; done' \
-        _ "${WORKSPACE_NAME}.main"; then
-        coder ssh "${WORKSPACE_NAME}.main" -- \
-        supervisorctl --configuration /scripts/supervisord.conf status || true
-        coder ssh "${WORKSPACE_NAME}.main" -- ls -la /home/coder/.local/state/supervisor /tmp/service-* || true
-        coder ssh "${WORKSPACE_NAME}.main" -- tail -n 100 /home/coder/.local/state/supervisor/service-0.log || true
-        coder ssh "${WORKSPACE_NAME}.main" -- tail -n 100 /home/coder/.local/state/supervisor/service-1.log || true
-        exit 1
-        fi
-        coder ssh "${WORKSPACE_NAME}.main" -- test ! -e /tmp/service-started-too-early
-        coder ssh "${WORKSPACE_NAME}.main" -- test -e /tmp/service-steady
-        coder ssh "${WORKSPACE_NAME}.main" -- \
-        supervisorctl --configuration /scripts/supervisord.conf status service:service-0
-        coder ssh "${WORKSPACE_NAME}.main" -- \
-        supervisorctl --configuration /scripts/supervisord.conf status service:service-1
+      run: ./.automation/test/confirm-supervised-service-status.sh "${WORKSPACE_NAME}"
 
     - name: Show dotfiles log
       if: always()
       run: coder ssh "${WORKSPACE_NAME}.main" -- cat /home/coder/.local/state/dotfiles/run.log || true
 
-    - name: Confirm workspace-owned home PVC lifecycle
+    - name: Confirm workspace restart behavior - home PVC survives and tmp PVC is replaced
       shell: bash
-      run: |
-        pvc_name="$(kubectl --namespace coder get pvc \
-        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.name}')"
-        [[ -n "${pvc_name}" ]]
-        pod_uid="$(kubectl --namespace coder get pod \
-        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.uid}')"
-        tmp_pvc_name="$(kubectl --namespace coder get pvc --output json | jq --raw-output --arg uid "${pod_uid}" \
-        '.items[] | select(any(.metadata.ownerReferences[]?; .uid == $uid)) | .metadata.name')"
-        [[ -n "${tmp_pvc_name}" ]]
-        coder ssh "${WORKSPACE_NAME}.main" -- touch /home/coder/.home-pvc-lifecycle
-        coder stop "${WORKSPACE_NAME}" --yes
-        kubectl --namespace coder get "persistentvolumeclaim/${pvc_name}"
-        kubectl --namespace coder wait --for=delete \
-        "persistentvolumeclaim/${tmp_pvc_name}" --timeout=5m
-        coder start "${WORKSPACE_NAME}" --no-wait --yes
-        coder ping --num 3 --timeout 30s "${WORKSPACE_NAME}.main"
-        coder ssh "${WORKSPACE_NAME}.main" -- test -f /home/coder/.home-pvc-lifecycle || {
-        echo "::error::Home PVC did not preserve the lifecycle marker across stop/start."
-        exit 1
-        }
-        home_size="$(kubectl --namespace coder get "persistentvolumeclaim/${pvc_name}" \
-        --output jsonpath='{.spec.resources.requests.storage}')"
-        [[ "${home_size}" == "2Gi" ]] || {
-        echo "::error::Expected home PVC ${pvc_name} to remain 2Gi, observed ${home_size}."
-        exit 1
-        }
-        new_pod_uid="$(kubectl --namespace coder get pod \
-        --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.uid}')"
-        new_tmp_pvc_name="$(kubectl --namespace coder get pvc --output json | jq --raw-output --arg uid "${new_pod_uid}" \
-        '.items[] | select(any(.metadata.ownerReferences[]?; .uid == $uid)) | .metadata.name')"
-        [[ -n "${new_tmp_pvc_name}" && "${new_tmp_pvc_name}" != "${tmp_pvc_name}" ]] || {
-        echo "::error::Expected a replacement tmp PVC; old=${tmp_pvc_name}, new=${new_tmp_pvc_name:-missing}."
-        exit 1
-        }
-        tmp_request="$(kubectl --namespace coder get "persistentvolumeclaim/${new_tmp_pvc_name}" \
-        --output jsonpath='{.spec.resources.requests.storage}')"
-        tmp_capacity="$(kubectl --namespace coder get "persistentvolumeclaim/${new_tmp_pvc_name}" \
-        --output jsonpath='{.status.capacity.storage}')"
-        [[ "${tmp_request}" == "1Gi" && "${tmp_capacity}" == "1Gi" ]] || {
-        echo "::error::Expected tmp PVC ${new_tmp_pvc_name} to request and bind 1Gi; request=${tmp_request}, capacity=${tmp_capacity}."
-        exit 1
-        }
-        coder delete "${WORKSPACE_NAME}" --yes
-        kubectl --namespace coder wait --for=delete "persistentvolumeclaim/${pvc_name}" --timeout=5m
-
-    - name: Confirm custom temporary storage size
-      env:
-        SIZED_WORKSPACE_NAME: template-test-tmp-size
-      shell: bash
-      run: |
-        coder create "${SIZED_WORKSPACE_NAME}" --template "${TEMPLATE_NAME}" --no-wait --yes \
-        --parameter dotfiles_url='' --parameter use_existing_home_pvc=false \
-        --parameter home_pvc_size=1 --parameter tmp_pvc_size=2 --parameter memory=4 \
-        --parameter preferred_nodes='[]' --parameter service_commands='[]' \
-        --parameter memory_watchdog_mode=enforce
-        coder ping --num 3 --timeout 30s "${SIZED_WORKSPACE_NAME}.main"
-        pod_uid="$(kubectl --namespace coder get pod \
-        --selector "com.coder.workspace.name=${SIZED_WORKSPACE_NAME}" \
-        --output jsonpath='{.items[0].metadata.uid}')"
-        tmp_pvc_name="$(kubectl --namespace coder get pvc --output json | jq --raw-output --arg uid "${pod_uid}" \
-        '.items[] | select(any(.metadata.ownerReferences[]?; .uid == $uid)) | .metadata.name')"
-        tmp_request="$(kubectl --namespace coder get "persistentvolumeclaim/${tmp_pvc_name}" \
-        --output jsonpath='{.spec.resources.requests.storage}')"
-        tmp_capacity="$(kubectl --namespace coder get "persistentvolumeclaim/${tmp_pvc_name}" \
-        --output jsonpath='{.status.capacity.storage}')"
-        [[ "${tmp_request}" == "2Gi" && "${tmp_capacity}" == "2Gi" ]] || {
-        echo "::error::Expected tmp PVC ${tmp_pvc_name} to request and bind 2Gi; request=${tmp_request}, capacity=${tmp_capacity}."
-        exit 1
-        }
-        coder delete "${SIZED_WORKSPACE_NAME}" --yes
+      run: ./.automation/test/confirm-storage-volume-behavior.sh "${WORKSPACE_NAME}"
 
     - name: Show Coder logs on failure
       if: failure()
       shell: bash
       run: |
+        echo "------------------------ K8S PODS -------------------------"
         kubectl --namespace coder get pods --output wide || true
+        echo "--------------------- WORKSPACE LOGS ----------------------"
         kubectl --namespace coder logs \
         --selector "com.coder.workspace.name=${WORKSPACE_NAME}" \
         --all-containers --prefix --tail=200 || true
+        echo
+        echo "------------------- DOCKER COMPOSE LOGS -------------------"
         docker compose -f "${COMPOSE_FILE}" logs
+        echo "-------------------====================--------------------"

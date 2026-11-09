@@ -19,7 +19,9 @@ resource "kubernetes_persistent_volume_claim_v1" "home" {
   metadata {
     name      = "coder-workspace-${data.coder_workspace.me.id}-home"
     namespace = "coder"
-    labels    = local.common_labels
+    labels = merge(local.common_labels, {
+      "storage-type" = "home"
+    })
   }
 
   spec {
