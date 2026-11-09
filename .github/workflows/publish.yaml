@@ -65,13 +65,12 @@ jobs:
         path: .automation
         ref: main
 
-    - name: Checkout release source
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Checkout release source and setup repository toolst.
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@b243512e70e84044d607787b1f482881906b0f01 # v3.0.0
       with:
-        fetch-depth: 1
-        persist-credentials: false
-        path: release
-        ref: ${{ env.template_source_ref }}
+        current_git_ref: ${{ env.template_source_ref }}
+        current_repository: ${{ github.repository }}
+        token: ${{ github.token }}
 
     - name: Tailscale Connect
       uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
@@ -108,7 +107,7 @@ jobs:
     - name: Publish template
       uses: ./.automation/actions/coder-template-push
       with:
-        template_dir: release/${{ env.template_path }}
+        template_dir: current/${{ env.template_path }}
         template_name: ${{ env.template_name }}
         template_version: ${{ env.source_sha }}
         template_cfg_file: ${{ steps.template_cfg.outputs.template_cfg_file }}
