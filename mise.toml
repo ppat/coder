@@ -1,6 +1,6 @@
 [tools]
 bun      = "1.4.4"
-coder    = "2.38.5"
+coder    = "2.39.0"
 kind     = "0.33.0"
 kubectl  = "1.37.2"
 node     = "26.13.0"
