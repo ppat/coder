@@ -2,6 +2,13 @@
 
 
 
+## [3.8.0](https://github.com/ppat/coder/compare/v3.7.0...v3.8.0) (2026-11-21)
+
+
+### ✨ Features
+
+* **image:** update upx/upx (v5.2.1 -&gt; v5.3.0) ([#992](https://github.com/ppat/coder/issues/992)) ([c6f1006](https://github.com/ppat/coder/commit/c6f10064e5aad743576c793927a1a88f50fb4c3b))
+
 ## [3.7.0](https://github.com/ppat/coder/compare/v3.6.0...v3.7.0) (2026-11-09)
 
 
