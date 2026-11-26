@@ -43,7 +43,7 @@ jobs:
       # reference below) and, with no mise_toml override, installs straight from
       # current/mise.toml - the same `opentofu` pin the authoring toolchain uses
       # locally, so there's no second version string to drift from it.
-      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@dabb7c51177ba40ea15235f18d0c1f2dee4b0c9f # v3.1.0
+      uses: ppat/homelab-ops-actions/actions/setup-repository-tools@27e5d37efa92e4921b02ea39480974c2b1aaa7e8 # v3.2.0
       with:
         current_git_ref: ${{ github.head_ref || github.ref }}
         current_repository: ${{ github.repository }}
