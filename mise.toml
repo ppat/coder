@@ -1,5 +1,5 @@
 [tools]
-bun      = "1.4.4"
+bun      = "1.4.5"
 coder    = "2.39.4"
 kind     = "0.33.0"
 kubectl  = "1.37.2"
