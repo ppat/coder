@@ -2,6 +2,18 @@
 
 
 
+## [3.8.0](https://github.com/ppat/coder/compare/v3.7.0...v3.8.0) (2026-11-28)
+
+
+### ✨ Features
+
+* **image:** update upx/upx (v5.2.1 -&gt; v5.3.0) ([#992](https://github.com/ppat/coder/issues/992)) ([c6f1006](https://github.com/ppat/coder/commit/c6f10064e5aad743576c793927a1a88f50fb4c3b))
+
+
+### 🐛 Enhancements + Bug Fixes
+
+* **image:** update digest ubuntu (6a06111 -&gt; d66b366) ([#1001](https://github.com/ppat/coder/issues/1001)) ([0e000fb](https://github.com/ppat/coder/commit/0e000fb3bab471bd90aebedc7cb8ae7f9f373b7b))
+
 ## [3.7.0](https://github.com/ppat/coder/compare/v3.6.0...v3.7.0) (2026-11-09)
 
 
